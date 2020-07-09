@@ -1,0 +1,4 @@
+/projects/nanomq/demo/async/build/CMakeFiles/rebuild_cache.dir
+/projects/nanomq/demo/async/build/CMakeFiles/edit_cache.dir
+/projects/nanomq/demo/async/build/CMakeFiles/client.dir
+/projects/nanomq/demo/async/build/CMakeFiles/server.dir

@@ -1,0 +1,13 @@
+
+prefix=/usr
+exec_prefix=/usr
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libevpower
+URL: http://www.e-chong.com/
+Description: zero-config mesh network library
+Version: 1.0
+Libs: -L${libdir} -levpower
+Libs.private: -lpolarssl -lcurl
+Cflags: -I${includedir} 

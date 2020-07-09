@@ -1,0 +1,59 @@
+#!/bin/sh /etc/rc.common
+#Copyright (C) 2018~2019 EVPowerGroup
+#Program:
+#	Run the dashboard
+#LastModify:
+#	2019/04/15	Humble
+START=52
+STOP=92
+
+DATE=`date "+%Y/%m/%d %H:%M"`
+LOGFILE=/tmp/dashboard.log	#/dev/null
+
+start() {
+	dashboard dashboard_controller start
+	dashboard mqtt_async
+	dashboard mqtt_sub
+#	dashboard checkin 1
+#	grep 'dashboard checkin 1' /etc/crontabs/root >> /dev/null 2>&1 || {
+#		echo "*/5 * * * * dashboard checkin 1" >> /etc/crontabs/root
+#	}
+#	grep 'dashboard checkin 2' /etc/crontabs/root >> /dev/null 2>&1 || {
+#		echo "*/5 * * * * dashboard checkin 2" >> /etc/crontabs/root
+#	}
+#	grep 'dashboard checkin 4' /etc/crontabs/root >> /dev/null 2>&1 || {
+#		echo "*/3 * * * * dashboard checkin 4" >> /etc/crontabs/root
+#	}
+	grep 'dashboard mqtt_async' /etc/crontabs/root >> /dev/null 2>&1 || {
+		echo "*/80 * * * * dashboard mqtt_async" >> /etc/crontabs/root
+	}
+	grep 'dashboard mqtt_sub' /etc/crontabs/root >> /dev/null 2>&1 || {
+		echo "*/60 * * * * dashboard mqtt_sub" >> /etc/crontabs/root
+	}
+	grep 'dashboard dashboard_controller start' /etc/crontabs/root >> /dev/null 2>&1 || {
+		echo "0 5 * * * dashboard dashboard_controller start" >> /etc/crontabs/root
+	}
+	grep 'dashboard sync cache' /etc/crontabs/root >> /dev/null 2>&1 || {
+		echo "30 4 * * * dashboard sync cache" >> /etc/crontabs/root
+	}
+	grep 'dashboard sync post' /etc/crontabs/root >> /dev/null 2>&1 || {
+		echo "15 5 1 * * dashboard sync post" >> /etc/crontabs/root
+	}
+	/etc/init.d/cron restart
+	grep 'power_switch.*lo' /sys/kernel/debug/gpio >/dev/null 2>&1 && \
+	dashboard alarm 2 || dashboard alarm 1
+}
+
+stop() {
+	kill -9 `pgrep -f 'dashboard dashboard_controller start'`
+	kill -9 `pgrep -f 'dashboard udpserver'`
+	kill -9 `pgrep -f 'dashboard mqtt_async'`
+	kill -9 `pgrep -f 'dashboard mqtt_sub'`
+#	sed -i '/dashboard checkin/d' /etc/crontabs/root >> /dev/null 2>&1
+	sed -i '/dashboard udpserver/d' /etc/crontabs/root >> /dev/null 2>&1
+	sed -i '/dashboard mqtt_async/d' /etc/crontabs/root >> /dev/null 2>&1
+	sed -i '/dashboard mqtt_sub/d' /etc/crontabs/root >> /dev/null 2>&1
+	sed -i '/dashboard dashboard_controller start/d' /etc/crontabs/root >> /dev/null 2>&1
+	/etc/init.d/cron restart
+}
+

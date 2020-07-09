@@ -1,0 +1,7 @@
+# ninja log v5
+0	40	1594287358826332777	CMakeFiles/server.dir/server.c.o	ff28abeff16b630b
+40	86	1594287358870333131	server	6960657ae3c3e3e5
+0	3	0	clean	a31eedcededa8236
+0	70	1594287691301316268	CMakeFiles/server.dir/server.c.o	ff28abeff16b630b
+0	70	1594287691305316308	CMakeFiles/nanomq.dir/nanomq.c.o	8b597d8e413f4685
+70	119	1594287691361316852	server	6960657ae3c3e3e5

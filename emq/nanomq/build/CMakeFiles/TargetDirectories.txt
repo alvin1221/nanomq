@@ -1,0 +1,4 @@
+/projects/nng/emq/nanomq/build/CMakeFiles/rebuild_cache.dir
+/projects/nng/emq/nanomq/build/CMakeFiles/edit_cache.dir
+/projects/nng/emq/nanomq/build/CMakeFiles/nanomq.dir
+/projects/nng/emq/nanomq/build/CMakeFiles/server.dir
