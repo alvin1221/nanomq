@@ -1,3 +1,0 @@
-/projects/nng/demo/raw/build/CMakeFiles/rebuild_cache.dir
-/projects/nng/demo/raw/build/CMakeFiles/edit_cache.dir
-/projects/nng/demo/raw/build/CMakeFiles/raw.dir

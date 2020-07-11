@@ -1,20 +1,21 @@
 
 #include "include/apps.h"
-#include "apps/mq.h"
+#include "broker.h"
+#include "mq.h"
 
 #include <stdlib.h>
 
 NANOMQ_APP(mq, mqcreate_debug, mqsend_debug, mqreceive_debug);
-//DASH_APP(dashboard_controller, NULL, dshbrd_controller_start, dshbrd_controller_stop);
+NANOMQ_APP(broker, broker_dflt, broker_start, NULL);
 
-#if defined(DASH_DEBUG)
-//DASH_APP();
+#if defined(NANO_DEBUG)
+
 #endif
 
 const struct nanomq_app *edge_apps[] = {
-	//&dash_app_dashboard_controller,
 	&nanomq_app_mq,
-#if defined(DASH_DEBUG)
+	&nanomq_app_broker,
+#if defined(NANO_DEBUG)
 	//&
 #endif
 	NULL,

@@ -1,5 +1,5 @@
 
-#include "nanolib.h"
+#include "include/nanolib.h"
 
 #include "include/cmd.h"
 #include "include/file.h"

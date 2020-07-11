@@ -11,8 +11,6 @@
 #if defined(DEBUG_CONSOLE) || defined(DEBUG_FILE) || defined(DEBUG_SYSLOG)
 #define LIBNANO_DEBUG
 
-#define NANO_DEBUG
-
 #include <time.h>
 #include <string.h>
 #include <stdio.h>

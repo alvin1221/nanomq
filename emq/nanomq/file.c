@@ -3,7 +3,7 @@
  *
  ***/
 
-#include "nanolib.h"
+#include "include/nanolib.h"
 #include "include/file.h"
 
 #include <sys/types.h>

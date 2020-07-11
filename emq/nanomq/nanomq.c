@@ -1,9 +1,9 @@
 #include "include/apps.h"
-
 #include "include/version.h"
 #include "include/process.h"
 #include "include/cmd.h"
 #include "include/const_strings.h"
+#include "include/nanolib.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +21,8 @@
 #define NANO_APP_NAME "nanomq"
 #define NANO_BRAND "EMQ X Edge Computing Kit"
 
+#define NANO_DEBUG
+
 static void print_version(void)
 {
 	printf("%s v.01-%s\n", NANO_BRAND, FW_EV_VER_ID_SHORT);
@@ -30,12 +32,12 @@ static void print_version(void)
 
 static int print_avail_apps(void)
 {
-#if defined(DASH_DEBUG)
+#if defined(NANO_DEBUG)
 	const struct nanomq_app **dash_app;
 
 	printf("available applications:\n");
 
-	for (dash_app = dash_apps; *dash_app; ++dash_app)
+	for (dash_app = edge_apps; *dash_app; ++dash_app)
 		printf("   * %s\n", (*dash_app)->name);
 #endif
 	print_version();
@@ -103,9 +105,12 @@ int main(int argc, char **argv)
 	}
 
 	app_name = strrchr(argv[0], '/');
+	debug_msg("argv %s %s app_name %s", argv[0],argv[1], app_name);
 	app_name = (app_name ? app_name + 1 : argv[0]);
 
+	debug_msg("argv %s %s app_name %s", argv[0],argv[1], app_name);
 	if (strncmp(app_name, NANO_APP_NAME, APP_NAME_MAX) == 0) {
+	  debug_msg("argc : %d", argc);
 		if (argc == 1)
 			return print_avail_apps();
 
