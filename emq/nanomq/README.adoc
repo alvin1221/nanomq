@@ -2,7 +2,10 @@ NanoMQ base on NNG's AIO threading model. Rewriting the TCP/SP part with self-ad
 
 Basically you need to compile and install the nng first:
 
-$PROJECT_PATH/nanomq/build$ cmake -G Ninja ..
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja .. 
+or you can limit threads by
+cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=2 -DNNG_MAX_TASKQ_THREADS=2  ..
+
 $PROJECT_PATH/nanomq/build$ ninja 
 $PROJECT_PATH/nanomq/build$ ninja install
 
