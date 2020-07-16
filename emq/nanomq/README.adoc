@@ -1,50 +1,24 @@
-= async
+NanoMQ base on NNG's AIO threading model. Rewriting the TCP/SP part with self-added protocol emq_tcp.
 
-This is a simple asynchronous demo, that demonstrates use of the contexts
-and asynchronous message handling and operations, to obtain highly concurrent
-processing with minimal fuss.
+Basically you need to compile and install the nng first:
 
-== Compiling
+$PROJECT_PATH/nanomq/build$ cmake -G Ninja ..
+$PROJECT_PATH/nanomq/build$ ninja 
+$PROJECT_PATH/nanomq/build$ ninja install
 
-This is set up for configuration with CMake for ease of use.
+then compile nanomq independently:
+$PROJECT_PATH/nanomq/emq/nanomq/build$ cmake -G Ninja ..
+$PROJECT_PATH/nanomq/emq/nanomq/build$ ninja
 
-You can override the level of concurrency with the `PARALLEL` option.
+In the future, We will trying to figure out a way to support MQTT without damaging NNG's SP support.
+Also rewrite CMake and MakeFile so that user can compile nng-emq version with nanomq together.
 
-This determines how many requests the server will accept
-at a time, and keep outstanding.  Note that for our toy implementation,
-we create this many "logical" flows of execution (contexts) (these are
-_NOT_ threads), where a request is followed by a reply.
+===============================================
 
-The value of `PARALLEL` must be at least one, and may be as large
-as your memory will permit.  (The default value is 128.)  Probably
-you want the value to be small enough to ensure that you have enough
-file descriptors.  (You can create more contexts than this, but generally
-you can't have more than one client per descriptor.  Contexts can be used
-on the client side to support many thousands of concurrent requests over
-even just a single TCP connection, however.)
+usage:
 
-You can also build this all by hand with Make or whatever.
+#ongoing MQTT Broker/ only a plain TCP server for now
+sudo ./nanomq broker start 'tcp://localhost:1883'
 
-On UNIX-style systems:
-
-[source, bash]
-----
-% export CPPFLAGS="-D PARALLEL=32 -I /usr/local/include"
-% export LDFLAGS="-L /usr/local/lib -lnng"
-% export CC="cc"
-% ${CC} ${CPPFLAGS} server.c -o server ${LDFLAGS}
-% ${CC} ${CPPFLAGS} client.c -o client ${LDFLAGS}
-----
-
-== Running
-
-The easiest thing is to simply use the `run.sh` script, which
-sends COUNT (10) random jobs to the server in parallel.
-
-You can of course run the client and server manually instead.
-
-The server takes the address (url) as its only argument.
-
-The client takes the address (url), followed by the number of
-milliseconds the server should "wait" before responding (to simulate
-an expensive operation.)
+#test POSIX message Queue
+sudo ./nanomq broker mq start/stop  

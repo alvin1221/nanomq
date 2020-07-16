@@ -7,6 +7,7 @@
 #include <time.h>
 
 #include <nng/nng.h>
+#include <nng/protocol/mqtt/emq_tcp.h>
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/supplemental/util/platform.h>
 
@@ -39,7 +40,11 @@ fatal(const char *func, int rv)
 	exit(1);
 }
 
-void
+/*objective: 1 input/output low latency
+	     2 KV
+	     3 tree 
+*/
+	     void
 server_cb(void *arg)
 {
 	struct work *work = arg;
@@ -150,6 +155,7 @@ server(const char *url)
 
 	/*  Create the socket. */
 	rv = nng_rep0_open(&sock);
+	rv = nng_emq_tcp0_open(&sock);
 	if (rv != 0) {
 		fatal("nng_rep0_open", rv);
 	}

@@ -96,9 +96,9 @@ endif ()
 # cross-compile situation.  Cross-compiling users who still want to
 # build these must enable them explicitly.  Some of these switches
 # must be enabled rather early as we use their values later.
-option(NNG_TESTS "Build and run tests" ${NNG_NATIVE_BUILD})
-option(NNG_TOOLS "Build extra tools" ${NNG_NATIVE_BUILD})
-option(NNG_ENABLE_NNGCAT "Enable building nngcat utility." ${NNG_TOOLS})
+#option(NNG_TESTS "Build and run tests" ${NNG_NATIVE_BUILD})
+#option(NNG_TOOLS "Build extra tools" ${NNG_NATIVE_BUILD})
+#option(NNG_ENABLE_NNGCAT "Enable building nngcat utility." ${NNG_TOOLS})
 option(NNG_ENABLE_COVERAGE "Enable coverage reporting." OFF)
 
 
@@ -460,14 +460,14 @@ endforeach ()
 add_definitions(${NNG_DEFS})
 
 if (NNG_TESTS)
-    add_subdirectory(tests)
-    add_subdirectory(perf)
+    #add_subdirectory(tests)
+    #add_subdirectory(perf)
 endif ()
 
 #  Build the tools
 
 if (NNG_ENABLE_NNGCAT)
-    add_subdirectory(tools/nngcat)
+    #add_subdirectory(tools/nngcat)
 endif ()
 
 option(NNG_ENABLE_TLS "Enable TLS protocol" OFF)
@@ -476,7 +476,7 @@ if (NNG_ENABLE_TLS)
     set(NNG_SUPP_TLS ON)
 endif ()
 
-add_subdirectory(docs/man)
+#add_subdirectory(docs/man)
 
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VERSION ${NNG_PACKAGE_VERSION})
