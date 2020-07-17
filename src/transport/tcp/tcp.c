@@ -8,10 +8,13 @@
 // file was obtained (LICENSE.txt).  A copy of the license may also be
 // found online at https://opensource.org/licenses/MIT.
 //
+//rewrite by Jaylin EMQ X for MQTT usage
+//TODO Independent tcptran protocol 
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"
@@ -258,7 +261,8 @@ tcptran_pipe_nego_cb(void *arg)
 		nni_aio_set_iov(aio, 1, &iov);
 		nng_stream_recv(p->conn, aio);
 		nni_mtx_unlock(&ep->mtx);
-		debug_msg("fixed header : gottx %d gotrx %d needrx %d needtx %d CONNECT Need mre bytes msg: %s\n", p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, &p->rxlen);
+		debug_msg("fixed header : gottx %d gotrx %d needrx %d needtx %d CONNECT Need more bytes msg: %s\n", p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, &p->rxlen);
+		debug_msg("test: %0x  %0x\n", &p->rxlen[0], &p->rxlen[1]);
 		return;
 	}
 	// We have both sent and received the CONNECT headers.  Lets check
@@ -649,6 +653,7 @@ static void
 tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 {
 	nni_iov iov;
+	nni_tcp_conn *c;
 
 	ep->refcnt++;
 
@@ -656,12 +661,15 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	p->ep    = ep;
 	p->proto = ep->proto;
 
+	//dont need to reply client anything when tcp just starts
+	/*
 	p->txlen[0] = 0;
 	p->txlen[1] = 'S';
 	p->txlen[2] = 'P';
 	p->txlen[3] = 0;
 	NNI_PUT16(&p->txlen[4], p->proto);
 	NNI_PUT16(&p->txlen[6], 0);
+	*/
 
 	//TODO abide with CONNECT header
 	p->gotrxhead  = 0;
@@ -670,11 +678,14 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	p->wanttxhead = 8;
 	iov.iov_len   = 8;	//dynamic
 	iov.iov_buf   = &p->txlen[0];
-	nni_aio_set_iov(p->negoaio, 1, &iov);
+
+	nni_aio_set_iov(p->negoaio, 1, &iov);			//maybe not necessary? delete?
 	nni_list_append(&ep->negopipes, p);
 
-	nni_aio_set_timeout(p->negoaio, 10000); // 10 sec timeout to negotiate
-	nng_stream_send(p->conn, p->negoaio);
+	nni_aio_set_timeout(p->negoaio, 15000); // 15 sec timeout to negotiate abide with emqx
+	//send "SP1" here, replace with MQTT CONNACK??
+	nni_aio_finish(p->negoaio, 0, p->wantrxhead);
+	//nng_stream_send(p->conn, p->negoaio);
 }
 
 static void

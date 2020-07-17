@@ -22,7 +22,7 @@ typedef struct {
 	uint8_t *ch_ptr; // pointer to actual data
 } nni_chunk;
 
-// Underlying message structure.
+// Underlying message structure. TODO MQTT message length
 struct nng_msg {
 	uint32_t       m_header_buf[(NNI_MAX_MAX_TTL + 1)];
 	size_t         m_header_len;

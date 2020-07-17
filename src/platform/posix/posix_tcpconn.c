@@ -92,6 +92,7 @@ tcp_dowrite(nni_tcp_conn *c)
 		// (Sendmsg never returns a partial result.)
 		nni_aio_list_remove(aio);
 		nni_aio_finish(aio, 0, nni_aio_count(aio));
+		debug_msg("end of tcp_dowrite!");
 
 		// Go back to start of loop to see if there is another
 		// aio ready for us to process.
@@ -248,6 +249,7 @@ tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
 		tcp_doread(c);
 	}
 	if ((events & NNI_POLL_OUT) != 0) {
+		debug_msg("//////// tcp_cb: tcp_dowrite///////// \n");
 		tcp_dowrite(c);
 	}
 	events = 0;
@@ -283,6 +285,7 @@ tcp_send(void *arg, nni_aio *aio)
 	nni_tcp_conn *c = arg;
 	int           rv;
 
+	debug_msg("tcp_sending !");
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
@@ -294,7 +297,7 @@ tcp_send(void *arg, nni_aio *aio)
 		return;
 	}
 	if (nni_aio_list_active(aio) == 0) {
-	  nni_aio_list_append(&c->writeq, aio);
+		nni_aio_list_append(&c->writeq, aio);
 	}
 
 
