@@ -420,6 +420,8 @@ tcptran_pipe_recv_cb(void *arg)
 			return;
 		}
 	}
+    // WANGHA'S TODO deal with the variable header and payload, 
+    /**/
 
 
 	// We read a message completely.  Let the user know the good news. use as application message callback for users
