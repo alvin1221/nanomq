@@ -12,6 +12,8 @@
 // The Struct to store mqtt_packet. 
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
 
 typedef enum Packet_qos Packet_qos;
 typedef enum Control_packet_type Control_packet_type;
@@ -20,10 +22,12 @@ typedef enum Protocol_version Protocol_version;
 typedef struct mqtt_packet mqtt_packet;
 typedef struct mqtt_packet_header mqtt_packet_header;
 typedef struct mqtt_string mqtt_string;
-typedef struct mqtt_string_list mqtt_string_list;
+typedef struct mqtt_string_list mqtt_string_node;
 typedef struct mqtt_binary mqtt_binary;
 typedef struct mqtt_property mqtt_property;
 typedef struct property property;
+typedef struct topic_with_option topic_with_option;
+typedef struct topic_node topic_node;
 
 typedef struct mqtt_packet_connect mqtt_packet_connect;
 typedef struct mqtt_packet_connack mqtt_packet_connack;
@@ -69,18 +73,18 @@ struct mqtt_packet_header {
 };
 
 struct mqtt_string {
-    char * str;
-    int len;
+    char *  str;
+    int     len;
 };
 
-struct mqtt_string_list {
-    mqtt_string * next;
-    mqtt_string * it;
+struct mqtt_string_node {
+    mqtt_string_node *  next;
+    mqtt_string *       it;
 };
 
 struct mqtt_binary {
     unsigned char * str;
-    int len;
+    int             len;
 };
 
 struct property {
@@ -90,8 +94,8 @@ struct property {
         uint16_t u16;
         uint32_t u32;
         uint32_t varint;
-        mqtt_binary * binary;
-        mqtt_string * str;
+        mqtt_binary binary;
+        mqtt_string str;
     }value;
     struct property * next;
 };
@@ -160,11 +164,20 @@ struct mqtt_packet_subscribe {
     struct mqtt_property * property;
 };
 
-struct mqtt_payload_subscribe {
+struct topic_with_option {
     mqtt_string *   topic_filter;
     bool            no_local; //bit2
     bool            retain; //bit3
     uint8_t         retain_option; //bit45
+}
+
+struct topic_node {
+    topic_with_option * it;
+    topic_node * next;
+}
+
+struct mqtt_payload_subscribe {
+    topic_node * node;
 };
 
 //variable header in mqtt_apcket_suback
@@ -216,25 +229,29 @@ struct mqtt_packet_auth {
 // packet
 struct mqtt_packet {
     mqtt_header *   header;
-    union {
-        mqtt_packet_connect;
-        mqtt_packet_connack;
-        mqtt_packet_publish;
-        mqtt_packet_puback;
-        mqtt_packet_subscribe;
-        mqtt_packet_suback;
-        mqtt_packet_unsubscribe;
-        mqtt_packet_unsuback;
-        mqtt_packet_disconnect;
-        mqtt_packet_auth;
+    void *          variable;
+    void *          payload;
+    /*
+    union V {
+        mqtt_packet_connect connext;
+        mqtt_packet_connack connack;
+        mqtt_packet_publish publish;
+        mqtt_packet_puback  puback;
+        mqtt_packet_subscribe   subscribe;
+        mqtt_packet_suback      suback;
+        mqtt_packet_unsubscribe unsubscribe;
+        mqtt_packet_unsuback    unsuback;
+        mqtt_packet_disconnect  disconnect;
+        mqtt_packet_auth    auth;
     }variable;
-    union {
-        mqtt_payload_connect;
-        mqtt_payload_publish;
-        mqtt_payload_subscribe;
-        mqtt_payload_suback;
-        mqtt_payload_unsubscribe;
-        mqtt_payload_unsuback;
+    union P {
+        mqtt_payload_connect    connect;
+        mqtt_payload_publish    publish;
+        mqtt_payload_subscribe  subscribe;
+        mqtt_payload_suback     suback;
+        mqtt_payload_unsubscribe    unsubscribe;
+        mqtt_payload_unsuback   unsuback;
     }payload;
+    */
 };
 

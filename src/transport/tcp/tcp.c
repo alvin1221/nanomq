@@ -15,6 +15,7 @@
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"
+#include "src/protocol/mqtt/packet.h"
 
 // TCP transport.   Platform specific TCP operations must be
 // supplied as well.
@@ -422,6 +423,101 @@ tcptran_pipe_recv_cb(void *arg)
 	}
     // WANGHA'S TODO deal with the variable header and payload, 
     /**/
+    mqtt_packet * pkt = (mqtt_packet *)malloc(sizeof(mqtt_packet));
+    // fixed header
+    mqtt_packet_header * header = (mqtt_packet *)malloc(sizeof(mqtt_packet_header));
+    pkt->header = header;
+    // for test
+    header->type = 8;
+    header->dup = true;
+    header->qos = 4;
+    header->retain = false;
+    header->remain_len = 20;
+    uint8_t vp[header->remain_len];
+    int pos = 0;
+    switch(header->type){
+        case SUBSCRIBE:
+            // variable header handle
+            debug_msg("fixed header type :SUBSCRIBE. \n");
+            mqtt_packet_subscribe * pkt_sub = (mqtt_packet_subscribe* )malloc(sizeof(mqtt_packet_subscribe));
+            pkt->variable = pkt_sub;
+            if(pos+2 > header->remain_len){
+                goto(oom_error);
+            }
+            pos += 2;
+            pkt_sub->packet_id = (vp[1]<<8) + vp[0];
+
+            mqtt_property * prop = (mqtt_property *)malloc(sizeof(mqtt_property));
+            pkt_sub->property = prop;
+
+            if(pos+1 > header->remain_len){
+                goto(oom_error);
+            }
+            prop->len = read_remain_len(vp+pos); // need lee-lib
+            pos += 666; // the pos should plus a right value
+            
+            property * prop_header = (property *)malloc(sizeof(property));
+            prop->property = prop_header;
+            // WANGHA'S TODO: use lee-lib to parse property
+            // {
+            int prop_pos = 0;
+            while(1){
+                property * p = (property *)malloc(sizeof(property));
+                p->id = 0x0B; //subscribe id
+                value.varint = 111;
+                prop_pos ++;
+                if(prop_pos >= prop_len){
+                    break;
+                }else{
+                    // ...
+                }
+            }
+            pos += prop_len;
+            // }
+            //
+            // payload handle
+            mqtt_payload_subscribe * payload_sub = (mqtt_payload_subscribe *)mallc(sizeof(mqtt_payload_subscribe));
+            pkt->payload = payload_sub;
+            
+            topic_node * topic_node_t = (topic_node *)malloc(sizeof(topic_node));
+            topic_node * _topic_node;
+            while(1){
+                int topic_len = (vp[pos+1]<<8)+vp[pos]; // len of topic filter
+                pos += 2;
+                topic_with_option topic_context = (topic_with_option *)malloc(sizeof(topic_with_option));
+                topic_node_t.it = topic_context;
+                _topic_node = topic_node_t;
+
+                mqtt_string * str = (mqtt_string *)malloc(sizeof(mqtt_string));
+                str->len = topic_len;
+                memcpy(str->str, vp[pos], topic_len);
+
+                pos += topic_len;
+                int tmp_qos = 0x03 & vp[pos];
+                if(tmp_qos > 2){
+                    debug_msg("ERROR IN QOS OF SUBSCRIBE. \n");
+                }
+                topic_with_option->nolocal = (0x04 & vp[pos]) == 1;
+                topic_with_option->retain = (0x08 & vp[pos]) == 1;
+                topic_with_option->retain_option = (0x30 & vp[pos]);
+
+                if(++pos < header-remain_len){
+                    topic_node_t = (topic_node *)malloc(sizeof(topic_node));
+                    topic_node_t->next = _topic_node;
+                }
+            }
+            
+            int tmp_qos = 0x03 & vp[pos];
+            if(tmp_qos > 2){
+                debug_msg("ERROR IN QOS OF SUBSCRIBE. \n");
+            }
+            payload->nolocal = (0x04 & vp[pos]) == 1;
+            payload->retain = (0x08 & vp[pos]) == 1;
+            payload->retain_option = (0x30 & vp[pos]);
+            payload->
+        default:
+            debug_msg("NO MATCHING HEADER TYPE. \n");
+    }
 
 
 	// We read a message completely.  Let the user know the good news. use as application message callback for users
@@ -452,6 +548,10 @@ recv_error:
 	nni_msg_free(msg);
 	nni_aio_finish_error(aio, rv);
 	printf("tcptran_pipe_recv_cb: error????\n");
+    return;
+
+oom_error:
+    debug_msg("ERROR OOM. \n");
 }
 
 static void
