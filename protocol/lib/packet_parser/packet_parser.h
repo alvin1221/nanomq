@@ -11,11 +11,24 @@ typedef unsigned int uint32_t;
 typedef signed char int8_t;
 
 
+struct header{
+    
+}
+
+
 struct mqtt_packet {
-    uint8_t *payload;
+    uint8_t *binary;
     uint32_t pos;
-    uint32_t remaining_length;
+    uint32_t len;
 };
+
+struct mqtt_packet a;
+a.binary = variable;
+a.pos = 0;
+a.len = 20;
+
+string t = paclet_parse_uint8(&packet);
+int y = packet_parse_uint8(&packet);
 
 uint8_t packet_parse_uint8(struct mqtt_packet *packet); 
 uint16_t packet_parse_uint16(struct mqtt_packet *packet); 
