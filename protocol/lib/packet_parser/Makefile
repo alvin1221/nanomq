@@ -9,6 +9,8 @@ OBJ =  main.o packet_parser.o
 
 nanomqlib:$(OBJ) 
 	$(CC) -o nanolib $(OBJ) 
+	rm -f $(OBJ) 
+
 #$(CC) -o nanolib main.o packet_parser.o 
 #$(CC) -o $@ $< 
 

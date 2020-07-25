@@ -88,9 +88,7 @@ static void var_write_read(uint32_t input, uint32_t remaining_length)
     packet.remaining_length = remaining_length;
     packet.binary = (char*)malloc(sizeof(char)*remaining_length);
     packet_write_var(&packet, input);
-    // printf("write bin_out:%#X\n", packet.binary[packet.pos-1]);
     packet.pos = 0;
-    // printf("write bin_out:%#X\n", packet.binary[packet.pos]);
 
     uint32_t res = packet_parse_var(&packet);
     if (res == input) {
@@ -203,26 +201,24 @@ static void TEST_string_write_read(void)
 
 static void TEST_var_write_read(void)
 {
-	/* Empty packet */
-	// uint32_write_read(NULL, 0);
 	uint32_t binary = 0;
 
 	/* 0 value */
-   //    binary = 0x00000000;
-   //    var_write_read(binary, 4);
+    binary = 0x00000000;
+    var_write_read(binary, 4);
 
 	/* Endian check */
-	//binary = 0x12;
-	//var_write_read(binary, 4);
+	binary = 0x12;
+	var_write_read(binary, 4);
 
-	///* Endian check */
-	//binary = 0x1234;
-	//var_write_read(binary, 4);
-	///* Endian check */
-	//binary = 0x123456;
-	//var_write_read(binary, 4);
 	/* Endian check */
-	binary = 0x12345678;
+	binary = 0x1234;
+	var_write_read(binary, 4);
+	/* Endian check */
+	binary = 0x128456;
+	var_write_read(binary, 4);
+	/* Endian check */
+	binary = 0x12348678;
 	var_write_read(binary, 4);
 
 	/* Biggest value */

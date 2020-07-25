@@ -58,7 +58,7 @@ void packet_parse_string(struct mqtt_packet *packet, char str[], uint32_t length
 uint32_t packet_parse_var(struct mqtt_packet *packet) 
 {
     assert(packet);
-    int i = 3;
+    int i = 4;
     uint32_t res = 0;
     uint32_t multiplier = 1;
     uint8_t byte;
@@ -70,7 +70,6 @@ uint32_t packet_parse_var(struct mqtt_packet *packet)
         res += (byte & 127) * multiplier;
         multiplier *= 128;
     } while (i-- && (byte & 128));
-    printf("res is %#X\n", res);
     return res;
 
 }
