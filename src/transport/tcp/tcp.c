@@ -268,16 +268,16 @@ tcptran_pipe_nego_cb(void *arg)
 		return;
 	}
 
-// 	for (i = 0; i<p->wantrxhead; i++) {
-// 		printf("index %d: %x ", i, p->rxlen[i]);
-// 	}
+	for (i = 0; i<p->wantrxhead; i++) {
+		printf("index %d: %x ", i, p->rxlen[i]);
+	}
 
 	// We have both sent and received the CONNECT headers.  Lets check TODO CONNECT packet serialization
 	debug_msg("******** %d %d %d %d nego msg: %s ----- %x\n",p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
 	//header_adaptor();
 
 	//reply error/CONNECT ACK
-	if (p->gottxhead < p->wanttxhead && p->gotrxhead == p->wantrxhead) {
+	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
 		iov.iov_len = p->wanttxhead - p->gottxhead;
 		iov.iov_buf = &p->txlen[p->gottxhead];
@@ -286,8 +286,8 @@ tcptran_pipe_nego_cb(void *arg)
 		nng_stream_send(p->conn, aio);
 		debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
 		p->gottxhead = p->wanttxhead;
-		nni_mtx_unlock(&ep->mtx);
-		return;
+		//nni_mtx_unlock(&ep->mtx);
+		//return;
 	}
 
 	//TODO:  define what version of MQTT
