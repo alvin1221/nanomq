@@ -157,7 +157,7 @@ tcp_doread(nni_tcp_conn *c)
 			nni_aio_finish_error(aio, NNG_ECONNSHUT);
 			continue;
 		}
-		debug_msg("############ POSIX readv %d readn: %d read data: %s length: %d #################", niov, n, iovec[0].iov_base, iovec[0].iov_len);
+		debug_msg("############ POSIX readv %d readn: %d read data: %s %x %x length: %d #################", niov, n, iovec[0].iov_base, *((char *)iovec[0].iov_base), *((char *)iovec[0].iov_base+1), iovec[0].iov_len);
 		nni_aio_bump_count(aio, n);
 
 		// We completed the entire operation on this aio.
