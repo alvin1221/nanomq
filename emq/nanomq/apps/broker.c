@@ -26,7 +26,7 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
-struct work {
+struct work {	
 	enum { INIT, RECV, WAIT, SEND } state;
 	nng_aio *aio;
 	nng_msg *msg;

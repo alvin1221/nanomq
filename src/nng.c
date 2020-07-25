@@ -1120,6 +1120,11 @@ nng_msg_chop(nng_msg *msg, size_t sz)
 }
 
 int
+nng_msg_cmd_type(nng_msg *msg)
+{
+	return (nni_msg_cmd_type(msg));
+}
+int
 nng_msg_header_trim(nng_msg *msg, size_t sz)
 {
 	return (nni_msg_header_trim(msg, sz));

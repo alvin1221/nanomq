@@ -14,7 +14,8 @@
 
 // Message API.
 
-// Message chunk, internal to the message implementation.
+// Message chunk, internal to MQTT the message implementation.
+// TODO dynamic length to be efficient on memory allocation
 typedef struct {
 	size_t   ch_cap; // allocated size
 	size_t   ch_len; // length in use
@@ -22,13 +23,19 @@ typedef struct {
 	uint8_t *ch_ptr; // pointer to actual data
 } nni_chunk;
 
-// Underlying message structure.
+// Underlying message structure. TODO MQTT message length
 struct nng_msg {
 	uint32_t       m_header_buf[(NNI_MAX_MAX_TTL + 1)];
 	size_t         m_header_len;
 	nni_chunk      m_body;
 	uint32_t       m_pipe; // set on receive
 	nni_atomic_int m_refcnt;
+//FOR EMQ MQTT
+	size_t		 *remaining_len;
+	uint8_t		 *variable_ptr;
+	uint8_t		 *header_ptr;
+	uint8_t		 *payload_ptr;
+	int		 CMD_TYPE;
 };
 
 #if 0
@@ -402,6 +409,13 @@ nni_msg_alloc(nni_msg **mp, size_t sz)
 }
 
 int
+nni_msg_cmd_type(nni_msg *m)
+{
+	return(m->CMD_TYPE);
+}
+
+
+int
 nni_msg_dup(nni_msg **dup, const nni_msg *src)
 {
 	nni_msg *m;
@@ -594,6 +608,12 @@ void
 nni_msg_set_pipe(nni_msg *m, uint32_t pid)
 {
 	m->m_pipe = pid;
+}
+
+void
+nni_msg_set_cmd_type(nni_msg *m, int cmd)
+{
+	m->CMD_TYPE = cmd;
 }
 
 uint32_t

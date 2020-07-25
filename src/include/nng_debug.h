@@ -9,7 +9,7 @@
 #define DEBUG_FILE_PATH "/tmp/debug_dash.log"
 
 #define EMQ_MAX_PACKET_LEN 20
-#define EMQ_CONNECT_PACKET_LEN 200
+#define EMQ_CONNECT_PACKET_LEN 80
 
 // later expose on makefile
 #define DEBUG_CONSOLE

@@ -47,7 +47,7 @@ struct emq_sock {
 // emq_pipe is our per-pipe protocol private structure.
 struct emq_pipe {
 	nni_pipe *    pipe;
-	emq_sock *   rep;
+	emq_sock *    rep;
 	uint32_t      id;
 	nni_aio       aio_send;
 	nni_aio       aio_recv;
@@ -606,6 +606,7 @@ emq_pipe_recv_cb(void *arg)
 	debug_msg("emq_pipe_recv_cb??????????");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
+	debug_msg("TYPE: %x !!!!!===========?????", nng_msg_cmd_type(msg));
 	ttl = nni_atomic_get(&s->ttl);
 
 	nni_msg_set_pipe(msg, p->id);
@@ -824,5 +825,6 @@ static nni_proto emq_tcp_proto = {
 int
 nng_emq_tcp0_open(nng_socket *sidp)
 {
+	//TODO Global binary tree init here
 	return (nni_proto_open(sidp, &emq_tcp_proto));
 }
