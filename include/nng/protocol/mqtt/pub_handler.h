@@ -2,17 +2,16 @@
   * Created by Alvin on 2020/7/25.
   */
 
-#ifndef NNG_PUB_CODEC_H
-#define NNG_PUB_CODEC_H
+#ifndef NNG_PUB_HANDLER_H
+#define NNG_PUB_HANDLER_H
 
-
-#include <stdint.h>
+#include <nng/nng.h>
 
 typedef uint32_t variable_length;
 
 //MQTT Control Packet types
 typedef enum {
-    Reserved = 0,
+    RESERVED = 0,
     CONNECT = 1,
     CONNACK = 2,
     PUBLISH = 3,
@@ -30,14 +29,27 @@ typedef enum {
     AUTH = 15
 } mqtt_control_packet_types;
 
+
 //MQTT Fixed header
 struct fixed_header {
-    uint8_t flag_bit0: 1;
-    uint8_t flag_bit1: 1;
-    uint8_t flag_bit2: 1;
-    uint8_t flag_bit3: 1;
+    //flag_bits
+    union {
+        uint8_t bit0: 1;
+        uint8_t retain: 1;
+    };
+    union {
+        uint8_t bit1: 1;
+        uint8_t bit2: 1;
+        uint8_t qos: 2;
+    };
+    union {
+        uint8_t bit3: 1;
+        uint8_t dup: 1;
+    };
+    //packet_types
     mqtt_control_packet_types packet_type: 4;
-    uint32_t remain_len; //Remaining Length, Variable Byte Integer, Max field length: 4Bytes
+    //remaining length
+    uint32_t remain_len;
 };
 
 typedef enum {
@@ -73,12 +85,15 @@ typedef enum {
 //Properties
 struct properties {
     uint32_t property_len; //property length, exclude itself,variable byte integer;
-    properties_type type;
+    properties_type type: 32;
     void *property; //Unknown property data type;
 };
 
+#define MAX_TOPIC_LENGTH 100
+
 //MQTT Variable header
 struct variable_header {
+    char topic_name[MAX_TOPIC_LENGTH];
     uint16_t packet_identifier;
     struct properties properties;
 };
@@ -132,10 +147,18 @@ typedef enum {
 
 } reason_code;
 
+struct mqtt_payload {
+    uint8_t *payload;
+    uint32_t payload_len;
+};
+
 struct pub_packet_struct {
     struct fixed_header fixed_header;
     struct variable_header variable_header;
-    uint8_t *payload;
+    struct mqtt_payload payload_body;
+
 };
 
-#endif //NNG_PUB_CODEC_H
+void pub_handler(nng_msg *msg);
+
+#endif //NNG_PUB_HANDLER_H

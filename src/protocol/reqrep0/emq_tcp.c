@@ -7,6 +7,7 @@
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
+#include "nng/protocol/mqtt/pub_handler.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -504,11 +505,13 @@ emq_pipe_recv_cb(void *arg)
 	debug_msg("emq_pipe_recv_cb??????????");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
-	debug_msg("TYPE: %x !!!!!===========?????", nng_msg_cmd_type(msg));
+
+	debug_msg("TYPE: %x !!!!!===========?????", nni_msg_cmd_type(msg));
 	ttl = nni_atomic_get(&s->ttl);
 
 	nni_msg_set_pipe(msg, p->id);
 
+    pub_packet_struct
 	/*
 	// Move backtrace from body to header
 	hops = 1;
