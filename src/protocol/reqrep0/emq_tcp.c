@@ -509,8 +509,8 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_msg_set_pipe(msg, p->id);
 
-	/*
-	// Move backtrace from body to header
+/*
+	// reserve for multi node mode/bridging
 	hops = 1;
 	for (;;) {
 		bool end;

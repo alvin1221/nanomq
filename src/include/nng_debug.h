@@ -8,8 +8,8 @@
 
 #define DEBUG_FILE_PATH "/tmp/debug_dash.log"
 
-#define EMQ_MAX_PACKET_LEN 20
-#define EMQ_CONNECT_PACKET_LEN 80
+#define EMQ_MAX_PACKET_LEN sizeof(uint8_t)*128
+#define EMQ_CONNECT_PACKET_LEN sizeof(uint8_t)*10
 
 // later expose on makefile
 #define DEBUG_CONSOLE

@@ -41,7 +41,7 @@ struct tcptran_pipe {
 	nni_atomic_flag reaped;
 	nni_reap_item   reap;
 	uint8_t         txlen[sizeof(uint64_t)];
-	uint8_t         rxlen[sizeof(uint64_t)*10];
+	uint8_t         rxlen[EMQ_MAX_PACKET_LEN];
 	size_t          gottxhead;
 	size_t          gotrxhead;
 	size_t          wanttxhead;
@@ -228,7 +228,7 @@ tcptran_pipe_nego_cb(void *arg)
 	nni_aio *     uaio;
 	int           rv,len,i;
 
-	debug_msg("tcptran_pipe_nego_cb %d\n", EMQ_CONNECT_PACKET_LEN);
+	debug_msg("start tcptran_pipe_nego_cb max len %d\n", EMQ_CONNECT_PACKET_LEN);
 	nni_mtx_lock(&ep->mtx);
 
 	if ((rv = nni_aio_result(aio)) != 0) {
@@ -237,15 +237,20 @@ tcptran_pipe_nego_cb(void *arg)
 
 	// calculate number of bytes received
 	// TODO cannot differ send/receive IO, so skip tx calculation
+	// TODO NNG_EMSGSIZE what if received too much garbage ?
 // 	if (p->gottxhead < p->wanttxhead) {
 // 		p->gottxhead += nni_aio_count(aio);
 //         } else
 	if (p->gotrxhead < p->wantrxhead) {
 		p->gotrxhead += nni_aio_count(aio);
-	}
+	} /*else if (p->gotrxhead >= p->wantrxhead && p->gottxhead >= p->wanttxhead) {
+		//Free negopipes again? Dont if cb didnt return when reply ACK/error
+		nni_mtx_unlock(&ep->mtx);
+		return;
+	}*/
 
 	debug_msg("current header : gottx %d gotrx %d needrx %d needtx %d\n",p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead);
-	if (p->gotrxhead > 8) {
+	if (p->gotrxhead > 8 && p->gottxhead < p->wanttxhead) {
 		if (p->rxlen[0] != CMD_CONNECT) {
 			debug_msg("CMD TYPE %x", p->rxlen[0]);
 			rv = NNG_EPROTO;		//in nng error return value must be defined. TODO inject EMQ error enum into NNG? 
@@ -268,9 +273,9 @@ tcptran_pipe_nego_cb(void *arg)
 		return;
 	}
 
-	for (i = 0; i<p->wantrxhead; i++) {
-		printf("index %d: %x ", i, p->rxlen[i]);
-	}
+// 	for (i = 0; i<p->wantrxhead; i++) {
+// 		printf("index %d: %x ", i, p->rxlen[i]);
+// 	}
 
 	// We have both sent and received the CONNECT headers.  Lets check TODO CONNECT packet serialization
 	debug_msg("******** %d %d %d %d nego msg: %s ----- %x\n",p->gottxhead, p->gotrxhead, p->wantrxhead, p->wanttxhead, p->rxlen, p->rxlen[0]);
@@ -286,8 +291,8 @@ tcptran_pipe_nego_cb(void *arg)
 		nng_stream_send(p->conn, aio);
 		debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
 		p->gottxhead = p->wanttxhead;
-		//nni_mtx_unlock(&ep->mtx);
-		//return;
+		nni_mtx_unlock(&ep->mtx);
+		return;
 	}
 
 	//TODO:  define what version of MQTT
@@ -394,7 +399,9 @@ tcptran_pipe_recv_cb(void *arg)
 	//not receive enough bytes, deal with remaining length
 	/**/
 	if (nni_aio_iov_count(rxaio) > 0) {
-		debug_msg("nni_aio_iov_count:%d > 0\n", nni_aio_iov_count(rxaio));
+		debug_msg("still need byte count:%d > 0\n", nni_aio_iov_count(rxaio));
+		debug_msg("got RXLEN: %s, %d!!\n", p->rxlen, strlen(p->rxlen));
+
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
@@ -405,12 +412,12 @@ tcptran_pipe_recv_cb(void *arg)
 	// header, which is just the length.  This tells us the size of the
 	// message to allocate and how much more to expect.
 	if (p->rxmsg == NULL) {
-		uint64_t len;
+		uint16_t len;
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
 		//NNI_GET64(p->rxlen, len);	
-		len = 10; //for testing
+		len = p->rxlen[1]; //for testing
 
-		debug_msg("RXLEN: %s, %d!!\n", p->rxlen, strlen(p->rxlen));
+		debug_msg("RXLEN: %s, %d need length %d!!\n", p->rxlen, strlen(p->rxlen), len);
 		// Make sure the message payload is not too big.  If it is
 		// the caller will shut down the pipe.
 		if ((len > p->rcvmax) && (p->rcvmax > 0)) {
@@ -600,7 +607,7 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
 	nni_iov  iov;
 	NNI_ASSERT(p->rxmsg == NULL);			//SHALL I keep rxmsg solid everytime before receving next packet? In nng yes. MQTT?
 
-	debug_msg("tcptran_pipe_recv_start\n");
+	debug_msg("second oder! tcptran_pipe_recv_start\n");
 	if (p->closed) {
 		nni_aio *aio;
 		while ((aio = nni_list_first(&p->recvq)) != NULL) {
@@ -617,20 +624,23 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
 	rxaio       = p->rxaio;
 	iov.iov_buf = p->rxlen;
 	iov.iov_len = sizeof(p->rxlen);
-	iov.iov_len = EMQ_CONNECT_PACKET_LEN;		//for testing
+	iov.iov_len = EMQ_MAX_PACKET_LEN;		//for testing
 	nni_aio_set_iov(rxaio, 1, &iov);
 
-	//Do not read socket
 	nng_stream_recv(p->conn, rxaio);
 }
 
+/**
+ * 
+ * 
+ */
 static void
 tcptran_pipe_recv(void *arg, nni_aio *aio)
 {
 	tcptran_pipe *p = arg;
 	int           rv;
 
-	printf("order!: tcptran_pipe_recv\n");
+	printf("first order!: tcptran_pipe_recv\n");
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
@@ -701,11 +711,11 @@ tcptran_pipe_start(tcptran_pipe *p, nng_stream *conn, tcptran_ep *ep)
 	nni_aio_set_iov(p->negoaio, 1, &iov);			//maybe not necessary? delete?
 	nni_list_append(&ep->negopipes, p);
 
+	//reply to client immediately if needed otherwise just trigger next IO
+	//nng_stream_send(p->conn, p->negoaio);
+
 	nni_aio_set_timeout(p->negoaio, 15000); // 15 sec timeout to negotiate abide with emqx
 	nni_aio_finish(p->negoaio, 0, 0);
-
-	//reply to client immediately if needed
-	//nng_stream_send(p->conn, p->negoaio);
 }
 
 static void
@@ -833,6 +843,7 @@ tcptran_timer_cb(void *arg)
 	}
 }
 
+// TCP accpet trigger
 static void
 tcptran_accept_cb(void *arg)
 {
@@ -887,10 +898,11 @@ error:
 	}
 	nni_mtx_unlock(&ep->mtx);
 }
-
+//abandoned
 static void
 tcptran_dial_cb(void *arg)
 {
+/*
 	tcptran_ep *  ep  = arg;
 	nni_aio *     aio = ep->connaio;
 	tcptran_pipe *p;
@@ -927,7 +939,7 @@ error:
 		ep->useraio = NULL;
 		nni_aio_finish_error(aio, rv);
 	}
-	nni_mtx_unlock(&ep->mtx);
+	nni_mtx_unlock(&ep->mtx);*/
 }
 
 static int
