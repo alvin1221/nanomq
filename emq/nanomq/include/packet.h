@@ -14,12 +14,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum Packet_qos Packet_qos;
-typedef enum Control_packet_type Control_packet_type;
 typedef enum Protocol_version Protocol_version;
 
-typedef struct mqtt_packet mqtt_packet;
 typedef struct mqtt_packet_header mqtt_packet_header;
 typedef struct mqtt_string mqtt_string;
 typedef struct mqtt_string_list mqtt_string_node;
@@ -47,13 +46,6 @@ typedef struct mqtt_payload_suback mqtt_payload_suback;
 typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
 typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
-enum Control_packet_type {
-    Reserved = 0,   CONNECT,    CONNACK,    PUBLISH, 
-    PUBACK,         PUBREC,     PUBREL,     PUBCOMP, 
-    SUBSCRIBE,      SUBACK,     UNSUBSCRIBE,UNSUBACK, 
-    PINGREQ,        PINGRESP,   DISCONNECT, Reserved
-};
-
 enum Packet_qos {
     QOS_0 = 0, QOS_1, QOS_2
 };
@@ -63,14 +55,14 @@ enum Protocol_version {
     MQTT_PROTO_V5
 };
 
-// fixed header
+/* fixed header
 struct mqtt_packet_header {
-    Control_packet_type     type;
     bool                    dup;
     Packet_qos              qos;
     bool                    retain;
     uint32_t                remain_len;
 };
+*/
 
 struct mqtt_string {
     char *  str;
@@ -87,22 +79,34 @@ struct mqtt_binary {
     int             len;
 };
 
+struct mqtt_str_pair {
+	char *	str1; // key
+	int 	len1;
+	char *	str2; // value
+	int 	len2;
+}
+
+union Property_type{
+	uint8_t u8;
+	uint16_t u16;
+	uint32_t u32;
+	uint32_t varint;
+	mqtt_binary binary;
+	mqtt_string str;
+	mqtt_str_pair strpair;
+};
+
 struct property {
-    uint32_t id;
-    union {
-        uint8_t u8;
-        uint16_t u16;
-        uint32_t u32;
-        uint32_t varint;
-        mqtt_binary binary;
-        mqtt_string str;
-    }value;
-    struct property * next;
+	uint32_t 			id;
+	union Property_type	value;
+	struct property * 	next;
 };
 
 struct mqtt_property {
     uint32_t            len;
+	uint32_t			count;
     struct property *   property;
+	struct property *	property_end;
 };
 
 // variable header in mqtt_packet_connect
@@ -226,32 +230,24 @@ struct mqtt_packet_auth {
 
 // struct mqtt_payload_auth {} = NULL;
 
-// packet
-struct mqtt_packet {
-    mqtt_header *   header;
-    void *          variable;
-    void *          payload;
-    /*
-    union V {
-        mqtt_packet_connect connext;
-        mqtt_packet_connack connack;
-        mqtt_packet_publish publish;
-        mqtt_packet_puback  puback;
-        mqtt_packet_subscribe   subscribe;
-        mqtt_packet_suback      suback;
-        mqtt_packet_unsubscribe unsubscribe;
-        mqtt_packet_unsuback    unsuback;
-        mqtt_packet_disconnect  disconnect;
-        mqtt_packet_auth    auth;
-    }variable;
-    union P {
-        mqtt_payload_connect    connect;
-        mqtt_payload_publish    publish;
-        mqtt_payload_subscribe  subscribe;
-        mqtt_payload_suback     suback;
-        mqtt_payload_unsubscribe    unsubscribe;
-        mqtt_payload_unsuback   unsuback;
-    }payload;
-    */
-};
+uint32_t bin_parse_varint(uint8_t * bin_pos){
+	int pos = 0;
+	return bin_parse_varint(bin_pos, &pos);
+}
+
+// this will return the length of varint 
+uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
+	assert(bin_pos);
+	*pos = 0;
+	uint32_t res = 0;
+	uint32_t multiplier = 1;
+	uint8_t byte;
+	do {
+		byte = *bin_pos++;
+		res += (byte & 127) * multiplier;
+		multiplier *= 128;
+		(*pos)++;
+	} while (*pos < 4 && (byte & 128));
+	return res;
+}
 

@@ -85,6 +85,23 @@ static void tcptran_pipe_recv_cb(void *);
 static void tcptran_pipe_nego_cb(void *);
 static void tcptran_ep_fini(void *);
 
+// remove after include the parse_lib
+uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
+	assert(bin_pos);
+	*pos = 0;
+	uint32_t res = 0;
+	uint32_t multiplier = 1;
+	uint8_t byte;
+	do {
+		byte = *bin_pos++;
+		res += (byte & 127) * multiplier;
+		multiplier *= 128;
+		(*pos)++;
+	} while (*pos < 4 && (byte & 128));
+	return res;
+}
+
+
 static int
 tcptran_init(void)
 {
@@ -379,6 +396,9 @@ tcptran_pipe_recv_cb(void *arg)
 	size_t        n;
 	nni_msg *     msg;
 	nni_aio *     rxaio = p->rxaio;
+	
+	uint64_t len = 0, len1;
+	int * len_of_varint;
 
 	debug_msg("tcptran_pipe_recv_cb\n");
 	nni_mtx_lock(&p->mtx);
@@ -395,7 +415,7 @@ tcptran_pipe_recv_cb(void *arg)
 	/**/
 	if (nni_aio_iov_count(rxaio) > 0) {
 		debug_msg("nni_aio_iov_count:%d > 0\n", nni_aio_iov_count(rxaio));
-		nng_stream_recv(p->conn, rxaio);
+		nng_stream_recv(p->conn, rxaio); //1
 		nni_mtx_unlock(&p->mtx);
 		return;
 	}
@@ -405,10 +425,13 @@ tcptran_pipe_recv_cb(void *arg)
 	// header, which is just the length.  This tells us the size of the
 	// message to allocate and how much more to expect.
 	if (p->rxmsg == NULL) {
-		uint64_t len;
+		// uint64_t len;
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
 		//NNI_GET64(p->rxlen, len);	
-		len = 10; //for testing
+		//len = 10; //for testing
+		
+		// cal remain length and length of varint
+		len = bin_parse_varint(p->rxlen+1, len_of_varint);
 
 		debug_msg("RXLEN: %s, %d!!\n", p->rxlen, strlen(p->rxlen));
 		// Make sure the message payload is not too big.  If it is
@@ -436,7 +459,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 			printf("here we are\n");
 			nni_aio_set_iov(rxaio, 1, &iov);
-			nng_stream_recv(p->conn, rxaio);
+			nng_stream_recv(p->conn, rxaio); //2
 			nni_mtx_unlock(&p->mtx);
 			return;
 		}
@@ -449,6 +472,43 @@ tcptran_pipe_recv_cb(void *arg)
 	n        = nni_msg_len(msg);
 	nni_msg_set_cmd_type(msg, CMD_CONNECT);
 
+	&(msg->remaining_len) = len;
+	msg->header_ptr = nni_msg_body(msg);
+	if(len != 0){
+		msg->variable_ptr = msg->header_ptr + 1 + *len_of_varint;
+	}else{
+		msg->variable_ptr = NULL;
+	}
+
+	//TODO setting the point to payload according packet_type
+	int ctp = msg->header_ptr[0] & 0xF0;
+	if(ctp == CMD_CONNECT){
+		NNI_GET16(msg->variable_ptr, len);
+		len1 = bin_parse_varint(msg->variable_ptr+6+len, len_of_varint);
+		msg->payload_ptr = msg->variable_ptr + 6 + len + len1 + *len_of_varint;
+	}else if(ctp == CMD_SUBSCRIBE){
+		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
+		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+	}else if(ctp == CMD_SUBACK){
+		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
+		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+	}else if(ctp == CMD_UNSUBSCRIBE){
+		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
+		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+	}else if(ctp == CMD_UNSUBACK){
+		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
+		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+	}else if(ctp == CMD_PUBLISH){
+		NNI_GET16(msg->variable_ptr, len); // len of utf8-str
+		len1 = bin_parse_varint(msg->variable_ptr + 4 + len, len_of_varint);
+		if(*(msg->remaining_len) == *len_of_varint + len + len1 + 4){
+			msg->payload_ptr = NULL;
+		}else{
+			msg->payload_ptr = msg->variable_ptr + *len_of_varint+len+len1+4;
+		}
+	}else{
+		msg->payload_ptr = NULL;
+	}
 
 	nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
@@ -472,10 +532,6 @@ recv_error:
 	nni_msg_free(msg);
 	nni_aio_finish_error(aio, rv);
 	printf("tcptran_pipe_recv_cb: error????\n");
-    return;
-
-oom_error:
-    debug_msg("ERROR OOM. \n");
 }
 
 static void
