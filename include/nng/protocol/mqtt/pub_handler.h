@@ -7,7 +7,17 @@
 
 #include <nng/nng.h>
 
-typedef uint32_t variable_length;
+typedef uint32_t variable_integer;
+
+struct variable_string {
+    uint32_t str_len;
+    char *str_body;
+};
+
+struct variable_binary{
+    uint32_t data_len;
+    uint8_t *data;
+};
 
 //MQTT Control Packet types
 typedef enum {
@@ -82,19 +92,40 @@ typedef enum {
     SHARED_SUBSCRIPTION_AVAILABLE = 42
 } properties_type;
 
-//Properties
-struct properties {
-    uint32_t property_len; //property length, exclude itself,variable byte integer;
+struct property {
     properties_type type: 32;
-    void *property; //Unknown property data type;
+    uint32_t len;
+    void *data; //Dynamic alloc memory, need to call the function "nng_free(void *buf, size_t sz)" to free;
 };
 
-#define MAX_TOPIC_LENGTH 100
+//Special for publish message data structure
+struct property_content{
+    uint8_t payload_fmt_indicator;
+    uint32_t msg_expiry_interval;
+    uint16_t topic_alias;
+    struct variable_string response_topic;
+    struct variable_binary correlation_data;
+    struct variable_string user_property;
+    variable_integer subscription_identifier;
+    struct variable_string content_type;
+};
+
+#define PUBLISH_PROPERTIES_TOTAL 10
+
+//Properties
+struct properties {
+    uint32_t len; //property length, exclude itself,variable byte integer;
+//    struct property prop_content[PUBLISH_PROPERTIES_TOTAL];
+    struct property_content content;
+};
+
+
+
 
 //MQTT Variable header
 struct variable_header {
-    char topic_name[MAX_TOPIC_LENGTH];
     uint16_t packet_identifier;
+    struct variable_string topic_name;
     struct properties properties;
 };
 
