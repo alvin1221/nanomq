@@ -25,17 +25,17 @@ typedef struct {
 
 // Underlying message structure. TODO MQTT message length
 struct nng_msg {
-	uint32_t       m_header_buf[(NNI_MAX_MAX_TTL + 1)];
+	//uint32_t       m_header_buf[(NNI_MAX_MAX_TTL + 1)];
+	uint32_t       m_header_buf[NNI_EMQ_MAX_HEADER_SIZE];	//only fixed header
 	size_t         m_header_len;
-	nni_chunk      m_body;
+	nni_chunk      m_body;	//variable header + payload
 	uint32_t       m_pipe; // set on receive
 	nni_atomic_int m_refcnt;
 //FOR EMQ MQTT
-	size_t		 *remaining_len;
-	uint8_t		 *variable_ptr;
-	uint8_t		 *header_ptr;
-	uint8_t		 *payload_ptr;
-	int		 CMD_TYPE;
+	size_t		 remaining_len;
+	uint8_t		 CMD_TYPE;
+//	uint8_t		 *variable_ptr;		//equal to m_body
+	uint8_t		 *payload_ptr;		//payload
 };
 
 #if 0
@@ -414,6 +414,11 @@ nni_msg_cmd_type(nni_msg *m)
 	return(m->CMD_TYPE);
 }
 
+size_t
+nni_msg_remain_len(nni_msg *m)
+{
+	return(m->remaining_len);
+}
 
 int
 nni_msg_dup(nni_msg **dup, const nni_msg *src)
@@ -611,7 +616,7 @@ nni_msg_set_pipe(nni_msg *m, uint32_t pid)
 }
 
 void
-nni_msg_set_cmd_type(nni_msg *m, int cmd)
+nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd)
 {
 	m->CMD_TYPE = cmd;
 }

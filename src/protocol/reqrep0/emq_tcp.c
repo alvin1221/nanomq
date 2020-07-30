@@ -468,6 +468,8 @@ emq_ctx_recv(void *arg, nni_aio *aio)
 	if (nni_list_empty(&s->recvpipes)) {
 		nni_pollable_clear(&s->readable);
 	}
+
+	//Start tcptran_pipe_recv
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
@@ -489,23 +491,23 @@ emq_pipe_recv_cb(void *arg)
 {
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
-	emq_ctx * ctx;
+	emq_ctx *  ctx;
 	nni_msg *  msg;
-	uint8_t *  body;
+	uint8_t *  body, *header;
 	nni_aio *  aio;
 	size_t     len;
 	int        hops;
-	int        ttl;
+	//int        ttl;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
 		return;
 	}
-	debug_msg("emq_pipe_recv_cb??????????");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
-	debug_msg("TYPE: %x !!!!!===========?????", nng_msg_cmd_type(msg));
-	ttl = nni_atomic_get(&s->ttl);
+	header = nng_msg_header(msg);
+	debug_msg("start emq_pipe_recv_cb TYPE: %x ===== header: %x %x\n",nng_msg_cmd_type(msg), *header, *(header+1));
+	//ttl = nni_atomic_get(&s->ttl);
 
 	nni_msg_set_pipe(msg, p->id);
 

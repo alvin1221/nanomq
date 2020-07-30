@@ -172,6 +172,10 @@ typedef nni_type nni_opt_type;
 #define NNI_MAX_MAX_TTL 15
 #endif
 
+//EMQ Tcp layer
+#define NNI_EMQ_MAX_PACKET_SIZE sizeof(uint16_t)*512
+#define NNI_EMQ_MAX_HEADER_SIZE sizeof(uint8_t)*2	//ONLY FIXED HEADER
+
 // NNI_MAX_HEADER_SIZE is our header size.
 #define NNI_MAX_HEADER_SIZE ((NNI_MAX_MAX_TTL + 1) * sizeof(uint32_t))
 
