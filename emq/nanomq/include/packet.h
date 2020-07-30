@@ -16,46 +16,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef enum Packet_qos Packet_qos;
-typedef enum Protocol_version Protocol_version;
-
-typedef struct mqtt_packet_header mqtt_packet_header;
-typedef struct mqtt_string mqtt_string;
-typedef struct mqtt_str_pair mqtt_str_pair;
-typedef struct mqtt_string_list mqtt_string_node;
-typedef struct mqtt_binary mqtt_binary;
-typedef struct mqtt_property mqtt_property;
-typedef struct property property;
-typedef struct topic_with_option topic_with_option;
-typedef struct topic_node topic_node;
-
-typedef struct mqtt_packet_connect mqtt_packet_connect;
-typedef struct mqtt_packet_connack mqtt_packet_connack;
-typedef struct mqtt_packet_publish mqtt_packet_publish;
-typedef struct mqtt_packet_puback mqtt_packet_puback;
-typedef struct mqtt_packet_subscribe mqtt_packet_subscribe;
-typedef struct mqtt_packet_suback mqtt_packet_suback;
-typedef struct mqtt_packet_unsubscribe mqtt_packet_unsubscribe;
-typedef struct mqtt_packet_unsuback mqtt_packet_unsuback;
-typedef struct mqtt_packet_disconnect mqtt_packet_disconnect;
-typedef struct mqtt_packet_auth mqtt_packet_auth;
-
-typedef struct mqtt_payload_connect mqtt_payload_connect;
-typedef struct mqtt_payload_publish mqtt_payload_publish;
-typedef struct mqtt_payload_subscribe mqtt_payload_subscribe;
-typedef struct mqtt_payload_suback mqtt_payload_suback;
-typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
-typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
-
-enum Packet_qos {
-	QOS_0 = 0, QOS_1, QOS_2
-};
-
-enum Protocol_version {
-	MQTT_PROTO_V4 = 4, // 3.1.1
-	MQTT_PROTO_V5
-};
-
 /* fixed header
 struct mqtt_packet_header {
     bool                    dup;
@@ -69,16 +29,19 @@ struct mqtt_string {
 	char *  str;
 	int     len;
 };
+typedef struct mqtt_string mqtt_string;
 
 struct mqtt_string_node {
-	mqtt_string_node *  next;
+	struct mqtt_string_node *  next;
 	mqtt_string *       it;
 };
+typedef struct mqtt_string_node mqtt_string_node;
 
 struct mqtt_binary {
 	unsigned char * str;
 	int             len;
 };
+typedef struct mqtt_binary mqtt_binary;
 
 struct mqtt_str_pair {
 	char *	str1; // key
@@ -86,6 +49,7 @@ struct mqtt_str_pair {
 	char *	str2; // value
 	int 	len2;
 };
+typedef struct mqtt_str_pair mqtt_str_pair;
 
 union Property_type{
 	uint8_t u8;
@@ -102,6 +66,7 @@ struct property {
 	union Property_type	value;
 	struct property * 	next;
 };
+typedef struct property property;
 
 struct mqtt_property {
 	uint32_t            len;
@@ -109,15 +74,16 @@ struct mqtt_property {
 	struct property *   property;
 	struct property *	property_end;
 };
+typedef struct mqtt_property mqtt_property;
 
 // variable header in mqtt_packet_connect
 struct mqtt_packet_connect {
 	mqtt_string *       proto_name;
-	Protocol_version    proto_ver;
+	uint8_t             proto_ver;
 	bool                is_bridge;
 	bool                clean_start;
 	bool                will_flag;
-	Packet_qos          will_qos;
+	uint8_t             will_qos;
 	bool                will_retain;
 	uint16_t            keep_alive;
 	mqtt_property *     property;
@@ -175,11 +141,13 @@ struct topic_with_option {
 	bool            retain; //bit3
 	uint8_t         retain_option; //bit45
 };
+typedef struct topic_with_option topic_with_option;
 
 struct topic_node {
 	topic_with_option * it;
-	topic_node * next;
+	struct topic_node * next;
 };
+typedef struct topic_node topic_node;
 
 struct mqtt_payload_subscribe {
 	topic_node * node;
@@ -202,7 +170,7 @@ struct mqtt_packet_unsubscribe {
 };
 
 struct mqtt_payload_unsubscribe {
-	struct mqtt_string_list * topic_filter;
+	struct mqtt_string_node * topic_filter;
 };
 
 //variable header in mqtt_packet_unsuback
@@ -230,6 +198,27 @@ struct mqtt_packet_auth {
 };
 
 // struct mqtt_payload_auth {} = NULL;
+
+// typedef struct mqtt_packet_header mqtt_packet_header;
+
+typedef struct mqtt_packet_connect mqtt_packet_connect;
+typedef struct mqtt_packet_connack mqtt_packet_connack;
+typedef struct mqtt_packet_publish mqtt_packet_publish;
+typedef struct mqtt_packet_puback mqtt_packet_puback;
+typedef struct mqtt_packet_subscribe mqtt_packet_subscribe;
+typedef struct mqtt_packet_suback mqtt_packet_suback;
+typedef struct mqtt_packet_unsubscribe mqtt_packet_unsubscribe;
+typedef struct mqtt_packet_unsuback mqtt_packet_unsuback;
+typedef struct mqtt_packet_disconnect mqtt_packet_disconnect;
+typedef struct mqtt_packet_auth mqtt_packet_auth;
+
+typedef struct mqtt_payload_connect mqtt_payload_connect;
+typedef struct mqtt_payload_publish mqtt_payload_publish;
+typedef struct mqtt_payload_subscribe mqtt_payload_subscribe;
+typedef struct mqtt_payload_suback mqtt_payload_suback;
+typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
+typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
+
 
 uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
 	*pos = 0;

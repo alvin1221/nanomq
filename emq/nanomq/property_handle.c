@@ -14,7 +14,7 @@ int type_of_variable_property(uint32_t id){
 	return lens[id-1];
 }
 
-void property_linklist_init(struct mqtt_property * list){
+void property_list_init(struct mqtt_property * list){
 	list->len = 0;
 	list->count = 0;
 	list->property = NULL;
@@ -25,7 +25,7 @@ void property_linklist_init(struct mqtt_property * list){
  * @Return the length of binary inserted.
  *
  * */
-int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t * bin){
+int property_list_insert(struct mqtt_property * list, uint32_t id, uint8_t * bin){
 	int res = 0;
 	int t, t1, t2, t3;
 	struct mqtt_string * s;
@@ -105,7 +105,7 @@ int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t *
 	return res;
 }
 
-int property_list_clear(struct mqtt_property * list){
+int property_list_free(struct mqtt_property * list){
 	struct property * node, *_node;
 	for(int i=0; i<list->count; i++){
 		node = list->property;

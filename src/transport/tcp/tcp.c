@@ -396,6 +396,9 @@ tcptran_pipe_recv_cb(void *arg)
 	size_t        n;
 	nni_msg *     msg;
 	nni_aio *     rxaio = p->rxaio;
+
+	uint8_t * header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
+	size_t * remaining_len = NULL;
 	
 	uint64_t len = 0, len1;
 	int * len_of_varint;
@@ -472,44 +475,49 @@ tcptran_pipe_recv_cb(void *arg)
 	n        = nni_msg_len(msg);
 	nni_msg_set_cmd_type(msg, CMD_CONNECT);
 
-	&(msg->remaining_len) = len;
-	msg->header_ptr = nni_msg_body(msg);
+	nni_msg_set_remaining_len(msg, &len);
+	remaining_len = nni_msg_remaining_len(msg);
+
+	nni_set_header_ptr(msg, nni_msg_body(msg));
+	header_ptr = nni_msg_header_ptr(msg);
 	if(len != 0){
-		msg->variable_ptr = msg->header_ptr + 1 + *len_of_varint;
+		nni_set_variable_ptr(msg, header_ptr + 1 + *len_of_varint);
 	}else{
-		msg->variable_ptr = NULL;
+		nni_set_variable_ptr(msg, variable_ptr);
 	}
+	variable_ptr = nni_msg_variable_ptr(msg);
 
 	//TODO setting the point to payload according packet_type
-	int ctp = msg->header_ptr[0] & 0xF0;
+	int ctp = header_ptr[0] & 0xF0;
 	debug_msg("The type of msg is %d \n.", ctp);
 	if(ctp == CMD_CONNECT){
-		NNI_GET16(msg->variable_ptr, len);
-		len1 = bin_parse_varint(msg->variable_ptr+6+len, len_of_varint);
-		msg->payload_ptr = msg->variable_ptr + 6 + len + len1 + *len_of_varint;
+		NNI_GET16(variable_ptr, len);
+		len1 = bin_parse_varint(variable_ptr+6+len, len_of_varint);
+		payload_ptr = variable_ptr + 6 + len + len1 + *len_of_varint;
 	}else if(ctp == CMD_SUBSCRIBE){
-		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
-		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+		len = bin_parse_varint(variable_ptr + 2, len_of_varint);
+		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
 	}else if(ctp == CMD_SUBACK){
-		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
-		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+		len = bin_parse_varint(variable_ptr + 2, len_of_varint);
+		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
 	}else if(ctp == CMD_UNSUBSCRIBE){
-		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
-		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+		len = bin_parse_varint(variable_ptr + 2, len_of_varint);
+		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
 	}else if(ctp == CMD_UNSUBACK){
-		len = bin_parse_varint(msg->variable_ptr + 2, len_of_varint);
-		msg->payload_ptr = msg->variable_ptr + 2 + len + *len_of_varint;
+		len = bin_parse_varint(variable_ptr + 2, len_of_varint);
+		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
 	}else if(ctp == CMD_PUBLISH){
-		NNI_GET16(msg->variable_ptr, len); // len of utf8-str
-		len1 = bin_parse_varint(msg->variable_ptr + 4 + len, len_of_varint);
-		if(*(msg->remaining_len) == *len_of_varint + len + len1 + 4){
-			msg->payload_ptr = NULL;
+		NNI_GET16(variable_ptr, len); // len of utf8-str
+		len1 = bin_parse_varint(variable_ptr + 4 + len, len_of_varint);
+		if(*remaining_len == *len_of_varint + len + len1 + 4){
+			payload_ptr = NULL;
 		}else{
-			msg->payload_ptr = msg->variable_ptr + *len_of_varint+len+len1+4;
+			payload_ptr = variable_ptr + *len_of_varint+len+len1+4;
 		}
 	}else{
-		msg->payload_ptr = NULL;
+		payload_ptr = NULL;
 	}
+	nni_msg_set_payload_ptr(msg, payload_ptr);
 
 	nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
