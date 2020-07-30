@@ -1,5 +1,7 @@
-#include "emq/nanomq/include/packet.h"
-#include "src/core/platform.h"
+#include <string.h>
+
+#include "packet.h"
+#include "nng/nng.h"
 
 int type_of_variable_property(uint32_t id);
 void property_linklist_init(struct mqtt_property * list);

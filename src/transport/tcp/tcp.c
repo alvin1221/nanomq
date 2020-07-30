@@ -482,6 +482,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 	//TODO setting the point to payload according packet_type
 	int ctp = msg->header_ptr[0] & 0xF0;
+	debug_msg("The type of msg is %d \n.", ctp);
 	if(ctp == CMD_CONNECT){
 		NNI_GET16(msg->variable_ptr, len);
 		len1 = bin_parse_varint(msg->variable_ptr+6+len, len_of_varint);

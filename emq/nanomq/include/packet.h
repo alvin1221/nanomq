@@ -21,6 +21,7 @@ typedef enum Protocol_version Protocol_version;
 
 typedef struct mqtt_packet_header mqtt_packet_header;
 typedef struct mqtt_string mqtt_string;
+typedef struct mqtt_str_pair mqtt_str_pair;
 typedef struct mqtt_string_list mqtt_string_node;
 typedef struct mqtt_binary mqtt_binary;
 typedef struct mqtt_property mqtt_property;
@@ -47,12 +48,12 @@ typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
 typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
 enum Packet_qos {
-    QOS_0 = 0, QOS_1, QOS_2
+	QOS_0 = 0, QOS_1, QOS_2
 };
 
 enum Protocol_version {
-    MQTT_PROTO_V4 = 4, // 3.1.1
-    MQTT_PROTO_V5
+	MQTT_PROTO_V4 = 4, // 3.1.1
+	MQTT_PROTO_V5
 };
 
 /* fixed header
@@ -65,18 +66,18 @@ struct mqtt_packet_header {
 */
 
 struct mqtt_string {
-    char *  str;
-    int     len;
+	char *  str;
+	int     len;
 };
 
 struct mqtt_string_node {
-    mqtt_string_node *  next;
-    mqtt_string *       it;
+	mqtt_string_node *  next;
+	mqtt_string *       it;
 };
 
 struct mqtt_binary {
-    unsigned char * str;
-    int             len;
+	unsigned char * str;
+	int             len;
 };
 
 struct mqtt_str_pair {
@@ -84,7 +85,7 @@ struct mqtt_str_pair {
 	int 	len1;
 	char *	str2; // value
 	int 	len2;
-}
+};
 
 union Property_type{
 	uint8_t u8;
@@ -103,141 +104,134 @@ struct property {
 };
 
 struct mqtt_property {
-    uint32_t            len;
+	uint32_t            len;
 	uint32_t			count;
-    struct property *   property;
+	struct property *   property;
 	struct property *	property_end;
 };
 
 // variable header in mqtt_packet_connect
 struct mqtt_packet_connect {
-    mqtt_string *       proto_name;
-    Protocol_version    proto_ver;
-    bool                is_bridge;
-    bool                clean_start;
-    bool                will_flag;
-    Packet_qos          will_qos;
-    bool                will_retain;
-    uint16_t            keep_alive;
-    mqtt_property *     property;
-    bool                has_username;
-    bool                has_password;
+	mqtt_string *       proto_name;
+	Protocol_version    proto_ver;
+	bool                is_bridge;
+	bool                clean_start;
+	bool                will_flag;
+	Packet_qos          will_qos;
+	bool                will_retain;
+	uint16_t            keep_alive;
+	mqtt_property *     property;
+	bool                has_username;
+	bool                has_password;
 };
 
 struct mqtt_payload_connect {
-    mqtt_string *       client_id; // 1-23 bytes[0-9a-zA-Z]
-    mqtt_property *     will_property; //app msg included
-    mqtt_string *       will_topic;
-    mqtt_binary *       will_payload;
-    mqtt_string *       username;
-    mqtt_binary *       password; //
+	mqtt_string *       client_id; // 1-23 bytes[0-9a-zA-Z]
+	mqtt_property *     will_property; //app msg included
+	mqtt_string *       will_topic;
+	mqtt_binary *       will_payload;
+	mqtt_string *       username;
+	mqtt_binary *       password; //
 };
 
 //variable header in mqtt_packet_connack
 struct mqtt_packet_connack {
-    bool                session_present;
-    uint8_t             reason_code;
-    struct mqtt_property * property;
+	bool                session_present;
+	uint8_t             reason_code;
+	struct mqtt_property * property;
 };
 
 //struct mqtt_payload_connack {} = NULL;
 
 //variable header in mqtt_packet_publish
 struct mqtt_packet_publish {
-    mqtt_string *   topic;
-    uint16_t        packet_id;
-    mqtt_property * property;
+	mqtt_string *   topic;
+	uint16_t        packet_id;
+	mqtt_property * property;
 };
 
 struct mqtt_payload_publish {
-    mqtt_binary *   msg;
+	mqtt_binary *   msg;
 };
 
 //variable header in mqtt_apcket_puback
 struct mqtt_packet_puback {
-    uint16_t        packet_id;
-    uint8_t         reason_code;
-    struct mqtt_property * property;
+	uint16_t        packet_id;
+	uint8_t         reason_code;
+	struct mqtt_property * property;
 };
 
 //struct mqtt_payload_puback {} = NULL;
 
 //variable header in mqtt_packet_subscribe
 struct mqtt_packet_subscribe {
-    uint16_t        packet_id;
-    struct mqtt_property * property;
+	uint16_t        packet_id;
+	struct mqtt_property * property;
 };
 
 struct topic_with_option {
-    mqtt_string *   topic_filter;
-    bool            no_local; //bit2
-    bool            retain; //bit3
-    uint8_t         retain_option; //bit45
-}
+	mqtt_string *   topic_filter;
+	bool            no_local; //bit2
+	bool            retain; //bit3
+	uint8_t         retain_option; //bit45
+};
 
 struct topic_node {
-    topic_with_option * it;
-    topic_node * next;
-}
+	topic_with_option * it;
+	topic_node * next;
+};
 
 struct mqtt_payload_subscribe {
-    topic_node * node;
+	topic_node * node;
 };
 
 //variable header in mqtt_apcket_suback
 struct mqtt_packet_suback {
-    uint16_t        packet_id;
-    struct mqtt_property * property;
+	uint16_t        packet_id;
+	struct mqtt_property * property;
 };
 
 struct mqtt_payload_suback {
-    mqtt_binary *   reason_code_list; //each byte->topic_filter in order
+	mqtt_binary *   reason_code_list; //each byte->topic_filter in order
 };
 
 //variable header in mqtt_packet_unsubscribe
 struct mqtt_packet_unsubscribe {
-    uint16_t        packet_id;
-    struct mqtt_property * property;
+	uint16_t        packet_id;
+	struct mqtt_property * property;
 };
 
 struct mqtt_payload_unsubscribe {
-    mqtt_string_list * topic_filter;
+	struct mqtt_string_list * topic_filter;
 };
 
 //variable header in mqtt_packet_unsuback
 struct mqtt_packet_unsuback {
-    uint16_t        packet_id;
-    struct mqtt_property * property;
+	uint16_t        packet_id;
+	struct mqtt_property * property;
 };
 
 struct mqtt_payload_unsuback {
-    mqtt_binary *   reason_code_list; //each byte->topic_filter in order
+	mqtt_binary *   reason_code_list; //each byte->topic_filter in order
 };
 
 // variable header in mqtt_packet_disconnect 
 struct mqtt_packet_disconnect {
-    uint8_t                 reason_code;
-    struct mqtt_property *  property;
+	uint8_t                 reason_code;
+	struct mqtt_property *  property;
 };
 
 // struct mqtt_payload_disconnect {} = NULL;
 
 //variable header in mqtt_packet_auth
 struct mqtt_packet_auth {
-    uint8_t                 auth_reason_code;
-    struct mqtt_property *  property;
+	uint8_t                 auth_reason_code;
+	struct mqtt_property *  property;
 };
 
 // struct mqtt_payload_auth {} = NULL;
 
-uint32_t bin_parse_varint(uint8_t * bin_pos){
-	int pos = 0;
-	return bin_parse_varint(bin_pos, &pos);
-}
-
-// this will return the length of varint 
 uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
-	assert(bin_pos);
 	*pos = 0;
 	uint32_t res = 0;
 	uint32_t multiplier = 1;

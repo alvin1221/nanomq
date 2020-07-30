@@ -1,8 +1,8 @@
-#include "emq/nanomq/include/property_handle.h"
+#include "include/property_handle.h"
 
 // u8-1 u16-2 u32-3 varint-4(u32) str-5 bin-6 strpair-7
 int type_of_variable_property(uint32_t id){
-	int lens = {
+	int lens[] = {
 1	,4	,5	,0	,0	,0	,
 0	,5	,6	,0	,4	,0	,
 0	,0	,0	,0	,4	,5	,
@@ -27,7 +27,11 @@ void property_linklist_init(struct mqtt_property * list){
  * */
 int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t * bin){
 	int res = 0;
-	struct property * node = nni_alloc(sizeof(struct property));
+	int t, t1, t2, t3;
+	struct mqtt_string * s;
+	struct mqtt_binary * b;
+	struct mqtt_str_pair * sp;
+	struct property * node = nng_alloc(sizeof(struct property));
 	node->id = id;
 	union Property_type val;
 	node->value = val;
@@ -38,14 +42,14 @@ int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t *
 			res = 1;
 			break;
 		case 2:
-			int t = *(bin+1);
+			t = *(bin+1);
 			val.u16 = (t<<8) + *bin;
 			res = 2;
 			break;
 		case 3:
-			int t1 = *(bin+3);
-			int t2 = *(bin+2);
-			int t3 = *(bin+1);
+			t1 = *(bin+3);
+			t2 = *(bin+2);
+			t3 = *(bin+1);
 			val.u32 = (t1<<24) + (t2<<16) + (t3<<8) +*bin;
 			res = 4;
 			break;
@@ -53,7 +57,7 @@ int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t *
 			val.varint = bin_parse_varint(bin, &res);
 			break;
 		case 5:
-			struct mqtt_string * s = nni_alloc(sizeof(mqtt_string));
+			s = nng_alloc(sizeof(mqtt_string));
 			s->len = (*(bin+1) << 8) + *bin;
 			if(s->len != 0){
 				memcpy(s->str, bin+2, s->len);
@@ -62,7 +66,7 @@ int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t *
 			res = 2 + s->len;
 			break;
 		case 6:
-			struct mqtt_binary b = nni_alloc(sizeof(mqtt_binary));
+			b = nng_alloc(sizeof(mqtt_binary));
 			b->len = (*(bin+1) << 8) + *bin;
 			if(b->len != 0){
 				memcpy(b->str, bin+2, b->len);
@@ -71,7 +75,7 @@ int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t *
 			res = 2 + b->len;
 			break;
 		case 7:
-			struct mqtt_str_pair sp = nni_alloc(sizeof(mqtt_str_pair));
+			sp = nng_alloc(sizeof(mqtt_str_pair));
 			sp->len1 = (*(bin+1) << 8) + *bin;
 			if(sp->len1 != 0){
 				memcpy(sp->str1, bin+2, sp->len1);
@@ -102,11 +106,11 @@ int property_linklist_insert(struct mqtt_property * list, uint32_t id, uint8_t *
 }
 
 int property_list_clear(struct mqtt_property * list){
-	struct property * node, _node;
+	struct property * node, *_node;
 	for(int i=0; i<list->count; i++){
 		node = list->property;
 		if(type_of_variable_property(node->id) > 4){
-			nni_free(&node->value, sizeof(union Property_type));
+			nng_free(&node->value, sizeof(union Property_type));
 		}
 		_node = node->next;
 		nng_free(node, sizeof(struct property));

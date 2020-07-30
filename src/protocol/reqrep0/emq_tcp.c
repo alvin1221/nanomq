@@ -523,6 +523,7 @@ handle_sub:
 	len = nni_msg_len(msg);
 	
 	// handle variable header
+	debug_msg("Handle the variable header . \n");
 	mqtt_packet_subscribe * pkt_sub = nni_alloc(sizeof(mqtt_packet_subscribe));
 	int vpos = 0; // pos of variable
 	pkt_sub->packet_id = (msg.variable_ptr[vpos+1]<<8) + msg.variable_ptr[vpos];
@@ -553,6 +554,7 @@ handle_sub:
 	}
 
     // binary handle
+	debug_msg("Handle the binary. \n");
 	int bpos = 0; //pos of binary
 	mqtt_payload_subscribe * payload_sub = nni_alloc(sizeof(mqtt_payload_subscribe));
 
