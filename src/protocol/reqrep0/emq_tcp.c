@@ -511,7 +511,6 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_msg_set_pipe(msg, p->id);
 
-    pub_packet_struct
 	/*
 	// Move backtrace from body to header
 	hops = 1;
