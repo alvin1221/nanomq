@@ -2,12 +2,19 @@
 #define MQTT_DB_H
 
 
+
+typedef enum {
+    UNEQUAL = -1, EQUAL = 0 } node_state;
+    
+
+
 struct mqtt_ctxt {
     // TODO
 };
 
 struct clientId {
     char                *id;
+    struct clientId     *next;
 };
 
 struct db_node {
@@ -18,10 +25,18 @@ struct db_node {
     struct db_node      *next;
     struct mqtt_ctxt    *ctxt;
     int len;
+    int first;
+    node_state state;
 
     /* hash func will work if len > 3 */ 
     /* or make an array and use binary serach */
     // TODO
+};
+
+struct topic_and_node {
+    char **topic;
+    struct db_node *node; 
+
 };
 
 struct db_tree{
@@ -41,33 +56,30 @@ void new_db_tree(struct conf *conf, struct db_tree *db);
 void delete_db_tree(struct db_tree *db);
 
 /* Search node in db_tree*/
-struct node *search_node(struct db_tree *db, char *topic_data);
+struct topic_and_node *search_node(struct db_tree *db, char *topic_data);
 
 /* Add node to db_tree */
-void add_node(struct db_tree *db, char *topic_data);
+void add_node(struct topic_and_node *input, struct clientId *id);
 
-void del_node(struct db_tree *db, char *topic_data);
+/* Delete node from db_tree when node does not have clientId */
+void del_node(struct db_node *node);
 
-void tpoic_parse()
+/* Free node memory */
+void free_node(struct db_node *node);
 
+/* Parsing topic from char* with '/' to char** */
+char **topic_parse(char *topic);
 
+/* Delete client id. */
+void del_client(struct topic_and_node *input, char *id);
 
+/* Add client id. */
+void add_client(struct topic_and_node *input, char *id);
 
+/* A hash table, clientId or alias as key, topic as value */ 
+char *hash_check_topic(struct clientId *client);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void hash_add_topic(struct clientId *client, char *topic);
 
 
 
