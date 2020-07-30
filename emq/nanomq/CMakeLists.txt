@@ -23,7 +23,7 @@ set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 find_package(nng CONFIG REQUIRED)
 
 add_executable(server server.c)
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c property_handle.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c)
 
 target_link_libraries(nanomq apps)
 

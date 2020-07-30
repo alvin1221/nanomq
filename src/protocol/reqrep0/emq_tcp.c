@@ -512,7 +512,7 @@ emq_pipe_recv_cb(void *arg)
 	debug_msg("emq_pipe_recv_cb??????????");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
-	debug_msg("TYPE: %x !!!!!===========?????", nng_msg_cmd_type(msg));
+	debug_msg("TYPE: %x !!!!!===========?????", nni_msg_cmd_type(msg));
 	ttl = nni_atomic_get(&s->ttl);
 
 	nni_msg_set_pipe(msg, p->id);
@@ -577,7 +577,7 @@ handle_sub:
 
 		mqtt_string * str = nni_alloc(sizeof(mqtt_string));
 		str->len = topic_len;
-		memcpy(str->str, payload_ptr[bpos], topic_len);
+		memcpy(str->str, payload_ptr+bpos, topic_len);
 
 		bpos += topic_len;
 		int tmp_qos = 0x03 & payload_ptr[bpos];
