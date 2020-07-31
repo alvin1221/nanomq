@@ -7,6 +7,41 @@
 
 #include <nng/nng.h>
 
+/* Error values */
+enum err_t {
+	ERR_AUTH_CONTINUE = -4,
+	ERR_NO_SUBSCRIBERS = -3,
+	ERR_SUB_EXISTS = -2,
+	ERR_CONN_PENDING = -1,
+	ERR_SUCCESS = 0,
+	ERR_NOMEM = 1,
+	ERR_PROTOCOL = 2,
+	ERR_INVAL = 3,
+	ERR_NO_CONN = 4,
+	ERR_CONN_REFUSED = 5,
+	ERR_NOT_FOUND = 6,
+	ERR_CONN_LOST = 7,
+	ERR_TLS = 8,
+	ERR_PAYLOAD_SIZE = 9,
+	ERR_NOT_SUPPORTED = 10,
+	ERR_AUTH = 11,
+	ERR_ACL_DENIED = 12,
+	ERR_UNKNOWN = 13,
+	ERR_ERRNO = 14,
+	ERR_EAI = 15,
+	ERR_PROXY = 16,
+	ERR_PLUGIN_DEFER = 17,
+	ERR_MALFORMED_UTF8 = 18,
+	ERR_KEEPALIVE = 19,
+	ERR_LOOKUP = 20,
+	ERR_MALFORMED_PACKET = 21,
+	ERR_DUPLICATE_PROPERTY = 22,
+	ERR_TLS_HANDSHAKE = 23,
+	ERR_QOS_NOT_SUPPORTED = 24,
+	ERR_OVERSIZE_PACKET = 25,
+	ERR_OCSP = 26,
+};
+
 typedef uint32_t variable_integer;
 
 struct variable_string {
@@ -149,14 +184,20 @@ struct property {
 
 //Special for publish message data structure
 struct property_content {
-	uint8_t payload_fmt_indicator;
-	uint32_t msg_expiry_interval;
-	uint16_t topic_alias;
-	struct variable_string response_topic;
-	struct variable_binary correlation_data;
-	struct variable_string user_property;
-	variable_integer subscription_identifier;
-	struct variable_string content_type;
+	union {
+		uint8_t payload_fmt_indicator;
+		uint32_t msg_expiry_interval;
+		uint16_t topic_alias;
+		struct variable_string response_topic;
+		struct variable_binary correlation_data;
+		struct variable_string user_property;
+		variable_integer subscription_identifier;
+		struct variable_string content_type;
+	} publish;
+	union {
+		struct variable_string reason_string;
+		struct variable_string user_property;
+	}pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
 
 //#define PUBLISH_PROPERTIES_TOTAL 10
@@ -181,19 +222,7 @@ struct variable_header {
 		uint16_t packet_identifier;
 		reason_code reason_code;
 		struct properties properties;
-	} puback;
-
-	union {
-
-	}pubrec;
-
-	union {
-
-	}pubrel;
-
-	union {
-
-	} pubcomp ;
+	}pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
 
 

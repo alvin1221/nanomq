@@ -27,7 +27,7 @@ uint32_t get_uint32(const uint8_t *buf);
 uint64_t get_uint64(const uint8_t *buf);
 #endif
 
-uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src);
+static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src);
 
 
 /**
@@ -93,7 +93,7 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 						properties_type prop_type = get_var_integer(msg_body, &pos);
 						switch (prop_type) {
 							case PAYLOAD_FORMAT_INDICATOR:
-								pub_packet->variable_header.publish.properties.content.payload_fmt_indicator = *(
+								pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator = *(
 										msg_body +
 										pos);
 								++pos;
@@ -103,64 +103,71 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 							case MESSAGE_EXPIRY_INTERVAL:
 								NNI_GET32(
 										msg_body + pos,
-										pub_packet->variable_header.publish.properties.content.msg_expiry_interval);
+										pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval);
 								pos += 4;
 								i += 4;
 								break;
 
 							case CONTENT_TYPE:
-								pub_packet->variable_header.publish.properties.content.content_type.str_len = get_utf8_str(
-										pub_packet->variable_header.publish.properties.content.content_type.str_body,
-										msg_body,
-										&pos);
-								i = i + pub_packet->variable_header.publish.properties.content.content_type.str_len + 2;
+								pub_packet->variable_header.publish.properties.content.publish.content_type.str_len =
+										get_utf8_str(
+												pub_packet->variable_header.publish.properties.content.publish.content_type.str_body,
+												msg_body,
+												&pos);
+								i = i +
+								    pub_packet->variable_header.publish.properties.content.publish.content_type.str_len +
+								    2;
 								break;
 
 							case TOPIC_ALIAS:
 								NNI_GET16(
 										msg_body + pos,
-										pub_packet->variable_header.publish.properties.content.topic_alias);
+										pub_packet->variable_header.publish.properties.content.publish.topic_alias);
 								pos += 2;
 								i += 2;
 
-								if (pub_packet->variable_header.publish.properties.content.topic_alias == 0) {
+								if (pub_packet->variable_header.publish.properties.content.publish.topic_alias == 0) {
 									//TODO protocol error, free memory and return ?
 //                                return false;
 								}
-
 								break;
 
 							case RESPONSE_TOPIC:
-								pub_packet->variable_header.publish.properties.content.response_topic.str_len = get_utf8_str(
-										pub_packet->variable_header.publish.properties.content.response_topic.str_body,
+								pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len
+										= get_utf8_str(
+										pub_packet->variable_header.publish.properties.content.publish.response_topic.str_body,
 										msg_body,
 										&pos);
-								i = i + pub_packet->variable_header.publish.properties.content.content_type.str_len + 2;
+								i = i +
+								    pub_packet->variable_header.publish.properties.content.publish.content_type.str_len +
+								    2;
 								break;
 
 							case CORRELATION_DATA:
-								pub_packet->variable_header.publish.properties.content.correlation_data.data_len = get_variable_binary(
-										pub_packet->variable_header.publish.properties.content.correlation_data.data,
+								pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len
+										= get_variable_binary(
+										pub_packet->variable_header.publish.properties.content.publish.correlation_data.data,
 										msg_body + pos);
-								pos += pub_packet->variable_header.publish.properties.content.correlation_data.data_len +
+								pos += pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len +
 								       2;
-								i += pub_packet->variable_header.publish.properties.content.correlation_data.data_len +
+								i += pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len +
 								     2;
 								break;
 
 							case USER_PROPERTY:
-								pub_packet->variable_header.publish.properties.content.response_topic.str_len = get_utf8_str(
-										pub_packet->variable_header.publish.properties.content.user_property.str_body,
-										msg_body,
-										&pos);
-								i = i + pub_packet->variable_header.publish.properties.content.user_property.str_len +
-								    2;
+								pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len =
+										get_utf8_str(
+												pub_packet->variable_header.publish.properties.content.publish.user_property.str_body,
+												msg_body,
+												&pos);
+								i += pub_packet->variable_header.publish.properties.content.publish.user_property.str_len +
+								     2;
 								break;
 
 							case SUBSCRIPTION_IDENTIFIER:
 								temp_pos = pos;
-								pub_packet->variable_header.publish.properties.content.subscription_identifier = get_var_integer(
-										msg_body, &pos);
+								pub_packet->variable_header.publish.properties.content.publish.subscription_identifier =
+										get_var_integer(msg_body, &pos);
 								i += (pos - temp_pos);
 								break;
 
@@ -179,23 +186,45 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 				break;
 
 			case PUBACK:
-				NNI_GET16(msg_body + pos, pub_packet->variable_header.puback.packet_identifier);
+			case PUBREC:
+			case PUBREL:
+			case PUBCOMP:
+				NNI_GET16(msg_body + pos, pub_packet->variable_header.pub_arrc.packet_identifier);
 				pos += 2;
 				if (pub_packet->fixed_header.remain_len == 2) {
-					//means reason code is success 0x00
+					//Reason code can be ignored when remaining length = 2 and reason code = 0x00(Success)
+					pub_packet->variable_header.pub_arrc.reason_code = SUCCESS;
 					break;
 				}
-				pub_packet->variable_header.puback.reason_code = *(msg_body + pos);
+				pub_packet->variable_header.pub_arrc.reason_code = *(msg_body + pos);
 				++pos;
-				break;
+				if (pub_packet->fixed_header.remain_len > 4) {
+					pub_packet->variable_header.pub_arrc.properties.len = get_var_integer(msg_body, &pos);
+					for (uint32_t i = 0; i < pub_packet->variable_header.pub_arrc.properties.len;) {
+						properties_type prop_type = get_var_integer(msg_body, &pos);
+						switch (prop_type) {
+							case REASON_STRING:
+								pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.reason_string.str_len = get_utf8_str(
+										pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.reason_string.str_body,
+										msg_body, &pos);
+								i += pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.reason_string.str_len +
+								     2;
+								break;
 
-			case PUBREC:
-				break;
+							case USER_PROPERTY:
+								pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_len = get_utf8_str(
+										pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_body,
+										msg_body, &pos);
+								i += pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_len +
+								     2;
+								break;
 
-			case PUBREL:
-				break;
-
-			case PUBCOMP:
+							default:
+								i++;
+								break;
+						}
+					}
+				}
 				break;
 
 			default:
@@ -226,7 +255,7 @@ uint32_t get_var_integer(const uint8_t *buf, int *pos)
 
 	do {
 		temp = *(buf + (p++));
-		result = (temp & 0x7F) | (result * 128);
+		result = (uint32_t) (temp & 0x7F) | (result * 128);
 	}
 	while ((temp & 0x80) && --loop_times);
 	*pos = p;
@@ -261,14 +290,14 @@ uint32_t get_uint16(const uint8_t *buf)
 }
 #endif
 
-uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
+static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
 {
-//	uint16_t len = get_uint16(src);
 	uint16_t len = 0;
 	NNI_GET16(src, len);
-	dest = nni_alloc(len);
+//	dest = nni_alloc(len);
 
-	memcpy(dest, src + 2, len);
+//	memcpy(dest, src + 2, len);
+	dest = (uint8_t *) (src + 2);
 	return len;
 }
 
@@ -284,11 +313,11 @@ static int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
 {
 	int32_t str_len = 0;
 	NNI_GET16(src + (*pos), str_len);
-	dest = nng_alloc(str_len); //Do not forget to free
+
 	*pos = (*pos) + 2;
 	if (str_len > 0) {
-		if (utf8_check((const char *) (src + *pos), str_len)) {
-			strncpy(dest, (char *) (src + *pos), str_len);
+		if (utf8_check((const char *) (src + *pos), str_len) == ERR_SUCCESS) {
+			dest = (char *) (src + (*pos));
 			*pos = (*pos) + str_len;
 		} else {
 			str_len = -1;
@@ -297,36 +326,90 @@ static int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
 	return str_len;
 }
 
-static int utf8_check(const char *str, size_t length)
+static int utf8_check(const char *str, size_t len)
 {
-	size_t i = 0;
-	int nBytes = 0;////UTF8可用1-6个字节编码,ASCII用一个字节
-	unsigned char ch = 0;
-	bool bAllAscii = true;//如果全部都是ASCII,说明不是UTF-8
-	while (i < length) {
-		ch = *(str + i);
-		if ((ch & 0x80) != 0)
-			bAllAscii = false;
-		if (nBytes == 0) {
-			if ((ch & 0x80) != 0) {
-				while ((ch & 0x80) != 0) {
-					ch <<= 1;
-					nBytes++;
-				}
-				if ((nBytes < 2) || (nBytes > 6)) {
-					return 0;
-				}
-				nBytes--;
+	int i;
+	int j;
+	int codelen;
+	int codepoint;
+	const unsigned char *ustr = (const unsigned char *) str;
+
+	if (!str) return ERR_INVAL;
+	if (len < 0 || len > 65536) return ERR_INVAL;
+
+	for (i = 0; i < len; i++) {
+		if (ustr[i] == 0) {
+			return ERR_MALFORMED_UTF8;
+		} else if (ustr[i] <= 0x7f) {
+			codelen = 1;
+			codepoint = ustr[i];
+		} else if ((ustr[i] & 0xE0) == 0xC0) {
+			/* 110xxxxx - 2 byte sequence */
+			if (ustr[i] == 0xC0 || ustr[i] == 0xC1) {
+				/* Invalid bytes */
+				return ERR_MALFORMED_UTF8;
 			}
+			codelen = 2;
+			codepoint = (ustr[i] & 0x1F);
+		} else if ((ustr[i] & 0xF0) == 0xE0) {
+			/* 1110xxxx - 3 byte sequence */
+			codelen = 3;
+			codepoint = (ustr[i] & 0x0F);
+		} else if ((ustr[i] & 0xF8) == 0xF0) {
+			/* 11110xxx - 4 byte sequence */
+			if (ustr[i] > 0xF4) {
+				/* Invalid, this would produce values > 0x10FFFF. */
+				return ERR_MALFORMED_UTF8;
+			}
+			codelen = 4;
+			codepoint = (ustr[i] & 0x07);
 		} else {
-			if ((ch & 0xc0) != 0x80) {
-				return 0;
-			}
-			nBytes--;
+			/* Unexpected continuation byte. */
+			return ERR_MALFORMED_UTF8;
 		}
-		i++;
+
+		/* Reconstruct full code point */
+		if (i == len - codelen + 1) {
+			/* Not enough data */
+			return ERR_MALFORMED_UTF8;
+		}
+		for (j = 0; j < codelen - 1; j++) {
+			if ((ustr[++i] & 0xC0) != 0x80) {
+				/* Not a continuation byte */
+				return ERR_MALFORMED_UTF8;
+			}
+			codepoint = (codepoint << 6) | (ustr[i] & 0x3F);
+		}
+
+		/* Check for UTF-16 high/low surrogates */
+		if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+			return ERR_MALFORMED_UTF8;
+		}
+
+		/* Check for overlong or out of range encodings */
+		/* Checking codelen == 2 isn't necessary here, because it is already
+		 * covered above in the C0 and C1 checks.
+		 * if(codelen == 2 && codepoint < 0x0080){
+		 *	 return ERR_MALFORMED_UTF8;
+		 * }else
+		*/
+		if (codelen == 3 && codepoint < 0x0800) {
+			return ERR_MALFORMED_UTF8;
+		} else if (codelen == 4 && (codepoint < 0x10000 || codepoint > 0x10FFFF)) {
+			return ERR_MALFORMED_UTF8;
+		}
+
+		/* Check for non-characters */
+		if (codepoint >= 0xFDD0 && codepoint <= 0xFDEF) {
+			return ERR_MALFORMED_UTF8;
+		}
+		if ((codepoint & 0xFFFF) == 0xFFFE || (codepoint & 0xFFFF) == 0xFFFF) {
+			return ERR_MALFORMED_UTF8;
+		}
+		/* Check for control characters */
+		if (codepoint <= 0x001F || (codepoint >= 0x007F && codepoint <= 0x009F)) {
+			return ERR_MALFORMED_UTF8;
+		}
 	}
-	if (bAllAscii)
-		return false;
-	return (nBytes == 0);
+	return ERR_SUCCESS;
 }
