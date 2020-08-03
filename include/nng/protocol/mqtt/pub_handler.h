@@ -173,8 +173,8 @@ struct property {
 };
 
 //Special for publish message data structure
-struct property_content {
-	union {
+union property_content {
+	struct {
 		uint8_t payload_fmt_indicator;
 		uint32_t msg_expiry_interval;
 		uint16_t topic_alias;
@@ -184,7 +184,7 @@ struct property_content {
 		variable_integer subscription_identifier;
 		struct variable_string content_type;
 	} publish;
-	union {
+	struct {
 		struct variable_string reason_string;
 		struct variable_string user_property;
 	} pub_arrc, puback, pubrec, pubrel, pubcomp;
@@ -196,21 +196,21 @@ struct property_content {
 struct properties {
 	uint32_t len; //property length, exclude itself,variable byte integer;
 //    struct property prop_content[PUBLISH_PROPERTIES_TOTAL];
-	struct property_content content;
+	union property_content content;
 };
 
 
 //MQTT Variable header
-struct variable_header {
-	union {
+union variable_header {
+	struct {
 		uint16_t packet_identifier;
 		struct variable_string topic_name;
 		struct properties properties;
 	} publish;
 
-	union {
+	struct {
 		uint16_t packet_identifier;
-		reason_code reason_code;
+		reason_code reason_code: 8;
 		struct properties properties;
 	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
@@ -223,11 +223,21 @@ struct mqtt_payload {
 
 struct pub_packet_struct {
 	struct fixed_header fixed_header;
-	struct variable_header variable_header;
+	union variable_header variable_header;
 	struct mqtt_payload payload_body;
 
 };
 
 void pub_handler(nng_msg *msg);
+
+int utf8_check(const char *str, size_t length);
+
+uint8_t put_var_integer(uint8_t *dest, uint32_t value);
+
+uint32_t get_var_integer(const uint8_t *buf, int *pos);
+
+bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
+
+bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
 #endif //NNG_PUB_HANDLER_H
