@@ -4,13 +4,14 @@
 
 
 #include "nng/protocol/mqtt/pub_handler.h"
+
+#include "nng/protocol/mqtt/connect_parser.h"
+#include <stdio.h>
 #include <string.h>
+#include <nng/nng.h>
 #include "core/nng_impl.h"
 
-static int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos);
-
 static uint32_t power(uint32_t x, uint32_t n);
-
 #if 0
 uint32_t get_uint16(const uint8_t *buf);
 
@@ -20,6 +21,7 @@ uint64_t get_uint64(const uint8_t *buf);
 #endif
 
 static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src);
+
 
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
 
@@ -40,6 +42,7 @@ void pub_handler(nng_msg *msg)
 		//TODO do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
 	}
 }
+
 
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
@@ -194,10 +197,6 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 //		case AUTH:
 //			break;
 	}
-
-
-	return true;
-
 }
 
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
@@ -229,6 +228,8 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				pub_packet->variable_header.publish.topic_name.str_len = len;
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
+
+
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
@@ -385,6 +386,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	return false;
 }
 
+
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
 {
 	if (len > 0) {
@@ -491,6 +493,7 @@ static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
 //	memcpy(dest, src + 2, len);
 	dest = (uint8_t *) (src + 2);
 	return len;
+
 }
 
 /**

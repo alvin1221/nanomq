@@ -8,6 +8,7 @@
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
 #include "nng/protocol/mqtt/pub_handler.h"
+#include "nng/protocol/mqtt/mqtt.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -95,6 +96,7 @@ emq_ctx_init(void *carg, void *sarg)
 	emq_sock *s   = sarg;
 	emq_ctx * ctx = carg;
 
+	debug_msg("&&&&&&&&&&&&&&& emq_ctx_init");
 	NNI_LIST_NODE_INIT(&ctx->sqnode);
 	NNI_LIST_NODE_INIT(&ctx->rqnode);
 	ctx->btrace_len = 0;
@@ -192,8 +194,12 @@ emq_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	if (!p->busy) {
+		uint8_t  *header,l;
 		p->busy = true;
 		len     = nni_msg_len(msg);
+		l = nni_msg_header_len(msg);
+		header = nng_msg_header(msg);
+		debug_msg("%s %x %x %d", nng_msg_body(msg),*header,*(header+1),len);
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&s->lk);
@@ -248,6 +254,7 @@ emq_sock_init(void *arg, nni_sock *sock)
 	nni_pollable_init(&s->writable);
 	nni_pollable_init(&s->readable);
 
+	debug_msg("&&&&&&&&&&&&emq_sock_init&&&&&&&&&&&&&");
 	return (0);
 }
 
@@ -311,7 +318,7 @@ emq_pipe_start(void *arg)
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
 	int        rv;
-	//TODO check MQTT Header here
+	//TODO check MQTT protocol version here
 	/*
 	if (nni_pipe_peer(p->pipe) != NNG_REP0_PEER) {
 		// Peer protocol mismatch.
@@ -319,6 +326,7 @@ emq_pipe_start(void *arg)
 	}
 	*/
 
+	//debug_msg("emq_pipe_start peep ver: %s", p->pipe);
 	if ((rv = nni_idhash_insert(s->pipes, nni_pipe_id(p->pipe), p)) != 0) {
 		return (rv);
 	}
@@ -440,7 +448,7 @@ emq_ctx_recv(void *arg, nni_aio *aio)
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
-	debug_msg("emq_ctx_recv start");
+	debug_msg("emq_ctx_recv start %p", ctx);
 	nni_mtx_lock(&s->lk);
 	if ((p = nni_list_first(&s->recvpipes)) == NULL) {
 		int rv;
@@ -478,6 +486,7 @@ emq_ctx_recv(void *arg, nni_aio *aio)
 	//memcpy(ctx->btrace, nni_msg_header(msg), len);
 	//ctx->btrace_len = len;
 	ctx->pipe_id    = nni_pipe_id(p->pipe);
+	debug_msg("emq_ctx_recv ends %p pipe: %p", ctx, p);
 	nni_mtx_unlock(&s->lk);
 
 	//nni_msg_header_clear(msg);
@@ -490,9 +499,9 @@ emq_pipe_recv_cb(void *arg)
 {
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
-	emq_ctx * ctx;
+	emq_ctx *  ctx;
 	nni_msg *  msg;
-	uint8_t *  body;
+	uint8_t *  body, *header;
 	nni_aio *  aio;
 	size_t     len;
 	int        hops;
@@ -502,13 +511,13 @@ emq_pipe_recv_cb(void *arg)
 		nni_pipe_close(p->pipe);
 		return;
 	}
-	debug_msg("emq_pipe_recv_cb??????????");
+	debug_msg("emq_pipe_recv_cb !");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
 
-	debug_msg("TYPE: %x !!!!!===========?????", nni_msg_cmd_type(msg));
-	ttl = nni_atomic_get(&s->ttl);
-
+	header = nng_msg_header(msg);
+	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n",p ,nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
+	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
 	/*
@@ -565,6 +574,11 @@ emq_pipe_recv_cb(void *arg)
 		return;
 	}
 
+	//TODO PINGRESP (PUBACK SUBACK) here?
+	if (nng_msg_cmd_type(msg) == CMD_PINGREQ) {
+		debug_msg("PINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
+	}
+
 	nni_list_remove(&s->recvq, ctx);
 	aio       = ctx->raio;
 	ctx->raio = NULL;
@@ -572,6 +586,7 @@ emq_pipe_recv_cb(void *arg)
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
 	}
+	debug_msg("ctx %p pipe: %p",ctx,p);
 
 	// schedule another receive
 	nni_pipe_recv(p->pipe, &p->aio_recv);
