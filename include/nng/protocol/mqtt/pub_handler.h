@@ -5,11 +5,11 @@
 #ifndef NNG_PUB_HANDLER_H
 #define NNG_PUB_HANDLER_H
 
-
+#include <nng/nng.h>
 #include "nng/protocol/mqtt/mqtt.h"
-#include "core/nng_impl.h"
 
 typedef uint32_t variable_integer;
+
 
 struct variable_string {
 	uint32_t str_len;
@@ -29,7 +29,6 @@ struct fixed_header {
 	uint8_t retain: 1;
 	uint8_t qos: 2;
 	uint8_t dup: 1;
-
 	//packet_types
 	mqtt_control_packet_types packet_type: 4;
 	//remaining length
@@ -60,6 +59,7 @@ union property_content {
 	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
 
+
 //#define PUBLISH_PROPERTIES_TOTAL 10
 
 //Properties
@@ -80,7 +80,7 @@ union variable_header {
 
 	struct {
 		uint16_t packet_identifier;
-		reason_code reason_code;
+		reason_code reason_code: 8;
 		struct properties properties;
 	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
@@ -99,13 +99,7 @@ struct pub_packet_struct {
 };
 
 void pub_handler(nng_msg *msg);
-
-int utf8_check(const char *str, size_t length);
-
 uint8_t put_var_integer(uint8_t *dest, uint32_t value);
-
-uint32_t get_var_integer(const uint8_t *buf, int *pos);
-
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
