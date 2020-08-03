@@ -390,7 +390,7 @@ tcptran_pipe_recv_cb(void *arg)
 	aio = nni_list_first(&p->recvq);
 
 	if ((rv = nni_aio_result(rxaio)) != 0) {
-		debug_syslog("aio error!\n");
+		debug_msg("nni aio error!! %d\n", rv);
 		goto recv_error;
 	}
 
@@ -422,13 +422,13 @@ tcptran_pipe_recv_cb(void *arg)
 		// Make sure the message payload is not too big.  If it is
 		// the caller will shut down the pipe.
 		if ((len > p->rcvmax) && (p->rcvmax > 0)) {
-			debug_syslog("size error\n");
+			debug_msg("size error\n");
 			rv = NNG_EMSGSIZE;
 			goto recv_error;
 		}
 
 		if ((rv = nni_msg_alloc(&p->rxmsg, (size_t) len)) != 0) {
-			debug_syslog("mem error %d\n", (size_t)len);
+			debug_msg("mem error %d\n", (size_t)len);
 			goto recv_error;
 		}
 

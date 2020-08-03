@@ -102,8 +102,9 @@ server_cb(void *arg)
 
                 printf("before send aio msg %s\n",(char *)nng_msg_body( work->msg));
                 work->msg   = NULL;
-                work->state = SEND;
-                nng_ctx_send(work->ctx, work->aio);
+                work->state = RECV;
+                //nng_ctx_send(work->ctx, work->aio);
+		nng_ctx_recv(work->ctx, work->aio);
                 printf("after send aio\n");
                 //work->state = RECV;
                 //nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here
