@@ -9,6 +9,8 @@
 #include <nng/nng.h>
 #include "core/nng_impl.h"
 
+uint8_t put_var_integer(uint8_t *dest, uint32_t value);
+
 uint32_t get_var_integer(const uint8_t *buf, int *pos);
 
 static bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
@@ -18,6 +20,8 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 static int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos);
 
 static int utf8_check(const char *str, size_t length);
+
+static uint32_t power(uint32_t x, uint32_t n);
 
 #if 0
 uint32_t get_uint16(const uint8_t *buf);
@@ -85,7 +89,7 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 				}
 				pub_packet->variable_header.publish.topic_name.str_len = len;
 
-				if (pub_packet->fixed_header.flag_bits.qos > 0) { //extract packet_identifier while qos > 0
+				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
@@ -243,15 +247,37 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 }
 
 
-uint8_t put_var_integer(uint8_t *dest, uint32_t value){
-	uint8_t bytes_len;
-	//TODO not completed
+uint8_t put_var_integer(uint8_t *dest, uint32_t value)
+{
+	uint8_t len = 0;
+	uint32_t init_val = 0x7F;
+	uint32_t temp = 0;
 
-//	for (int i = 0; i < 4; ++i) {
-//		(value * i*8) & 0x80
-//	}
+	for (uint32_t i = 0; i < sizeof(value); ++i) {
+		temp = init_val | (uint32_t) (0x100 * i);
+		if (temp > init_val) {
+			temp += 0xFF;
+		}
+		init_val = temp;
+		dest[i] = value / (uint32_t) power(0x80, i);
+		if (value > init_val) {
+			dest[i] |= 0x80;
+		}
+		len++;
+	}
+	return len;
+}
 
-	return bytes_len;
+static uint32_t power(uint32_t x, uint32_t n)
+{
+
+	uint32_t val = 1;
+
+	for (uint32_t i = 0; i <= n; ++i) {
+		val = x * val;
+	}
+
+	return val / x;
 }
 
 /**
