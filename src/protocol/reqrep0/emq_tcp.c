@@ -7,6 +7,7 @@
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
+#include "nng/protocol/mqtt/pub_handler.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -312,7 +313,7 @@ emq_pipe_start(void *arg)
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
 	int        rv;
-	//TODO check MQTT Header here
+	//TODO check MQTT protocol version here
 	/*
 	if (nni_pipe_peer(p->pipe) != NNG_REP0_PEER) {
 		// Peer protocol mismatch.
@@ -320,6 +321,7 @@ emq_pipe_start(void *arg)
 	}
 	*/
 
+	//debug_msg("emq_pipe_start peep ver: %s", p->pipe);
 	if ((rv = nni_idhash_insert(s->pipes, nni_pipe_id(p->pipe), p)) != 0) {
 		return (rv);
 	}
@@ -470,8 +472,6 @@ emq_ctx_recv(void *arg, nni_aio *aio)
 	if (nni_list_empty(&s->recvpipes)) {
 		nni_pollable_clear(&s->readable);
 	}
-
-	//Start tcptran_pipe_recv
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
@@ -500,22 +500,23 @@ emq_pipe_recv_cb(void *arg)
 	nni_aio *  aio;
 	size_t     len;
 	int        hops;
-	//int        ttl;
+	int        ttl;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
 		return;
 	}
+	debug_msg("emq_pipe_recv_cb !");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
+
 	header = nng_msg_header(msg);
 	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x\n",p ,nng_msg_cmd_type(msg), *header, *(header+1));
 	//ttl = nni_atomic_get(&s->ttl);
-
 	nni_msg_set_pipe(msg, p->id);
 
-/*
-	// reserve for multi node mode/bridging
+	/*
+	// Move backtrace from body to header
 	hops = 1;
 	for (;;) {
 		bool end;

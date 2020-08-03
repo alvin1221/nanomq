@@ -15,9 +15,9 @@ Copyright (c) 2009-2020 Roger Light <roger@atchoo.org>
 
 /* Length defination */
 #define EMQ_MAX_PACKET_LEN sizeof(uint8_t)*512
+#define EMQ_MAX_FIXED_HEADER_LEN sizeof(uint8_t)*5
 #define EMQ_MIN_HEADER_LEN sizeof(uint8_t)*8
 #define EMQ_CONNECT_PACKET_LEN sizeof(uint8_t)*32
-#define EMQ_FIXED_HEADER_LEN sizeof(uint8_t)*2
 
 /* Message types */
 #define CMD_CONNECT 0x10
