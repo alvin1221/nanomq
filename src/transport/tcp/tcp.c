@@ -472,12 +472,20 @@ tcptran_pipe_recv_cb(void *arg)
 	n        = nni_msg_len(msg);
 	nni_msg_set_cmd_type(msg, CMD_CONNECT);
 
+	nni_pipe_bump_rx(p->npipe, n);
+	tcptran_pipe_recv_start(p);
+	nni_mtx_unlock(&p->mtx);
+
+	// set remaining_len of msg
 	len = __bin_parse_varint(p->rxlen+1, len_of_varint);
 	nni_msg_set_remaining_len(msg, &len);
 	remaining_len = nni_msg_remaining_len(msg);
 
+	// set fixed header pointer of msg
 	nni_msg_set_header_ptr(msg, nni_msg_body(msg));
 	header_ptr = nni_msg_header_ptr(msg);
+
+	// set varibale header pointer of msg
 	if(len != 0){
 		nni_msg_set_variable_ptr(msg, header_ptr + 1 + *len_of_varint);
 	}else{
@@ -485,8 +493,8 @@ tcptran_pipe_recv_cb(void *arg)
 	}
 	variable_ptr = nni_msg_variable_ptr(msg);
 
-	//TODO setting the point to payload according packet_type
-	int ctp = header_ptr[0] & 0xF0;
+	// set the payload pointer of msg according packet_type
+	uint8_t ctp = header_ptr[0] & 0xF0;
 	debug_msg("The type of msg is %d \n.", ctp);
 	if(ctp == CMD_CONNECT){
 		NNI_GET16(variable_ptr, len);
@@ -517,9 +525,6 @@ tcptran_pipe_recv_cb(void *arg)
 	}
 	nni_msg_set_payload_ptr(msg, payload_ptr);
 
-	nni_pipe_bump_rx(p->npipe, n);
-	tcptran_pipe_recv_start(p);
-	nni_mtx_unlock(&p->mtx);
 
 	nni_aio_set_msg(aio, msg);
 	// control/expose msg to EMQ_NANO protocl level

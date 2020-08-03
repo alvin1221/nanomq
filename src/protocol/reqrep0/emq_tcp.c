@@ -508,7 +508,6 @@ emq_pipe_recv_cb(void *arg)
 	msg = nni_aio_get_msg(&p->aio_recv);
 	debug_msg("TYPE: %x !!!!!===========?????", nni_msg_cmd_type(msg));
 	ttl = nni_atomic_get(&s->ttl);
-
 	nni_msg_set_pipe(msg, p->id);
 
 	subscribe_handle(msg);

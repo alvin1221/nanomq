@@ -1,38 +1,50 @@
+#include "../../../include/nng/protocol/mqtt/mqtt.h"
+#include "property_handle.h"
 
-void unsubsrcibe_handle(){
+void unsubsrcibe_handle(nni_msg* msg){
+	uint8_t *  header_ptr;
+	uint8_t *  variable_ptr;
+	uint8_t *  payload_ptr;
+
+	uint16_t   packet_id;
+	int        len_of_varint;
+	size_t *   remaining_len;
+	int vpos = 0; // pos of variable
+	int bpos = 0; // pos of payload
+
 	// handle unsubscribe fixed header
 	header_ptr = nni_msg_header_ptr(msg);
 	if((header_ptr[0] & 0xF0) != CMD_UNSUBSCRIBE){
-		goto handle_pub;
+		return;
 	}
 	len = nni_msg_len(msg);
 
 	// handle variable header
 	debug_msg("Handle the variable header of unsub. \n");
 	variable_ptr = nni_msg_variable_ptr(msg);
-	mqtt_packet_unsubscribe * pkt_unsub = nni_alloc(sizeof(mqtt_packet_unsubscribe));
-	pkt_unsub->packet_id = (variable_ptr[vpos+1]<<8) + variable_ptr[vpos];
+	packet_id = (variable_ptr[vpos+1]<<8) + variable_ptr[vpos];
 	vpos += 2;
-	pkt_unsub->property = prop;
 
-	len_of_varint = 0;
+	mqtt_property * prop = nni_alloc(sizeof(mqtt_property));
+	property_list_init(prop);
 	prop->len = bin_parse_varint(variable_ptr+vpos, &len_of_varint);
 	vpos += len_of_varint;
 
 	// parse property in variable
-	int prop_pos = 0;
-
-	while(1){
-		uint32_t pkt_id = variable_ptr[vpos++];
-		len_of_varint = property_list_insert(prop, pkt_id, variable_ptr+vpos+1);
-		if(len_of_varint == 0){
-			debug_msg("ERROR IN PACKETID. \n");
-			property_list_free(prop);
-		}
-		prop_pos += (1+len_of_varint);
-		vpos += (1+len_of_varint);
-		if(prop_pos >= prop->len){
-			break;
+	if(prop->len > 0){
+		int prop_pos = 0;
+		while(1){
+			uint32_t property_id = variable_ptr[vpos++];
+			len_of_varint = property_list_insert(prop, property_id, variable_ptr+vpos+1);
+			if(len_of_varint == 0){
+				debug_msg("ERROR IN PACKETID. \n");
+				property_list_free(prop);
+			}
+			prop_pos += (1+len_of_varint);
+			vpos += (1+len_of_varint);
+			if(prop_pos >= prop->len){
+				break;
+			}
 		}
 	}
 
@@ -66,11 +78,11 @@ void unsubsrcibe_handle(){
 		}
 	}
 
-	// action for every topic
+	// action for each topic
 	uint8_t unsuback_reason_codes[payload_sub->count];
 	int upos = 0;
 	while(1){
-		topic_node_t = payload_unsub->filter;
+		topic_node_t = payload_unsub->topic_filter;
 		if(topic_node_t == NULL){
 			break;
 		}
@@ -79,6 +91,6 @@ void unsubsrcibe_handle(){
 
 		unsuback_reason_codes[upos++] = 0x00; // success
 	}
-	// unsuback id
+	nni_free(payload_unsub, sizeof(mqtt_payload_unsubscribe));
 }
 

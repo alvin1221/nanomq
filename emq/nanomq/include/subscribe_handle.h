@@ -20,7 +20,7 @@ void subscribe_handle(nni_msg * msg){
 	int        len_of_varint;
 	size_t *   remaining_len;
 	int vpos = 0; // pos of variable
-	int bpos = 0; //pos of binary
+	int bpos = 0; // pos of payload
 
 	// handle subscribe fixed header
 	header_ptr = nni_msg_header_ptr(msg);
