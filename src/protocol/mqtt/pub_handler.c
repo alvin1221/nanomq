@@ -53,8 +53,45 @@ void pub_handler(nng_msg *msg)
 
 static bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
+	uint8_t tmp[4] = {0};
+	uint32_t arr_len = 0;
 
-	nng_msg_append(msg, &pub_packet->fixed_header, 1);
+	pub_packet->fixed_header.dup = 0;//reset dup to 0 when publish message is sent to client;
+
+	nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
+	arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
+	nng_msg_append(msg, tmp, arr_len);
+
+	switch (pub_packet->fixed_header.packet_type) {
+		case PUBLISH:
+			//topic name
+			if (pub_packet->variable_header.publish.topic_name.str_len > 0) {
+				nng_msg_append(msg, pub_packet->variable_header.publish.topic_name.str_body,
+				               pub_packet->variable_header.publish.topic_name.str_len);
+			}
+
+			//identifier
+			if (pub_packet->fixed_header.qos > 0) {
+				nng_msg_append_u16(msg, pub_packet->variable_header.publish.packet_identifier);
+			}
+
+			//properties
+
+
+
+			break;
+		case PUBACK:
+			break;
+		case PUBREC:
+			break;
+		case PUBREL:
+			break;
+		case PUBCOMP:
+			break;
+
+		default:
+			break;
+	}
 
 
 	return true;
@@ -251,14 +288,12 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
 {
 	uint8_t len = 0;
 	uint32_t init_val = 0x7F;
-	uint32_t temp = 0;
 
-	for (uint32_t i = 0; i < sizeof(value); ++i) {
-		temp = init_val | (uint32_t) (0x100 * i);
-		if (temp > init_val) {
-			temp += 0xFF;
+	for (int i = 0; i < sizeof(value); ++i) {
+
+		if (i > 0) {
+			init_val = (init_val * 0x80) | 0xFF;
 		}
-		init_val = temp;
 		dest[i] = value / (uint32_t) power(0x80, i);
 		if (value > init_val) {
 			dest[i] |= 0x80;
@@ -291,14 +326,15 @@ uint32_t get_var_integer(const uint8_t *buf, int *pos)
 {
 	uint8_t temp;
 	uint32_t result = 0;
-	uint8_t loop_times = 4;
 	int p = *pos;
+	int i = 0;
 
 	do {
-		temp = *(buf + (p++));
-		result = (uint32_t) (temp & 0x7F) | (result * 128);
+		temp = *(buf + p);
+		result = result + (uint32_t) (temp & 0x7f) * (power(0x80, i));
+		p++;
 	}
-	while ((temp & 0x80) && --loop_times);
+	while ((temp & 0x80) > 0 && i++ < 4);
 	*pos = p;
 	return result;
 }
