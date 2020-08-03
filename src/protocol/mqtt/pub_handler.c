@@ -11,7 +11,7 @@
 
 uint32_t get_var_integer(const uint8_t *buf, int *pos);
 
-static bool encode_pub_message(uint8_t *dest, struct pub_packet_struct *pub_packet);
+static bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
 static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
@@ -47,10 +47,14 @@ void pub_handler(nng_msg *msg)
 	}
 }
 
-static bool encode_pub_message(uint8_t *dest, struct pub_packet_struct *pub_packet)
+static bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
 
+	nng_msg_append(msg, &pub_packet->fixed_header, 1);
+
+
 	return true;
+
 }
 
 static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
@@ -81,7 +85,7 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 				}
 				pub_packet->variable_header.publish.topic_name.str_len = len;
 
-				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
+				if (pub_packet->fixed_header.flag_bits.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
@@ -238,6 +242,17 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 	return false;
 }
 
+
+uint8_t put_var_integer(uint8_t *dest, uint32_t value){
+	uint8_t bytes_len;
+	//TODO not completed
+
+//	for (int i = 0; i < 4; ++i) {
+//		(value * i*8) & 0x80
+//	}
+
+	return bytes_len;
+}
 
 /**
  * Get variable integer value

@@ -78,19 +78,21 @@ typedef enum {
 //MQTT Fixed header
 struct fixed_header {
 	//flag_bits
-	union {
-		uint8_t bit0: 1;
-		uint8_t retain: 1;
-	};
-	union {
-		uint8_t bit1: 1;
-		uint8_t bit2: 1;
-		uint8_t qos: 2;
-	};
-	union {
-		uint8_t bit3: 1;
-		uint8_t dup: 1;
-	};
+	struct {
+		union {
+			uint8_t bit0: 1;
+			uint8_t retain: 1;
+		};
+		union {
+			uint8_t bit1: 1;
+			uint8_t bit2: 1;
+			uint8_t qos: 2;
+		};
+		union {
+			uint8_t bit3: 1;
+			uint8_t dup: 1;
+		};
+	} flag_bits;
 	//packet_types
 	mqtt_control_packet_types packet_type: 4;
 	//remaining length
@@ -197,7 +199,7 @@ struct property_content {
 	union {
 		struct variable_string reason_string;
 		struct variable_string user_property;
-	}pub_arrc, puback, pubrec, pubrel, pubcomp;
+	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
 
 //#define PUBLISH_PROPERTIES_TOTAL 10
@@ -222,7 +224,7 @@ struct variable_header {
 		uint16_t packet_identifier;
 		reason_code reason_code;
 		struct properties properties;
-	}pub_arrc, puback, pubrec, pubrel, pubcomp;
+	} pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
 
 
