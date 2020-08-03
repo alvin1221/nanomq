@@ -62,7 +62,7 @@ union Property_type{
 };
 
 struct property {
-	uint32_t 			id;
+	uint8_t 			id;
 	union Property_type	value;
 	struct property * 	next;
 };
@@ -171,6 +171,7 @@ struct mqtt_packet_unsubscribe {
 
 struct mqtt_payload_unsubscribe {
 	struct mqtt_string_node * topic_filter;
+	int count;
 };
 
 //variable header in mqtt_packet_unsuback
@@ -219,6 +220,17 @@ typedef struct mqtt_payload_suback mqtt_payload_suback;
 typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
 typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
+// ctx of subscribe
+struct Ctx_sub {
+	uint32_t	id; // client id
+	struct mqtt_property * variable_property;
+	struct topic_with_option * option;
+
+	// connect info
+	struct ctx_connect * ctx_con;
+};
+typedef struct Ctx_sub Ctx_sub;
+
 
 uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
 	*pos = 0;
@@ -231,6 +243,15 @@ uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
 		multiplier *= 128;
 		(*pos)++;
 	} while (*pos < 4 && (byte & 128));
+	return res;
+}
+
+int len_of_varint(uint32_t num){
+	int tmp = num, res = 0;
+	while(tmp>0){
+		res ++;
+		tmp >> 8;
+	}
 	return res;
 }
 

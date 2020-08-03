@@ -397,7 +397,7 @@ tcptran_pipe_recv_cb(void *arg)
 	uint8_t * header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
 	size_t * remaining_len = NULL;
 	
-	uint64_t len = 0, len1;
+	uint64_t len = 0, len1 = 0;
 	int * len_of_varint = 0;
 
 	debug_msg("tcptran_pipe_recv_cb\n");
@@ -428,10 +428,10 @@ tcptran_pipe_recv_cb(void *arg)
 		// uint64_t len;
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
 		//NNI_GET64(p->rxlen, len);	
-		//len = 10; //for testing
+		len = 10; //for testing
 		
 		// cal remain length and length of varint
-		len = __bin_parse_varint(p->rxlen+1, len_of_varint);
+		//len = __bin_parse_varint(p->rxlen+1, len_of_varint);
 
 		debug_msg("RXLEN: %s, %d!!\n", p->rxlen, strlen(p->rxlen));
 		// Make sure the message payload is not too big.  If it is
@@ -472,6 +472,7 @@ tcptran_pipe_recv_cb(void *arg)
 	n        = nni_msg_len(msg);
 	nni_msg_set_cmd_type(msg, CMD_CONNECT);
 
+	len = __bin_parse_varint(p->rxlen+1, len_of_varint);
 	nni_msg_set_remaining_len(msg, &len);
 	remaining_len = nni_msg_remaining_len(msg);
 

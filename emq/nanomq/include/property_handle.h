@@ -3,17 +3,17 @@
 #include "packet.h"
 #include "nng/nng.h"
 
-int type_of_variable_property(uint32_t id);
+int type_of_variable_property(uint8_t id);
 void property_list_init(struct mqtt_property * list);
-int property_list_insert(struct mqtt_property * list, uint32_t id, uint8_t * bin);
+int property_list_insert(struct mqtt_property * list, uint8_t id, uint8_t * bin);
 int property_list_free(struct mqtt_property * list);
 struct property * property_list_head(struct mqtt_property * list);
 struct property * property_list_end(struct mqtt_property * list);
 struct property * property_list_get_element(struct mqtt_property * list, int pos);
-struct property * property_list_find_element(struct mqtt_property * list, uint32_t id);
+struct property * property_list_find_element(struct mqtt_property * list, uint8_t id);
 
 // u8-1 u16-2 u32-3 varint-4(u32) str-5 bin-6 strpair-7
-int type_of_variable_property(uint32_t id){
+int type_of_variable_property(uint8_t id){
 	int lens[] = {
 1	,4	,5	,0	,0	,0	,
 0	,5	,6	,0	,4	,0	,
@@ -37,7 +37,7 @@ void property_list_init(struct mqtt_property * list){
  * @Return the length of binary inserted.
  *
  * */
-int property_list_insert(struct mqtt_property * list, uint32_t id, uint8_t * bin){
+int property_list_insert(struct mqtt_property * list, uint8_t id, uint8_t * bin){
 	int res = 0;
 	int t, t1, t2, t3;
 	struct mqtt_string * s;
@@ -155,7 +155,7 @@ struct property * property_list_get_element(struct mqtt_property * list, int pos
 	return res;
 }
 
-struct property * property_list_find_element(struct mqtt_property * list, uint32_t id){
+struct property * property_list_find_element(struct mqtt_property * list, uint8_t id){
 	struct property * node;
 	int pos = list->count;
 	while(pos--){

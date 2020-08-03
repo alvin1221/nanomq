@@ -8,8 +8,7 @@
 #include "core/message.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
-#include "../emq/nanomq/include/property_handle.h"
-#include "../include/nng/protocol/mqtt/mqtt.h"
+#include "../emq/nanomq/include/subscribe_handle.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -495,15 +494,10 @@ emq_pipe_recv_cb(void *arg)
 	emq_ctx * ctx;
 	nni_msg *  msg;
 	uint8_t *  body;
-	uint8_t *  header_ptr;
-	uint8_t *  variable_ptr;
-	uint8_t *  payload_ptr;
-	size_t *   remaining_len;
 	nni_aio *  aio;
 	size_t     len;
 	int        hops;
 	int        ttl;
-	int        len_of_varint;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
@@ -517,87 +511,7 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_msg_set_pipe(msg, p->id);
 
-handle_sub:
-	// gain dup, qos, retain from ctx 
-
-	// handle subscribe fixed header
-	header_ptr = nni_msg_header_ptr(msg);
-	if((header_ptr[0] & 0xF0) != CMD_SUBSCRIBE){
-		goto handle_pub;
-	}
-	len = nni_msg_len(msg);
-	
-	// handle variable header
-	debug_msg("Handle the variable header . \n");
-	variable_ptr = nni_msg_variable_ptr(msg);
-	mqtt_packet_subscribe * pkt_sub = nni_alloc(sizeof(mqtt_packet_subscribe));
-	int vpos = 0; // pos of variable
-	pkt_sub->packet_id = (variable_ptr[vpos+1]<<8) + variable_ptr[vpos];
-	vpos += 2;
-	mqtt_property * prop = nni_alloc(sizeof(mqtt_property));
-	property_list_init(prop);
-	pkt_sub->property = prop;
-
-	len_of_varint = 0;
-	prop->len = bin_parse_varint(variable_ptr+vpos, &len_of_varint);
-	vpos += len_of_varint;
-
-	// parse property in variable
-	int prop_pos = 0;
-
-	while(1){
-		uint32_t pkt_id = variable_ptr[vpos++];
-		len_of_varint = property_list_insert(prop, pkt_id, variable_ptr+vpos+1);
-		if(len_of_varint == 0){
-			debug_msg("ERROR IN PACKETID. \n");
-			property_list_free(prop);
-		}
-		prop_pos += (1+len_of_varint);
-		vpos += (1+len_of_varint);
-		if(prop_pos >= prop->len){
-			break;
-		}
-	}
-
-    // binary handle
-	debug_msg("Handle the binary. \n");
-	payload_ptr = nni_msg_payload_ptr(msg);
-	int bpos = 0; //pos of binary
-	mqtt_payload_subscribe * payload_sub = nni_alloc(sizeof(mqtt_payload_subscribe));
-
-    topic_node * topic_node_t = nni_alloc(sizeof(topic_node)); //header
-	payload_sub->node = topic_node_t;
-    topic_node * _topic_node;
-    while(1){
-        int topic_len = (payload_ptr[bpos+1]<<8)+payload_ptr[bpos]; // len of topic filter
-        bpos += 2;
-		topic_with_option * topic_context = nni_alloc(sizeof(topic_with_option));
-		topic_node_t->it = topic_context;
-		_topic_node = topic_node_t;
-
-		mqtt_string * str = nni_alloc(sizeof(mqtt_string));
-		str->len = topic_len;
-		memcpy(str->str, payload_ptr+bpos, topic_len);
-
-		bpos += topic_len;
-		int tmp_qos = 0x03 & payload_ptr[bpos];
-		if(tmp_qos > 2){
-			debug_msg("ERROR IN QOS OF SUBSCRIBE. \n");
-		}
-
-		topic_context->no_local = (0x04 & payload_ptr[bpos]) == 1;
-		topic_context->retain = (0x08 & payload_ptr[bpos]) == 1;
-		topic_context->retain_option = (0x30 & payload_ptr[bpos]);
-
-		remaining_len = nni_msg_remaining_len(msg);
-		if(++bpos < *remaining_len - vpos){
-			topic_node_t = nni_alloc(sizeof(topic_node));
-			topic_node_t->next = _topic_node;
-		}
-	}
-
-handle_pub:
-next:
+	subscribe_handle(msg);
 	/*
 	// Move backtrace from body to header
 	hops = 1;
