@@ -7,7 +7,7 @@
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
-#include "nng/protocol/mqtt/pub_handler.h"
+//#include "nng/protocol/mqtt/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
 //TODO rewrite as emq_mq protocol with RPC support

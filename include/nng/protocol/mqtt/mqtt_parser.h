@@ -1,5 +1,6 @@
 
 #include <stdlib.h>
+#include "core/nng_impl.h"
 
 int hex_to_oct(char *str);
 uint32_t htoi(char *str);

@@ -5,10 +5,9 @@
 #ifndef NNG_PUB_HANDLER_H
 #define NNG_PUB_HANDLER_H
 
-#include <nng/nng.h>
 
 #include "nng/protocol/mqtt/mqtt.h"
-
+#include "core/nng_impl.h"
 
 typedef uint32_t variable_integer;
 
