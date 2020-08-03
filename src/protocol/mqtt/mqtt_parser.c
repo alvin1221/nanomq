@@ -17,6 +17,21 @@
 #include "nng/protocol/mqtt/mqtt.h"
 #include "include/nng_debug.h"
 
+static uint32_t power(uint32_t x, uint32_t n);
+
+static uint32_t power(uint32_t x, uint32_t n)
+{
+
+	uint32_t val = 1;
+
+	for (uint32_t i = 0; i <= n; ++i) {
+		val = x * val;
+	}
+
+	return val / x;
+}
+
+
 /**
  * Get variable integer value
  *
@@ -28,18 +43,18 @@ uint32_t get_var_integer(const uint8_t *buf, int *pos)
 {
 	uint8_t temp;
 	uint32_t result = 0;
-	uint8_t loop_times = 4;
 	int p = *pos;
+	int i = 0;
 
 	do {
-		temp = *(buf + (p++));
-		result = (uint32_t) (temp & 0x7F) | (result * 128);
+		temp = *(buf + p);
+		result = result + (uint32_t) (temp & 0x7f) * (power(0x80, i));
+		p++;
 	}
-	while ((temp & 0x80) && --loop_times);
+	while ((temp & 0x80) > 0 && i++ < 4);
 	*pos = p;
 	return result;
 }
-
 /**
  * Get utf-8 string
  *
@@ -65,8 +80,7 @@ static int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
 	return str_len;
 }
 
-
-static int utf8_check(const char *str, size_t len)
+int utf8_check(const char *str, size_t len)
 {
 	int i;
 	int j;

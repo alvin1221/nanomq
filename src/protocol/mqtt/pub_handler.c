@@ -4,16 +4,14 @@
 
 
 #include "nng/protocol/mqtt/pub_handler.h"
-#include "nng/protocol/mqtt/connect_parser.h"
+#include "nng/protocol/mqtt/mqtt_parser.h"
 #include <stdio.h>
 #include <string.h>
 #include <nng/nng.h>
 #include "core/nng_impl.h"
 
 
-static bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
-static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
 
 #if 0
@@ -25,6 +23,9 @@ uint64_t get_uint64(const uint8_t *buf);
 #endif
 
 static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src);
+
+static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
+
 
 
 /**
@@ -44,17 +45,183 @@ void pub_handler(nng_msg *msg)
 	}
 }
 
-static bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
-{
 
-	nng_msg_append(msg, &pub_packet->fixed_header, 1);
+
+static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
+{
+	if (len > 0) {
+		nng_msg_append(msg, &type, 1);
+		nng_msg_append_u16(msg, len);
+		nng_msg_append(msg, content, len);
+		return 0;
+	}
+
+	return 1;
+
+}
+
+
+bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
+{
+	uint8_t tmp[4] = {0};
+	uint32_t arr_len = 0;
+	properties_type prop_type;
+
+
+	switch (pub_packet->fixed_header.packet_type) {
+		case PUBLISH:
+			pub_packet->fixed_header.dup = 0;//reset dup to 0 when publish message is sent to client;
+			/*fixed header*/
+			nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
+			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
+			nng_msg_append(msg, tmp, arr_len);
+			/*variable header*/
+			//topic name
+			if (pub_packet->variable_header.publish.topic_name.str_len > 0) {
+				nng_msg_append_u16(msg, pub_packet->variable_header.publish.topic_name.str_len);
+				nng_msg_append(msg, pub_packet->variable_header.publish.topic_name.str_body,
+				               pub_packet->variable_header.publish.topic_name.str_len);
+			}
+
+			//identifier
+			if (pub_packet->fixed_header.qos > 0) {
+				nng_msg_append_u16(msg, pub_packet->variable_header.publish.packet_identifier);
+			}
+
+			//properties
+			//properties length
+			memset(tmp, 0, sizeof(tmp));
+			arr_len = put_var_integer(tmp, pub_packet->variable_header.publish.properties.len);
+			nng_msg_append(msg, tmp, arr_len);
+
+			//Payload Format Indicator
+			prop_type = PAYLOAD_FORMAT_INDICATOR;
+			nng_msg_append(msg, &prop_type, 1);
+			nng_msg_append(msg, &pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator,
+			               sizeof(pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator));
+
+			//Message Expiry Interval
+			prop_type = MESSAGE_EXPIRY_INTERVAL;
+			nng_msg_append(msg, &prop_type, 1);
+			nng_msg_append_u32(msg, pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval);
+
+			//Topic Alias
+			if (pub_packet->variable_header.publish.properties.content.publish.topic_alias > 0) {
+				prop_type = TOPIC_ALIAS;
+				nng_msg_append(msg, &prop_type, 1);
+				nng_msg_append_u16(msg, pub_packet->variable_header.publish.properties.content.publish.topic_alias);
+			}
+
+			//Response Topic
+			append_bytes_with_type(msg, RESPONSE_TOPIC,
+			                       (uint8_t *) pub_packet->variable_header.publish.properties.content.publish.response_topic.str_body,
+			                       pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len);
+
+			//Correlation Data
+			append_bytes_with_type(msg, CORRELATION_DATA,
+			                       pub_packet->variable_header.publish.properties.content.publish.correlation_data.data,
+			                       pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len);
+
+			//User Property
+			append_bytes_with_type(msg, USER_PROPERTY,
+			                       (uint8_t *) pub_packet->variable_header.publish.properties.content.publish.user_property.str_body,
+			                       pub_packet->variable_header.publish.properties.content.publish.user_property.str_len);
+
+			//Subscription Identifier
+			if (pub_packet->variable_header.publish.properties.content.publish.subscription_identifier > 0) {
+				prop_type = SUBSCRIPTION_IDENTIFIER;
+				nng_msg_append(msg, &prop_type, 1);
+				memset(tmp, 0, sizeof(tmp));
+				arr_len = put_var_integer(tmp,
+				                          pub_packet->variable_header.publish.properties.content.publish.subscription_identifier);
+				nng_msg_append(msg, tmp, arr_len);
+			}
+
+			//CONTENT TYPE
+			append_bytes_with_type(msg, CONTENT_TYPE,
+			                       (uint8_t *) pub_packet->variable_header.publish.properties.content.publish.content_type.str_body,
+			                       pub_packet->variable_header.publish.properties.content.publish.content_type.str_len);
+
+			//payload
+			if (pub_packet->payload_body.payload_len > 0) {
+				nng_msg_append(msg, pub_packet->payload_body.payload, pub_packet->payload_body.payload_len);
+			}
+			break;
+
+		case PUBREL:
+			pub_packet->fixed_header.qos = 1; //set bit1 = 1;
+		case PUBACK:
+		case PUBREC:
+		case PUBCOMP:
+			/*fixed header*/
+			nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
+			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
+			nng_msg_append(msg, tmp, arr_len);
+
+			/*variable header*/
+			//identifier
+			nng_msg_append_u16(msg, pub_packet->variable_header.pub_arrc.packet_identifier);
+
+			//reason code
+			if (pub_packet->fixed_header.remain_len > 2) {
+				uint8_t reason_code = pub_packet->variable_header.pub_arrc.reason_code;
+				nng_msg_append(msg, (uint8_t *) &reason_code, sizeof(reason_code));
+
+				//properties
+				if (pub_packet->fixed_header.remain_len >= 4) {
+
+					memset(tmp, 0, sizeof(tmp));
+					arr_len = put_var_integer(tmp, pub_packet->variable_header.pub_arrc.properties.len);
+					nng_msg_append(msg, tmp, arr_len);
+
+					//reason string
+					append_bytes_with_type(msg, REASON_STRING,
+					                       (uint8_t *) pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.reason_string.str_body,
+					                       pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.reason_string.str_len);
+
+					//user properties
+					append_bytes_with_type(msg, REASON_STRING,
+					                       (uint8_t *) pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_body,
+					                       pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_len);
+
+				}
+
+			}
+			break;
+
+		default:
+			break;
+//		case RESERVED:
+//			break;
+//		case CONNECT:
+//			break;
+//		case CONNACK:
+//			break;
+//		case SUBSCRIBE:
+//			break;
+//		case SUBACK:
+//			break;
+//		case UNSUBSCRIBE:
+//			break;
+//		case UNSUBACK:
+//			break;
+//		case PINGREQ:
+//			break;
+//		case PINGRESP:
+//			break;
+//		case DISCONNECT:
+//			break;
+//		case AUTH:
+//			break;
+	}
 
 
 	return true;
 
 }
 
-static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
+
+bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
 	uint8_t *msg_body = nng_msg_body(msg);
 	size_t msg_len = nng_msg_len(msg);
@@ -82,7 +249,7 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 				}
 				pub_packet->variable_header.publish.topic_name.str_len = len;
 
-				if (pub_packet->fixed_header.flag_bits.qos > 0) { //extract packet_identifier while qos > 0
+				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
@@ -239,16 +406,23 @@ static bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packe
 	return false;
 }
 
+uint8_t put_var_integer(uint8_t *dest, uint32_t value)
+{
+	uint8_t len = 0;
+	uint32_t init_val = 0x7F;
 
-uint8_t put_var_integer(uint8_t *dest, uint32_t value) {
-	uint8_t bytes_len;
-	//TODO not completed
+	for (uint32_t i = 0; i < sizeof(value); ++i) {
 
-//	for (int i = 0; i < 4; ++i) {
-//		(value * i*8) & 0x80
-//	}
-
-	return bytes_len;
+		if (i > 0) {
+			init_val = (init_val * 0x80) | 0xFF;
+		}
+		dest[i] = value / (uint32_t) power(0x80, i);
+		if (value > init_val) {
+			dest[i] |= 0x80;
+		}
+		len++;
+	}
+	return len;
 }
 
 #if 0
@@ -278,6 +452,7 @@ uint32_t get_uint16(const uint8_t *buf)
 		   (((uint32_t) (uint8_t) (buf)[1]));
 }
 #endif
+
 
 static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
 {
