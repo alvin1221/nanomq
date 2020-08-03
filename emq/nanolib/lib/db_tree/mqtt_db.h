@@ -77,10 +77,11 @@ void del_client(struct topic_and_node *input, char *id);
 void add_client(struct topic_and_node *input, char *id);
 
 /* A hash table, clientId or alias as key, topic as value */ 
-char *hash_check_topic(struct clientId *client);
+struct topic* hash_check_topic(int alias);
 
-void hash_add_topic(struct clientId *client, char *topic);
+void hash_add_topic(int alias, struct topic *topic_data);
 
+void hash_del_topic(int alias);
 
 
 

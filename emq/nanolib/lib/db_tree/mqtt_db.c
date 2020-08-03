@@ -1,8 +1,9 @@
-#include "mqtt_db.h"
-#include "zmalloc.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include "mqtt_db.h"
+#include "zmalloc.h"
+#include "hash.h"
 
 
 /* Create a db_tree */
@@ -268,5 +269,21 @@ char **topic_parse(char *topic)
     return topic_queue;
 }
 
+
+void hash_add_topic(int alias, struct topic *topic_data) 
+{
+	assert(topic_data);
+	push_val(alias, topic_data);
+}
+
+struct topic *hash_check_topic(int alias)
+{
+	return get_val(alias);
+}
+
+void hash_del_topic(int alias)
+{
+	del_val(alias);
+}
 
 
