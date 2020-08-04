@@ -10,6 +10,7 @@
 #include <nng/protocol/mqtt/emq_tcp.h>
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/supplemental/util/platform.h>
+#include <nng/protocol/mqtt/mqtt.h>
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -49,9 +50,10 @@ server_cb(void *arg)
 {
 	struct work *work = arg;
 	nng_msg *    msg;
+	nng_msg *    smsg;
 	int          rv;
 	uint32_t     when;
-	const char tmp[20]="12345678901234567890";
+	uint8_t      buf[2] = {1,2};
 
 	switch (work->state) {
 	case INIT:
@@ -82,7 +84,7 @@ server_cb(void *arg)
                 break;
 	case WAIT:
 		// We could add more data to the message here.
-		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^\n");
+		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x\n", nng_msg_cmd_type(work->msg));
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -90,21 +92,34 @@ server_cb(void *arg)
 */
                 //reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
                 //TODO
-                if ((rv = nng_msg_alloc(&msg, 0)) != 0) {
+                if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
                     printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
                 }
-                if ((rv = nng_msg_append(msg, tmp, strlen(tmp))) != 0) {
-                    printf("error nng_msg_append_u32^^^^^^^^^^^^^^^^^^^^^");
-                }
-                work->msg   = msg;
+                if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
+
+			buf[0] = CMD_PINGRESP;
+			buf[1] = 0x00;
+			debug_msg("reply PINGRESP\n");
+			
+			if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
+				printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
+			}
+		} else {
+			work->msg   = NULL;
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			break;
+		}
+
+                work->msg   = smsg;
                 // We could add more data to the message here.
                 nng_aio_set_msg(work->aio, work->msg);
 
                 printf("before send aio msg %s\n",(char *)nng_msg_body( work->msg));
                 work->msg   = NULL;
-                work->state = RECV;
-                //nng_ctx_send(work->ctx, work->aio);
-		nng_ctx_recv(work->ctx, work->aio);
+                work->state = SEND;
+                nng_ctx_send(work->ctx, work->aio);
+		//nng_ctx_recv(work->ctx, work->aio);
                 printf("after send aio\n");
                 //work->state = RECV;
                 //nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here

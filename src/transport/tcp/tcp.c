@@ -396,10 +396,12 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_aio *     aio;
 	int           rv;
 	uint16_t      fixed_header;
+	uint32_t      len;
 	size_t        n;
 	nni_msg *     msg;
 	tcptran_pipe *p = arg;
 	nni_aio *     rxaio = p->rxaio;
+	nni_aio *     txaio = p->txaio;
 
 	uint8_t * header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
 	size_t * remaining_len = NULL;
@@ -423,18 +425,21 @@ tcptran_pipe_recv_cb(void *arg)
 	//not receive enough bytes, deal with remaining length
 	debug_msg("new %d have recevied %d header %x %d", n, p->gotrxhead,p->rxlen[0], p->rxlen[1]);
 	debug_msg("still need byte count:%d > 0\n", nni_aio_iov_count(rxaio));
-	if (nni_aio_iov_count(rxaio) > 0) {
+	if (nni_aio_iov_count(rxaio) > 0 && p->rxlen[0]!=CMD_PINGREQ) {
 		debug_msg("got: %x %x, %d!!\n", p->rxlen[0],p->rxlen[1], strlen(p->rxlen));
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
 	}
 
+	//TODO PINGRESP (PUBACK SUBACK) here? BETTER NOT
+	if (p->rxlen[0] == CMD_PINGREQ) {
+	}
+	
 	// If we don't have a message yet, we were reading the fixed message
 	// header, which is just the length and type.  This tells us the size of the
 	// message to allocate and how much more to expect.
 	if (p->rxmsg == NULL) {
-		// uint64_t len;
 		int	 pos = 1;
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
 		//NNI_GET64(p->rxlen, len);	
@@ -463,7 +468,7 @@ tcptran_pipe_recv_cb(void *arg)
 			iov.iov_len = p->wantrxhead - p->gotrxhead;
 
 			nni_aio_set_iov(rxaio, 1, &iov);
-			nng_stream_recv(p->conn, rxaio); //2
+			nng_stream_recv(p->conn, rxaio);
 			nni_mtx_unlock(&p->mtx);
 			return;
 		}
@@ -476,8 +481,8 @@ tcptran_pipe_recv_cb(void *arg)
 	msg      = p->rxmsg;
 	p->rxmsg = NULL;
 	n        = nni_msg_len(msg);
-	NNI_GET16(p->rxlen, fixed_header);
-	nng_msg_header_append_u16(msg, fixed_header);
+	fixed_header_adaptor(p->rxlen, msg);
+
 
 	//TODO distribute PUB/SUB/PING processes
 	//switch (p->rxlen[0])
@@ -609,14 +614,15 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	// This runs to send the message.
 	msg = nni_aio_get_msg(aio);
 	len = nni_msg_len(msg) + nni_msg_header_len(msg);
+	debug_msg("actually sending ");
 
-	NNI_PUT64(p->txlen, len);
+	//NNI_PUT64(p->txlen, len);
 
 	txaio          = p->txaio;
 	niov           = 0;
-	iov[0].iov_buf = p->txlen;
-	iov[0].iov_len = sizeof(p->txlen);
-	niov++;
+	//iov[0].iov_buf = p->txlen;
+	//iov[0].iov_len = sizeof(p->txlen);
+	//niov++;
 	if (nni_msg_header_len(msg) > 0) {
 		iov[niov].iov_buf = nni_msg_header(msg);
 		iov[niov].iov_len = nni_msg_header_len(msg);

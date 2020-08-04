@@ -26,7 +26,8 @@ typedef struct {
 // Underlying message structure. TODO MQTT message length
 struct nng_msg {
 	//uint32_t       m_header_buf[(NNI_MAX_MAX_TTL + 1)];
-	uint32_t       m_header_buf[NNI_EMQ_MAX_HEADER_SIZE];	//only fixed header
+	uint8_t        m_header_buf[NNI_EMQ_MAX_HEADER_SIZE + 1];	//only fixed header
+	//uint8_t	m_variable_header_buf[];		//TODO independent variable header?
 	size_t         m_header_len;
 	nni_chunk      m_body;	//variable header + payload
 	uint32_t       m_pipe; // set on receive

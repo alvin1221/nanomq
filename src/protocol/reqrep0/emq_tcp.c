@@ -10,6 +10,7 @@
 #include "include/nng_debug.h"
 #include "../emq/nanomq/include/subscribe_handle.h"
 #include "nng/protocol/mqtt/pub_handler.h"
+#include "nng/protocol/mqtt/mqtt.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -195,8 +196,12 @@ emq_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	if (!p->busy) {
+		uint8_t  *header,l;
 		p->busy = true;
 		len     = nni_msg_len(msg);
+		l = nni_msg_header_len(msg);
+		header = nng_msg_header(msg);
+		debug_msg("%s %x %x %d", nng_msg_body(msg),*header,*(header+1),len);
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&s->lk);
@@ -513,7 +518,7 @@ emq_pipe_recv_cb(void *arg)
 	msg = nni_aio_get_msg(&p->aio_recv);
 
 	header = nng_msg_header(msg);
-	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x\n",p ,nng_msg_cmd_type(msg), *header, *(header+1));
+	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n",p ,nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
@@ -570,6 +575,11 @@ emq_pipe_recv_cb(void *arg)
 		nni_pollable_raise(&s->readable);
 		nni_mtx_unlock(&s->lk);
 		return;
+	}
+
+	//TODO PINGRESP (PUBACK SUBACK) here?
+	if (nng_msg_cmd_type(msg) == CMD_PINGREQ) {
+		debug_msg("PINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
 	}
 
 	nni_list_remove(&s->recvq, ctx);
