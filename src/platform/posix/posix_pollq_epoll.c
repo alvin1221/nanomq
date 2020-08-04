@@ -145,6 +145,7 @@ nni_posix_pfd_arm(nni_posix_pfd *pfd, unsigned events)
 		ev.data.ptr = pfd;
 
 		if (epoll_ctl(pq->epfd, EPOLL_CTL_MOD, pfd->fd, &ev) != 0) {
+			debug_msg("error nni_posix_pfd_arm epoll error!");
 			int rv = nni_plat_errno(errno);
 			nni_mtx_unlock(&pfd->mtx);
 			return (rv);

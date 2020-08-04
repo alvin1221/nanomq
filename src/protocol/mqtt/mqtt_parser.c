@@ -166,3 +166,26 @@ static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_p
 
 	return client_id;
 }
+
+/**
+ * Get variable integer value
+ *
+ * @param buf Byte array
+ * @param pos
+ * @return Integer value
+ */
+uint32_t get_var_integer(const uint8_t *buf, int *pos)
+{
+	uint8_t temp;
+	uint32_t result = 0;
+	uint8_t loop_times = 4;
+	int p = *pos;
+
+	do {
+		temp = *(buf + (p++));
+		result = (uint32_t) (temp & 0x7F) | (result * 128);
+	}
+	while ((temp & 0x80) && --loop_times);
+	*pos = p;
+	return result;
+}

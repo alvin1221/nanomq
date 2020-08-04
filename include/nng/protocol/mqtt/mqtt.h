@@ -13,6 +13,11 @@ Copyright (c) 2009-2020 Roger Light <roger@atchoo.org>
 #define PROTOCOL_VERSION_v311 4
 #define PROTOCOL_VERSION_v5 5
 
+/* Length defination */
+#define EMQ_MAX_PACKET_LEN sizeof(uint8_t)*512
+#define EMQ_MAX_FIXED_HEADER_LEN sizeof(uint8_t)*5
+#define EMQ_MIN_HEADER_LEN sizeof(uint8_t)*8
+#define EMQ_CONNECT_PACKET_LEN sizeof(uint8_t)*32
 
 /* Message types */
 #define CMD_CONNECT 0x10

@@ -22,6 +22,7 @@ extern void *   nni_msg_header(nni_msg *);
 extern size_t   nni_msg_header_len(const nni_msg *);
 extern void *   nni_msg_body(nni_msg *);
 extern size_t   nni_msg_len(const nni_msg *);
+extern size_t   nni_msg_remain_len(nni_msg *m);
 extern int      nni_msg_append(nni_msg *, const void *, size_t);
 extern int      nni_msg_insert(nni_msg *, const void *, size_t);
 extern int      nni_msg_header_append(nni_msg *, const void *, size_t);
@@ -39,16 +40,15 @@ extern uint32_t nni_msg_header_trim_u32(nni_msg *);
 extern uint32_t nni_msg_trim_u32(nni_msg *);
 extern void     nni_msg_set_pipe(nni_msg *, uint32_t);
 extern uint32_t nni_msg_get_pipe(const nni_msg *);
+<<<<<<< HEAD
 extern void     nni_msg_set_cmd_type(nni_msg *m, int cmd);
 extern uint8_t *nni_msg_header_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_variable_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_payload_ptr(const nni_msg *m);
-extern size_t * nni_msg_remaining_len(const nni_msg *m);
-extern void     nni_msg_set_header_ptr(nni_msg *m, uint8_t * ptr);
-extern void     nni_msg_set_variable_ptr(nni_msg *m, uint8_t * ptr);
+extern size_t   nni_msg_remaining_len(const nni_msg *m);
 extern void     nni_msg_set_payload_ptr(nni_msg *m, uint8_t * ptr);
 extern void     nni_msg_set_remaining_len(nni_msg *m, size_t * ptr);
-
+extern void     nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd);
 
 // Reference counting messages. This allows the same message to be
 // cheaply reused instead of copied over and over again.  Callers of
