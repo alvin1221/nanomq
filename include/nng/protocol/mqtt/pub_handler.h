@@ -35,32 +35,23 @@ struct fixed_header {
 	uint32_t remain_len;
 };
 
-struct property {
-	properties_type type: 32;
-	uint32_t len;
-	void *data; //Dynamic alloc memory, need to call the function "nng_free(void *buf, size_t sz)" to free;
-};
-
 //Special for publish message data structure
 union property_content {
-	struct {
-		uint8_t payload_fmt_indicator;
-		uint32_t msg_expiry_interval;
-		uint16_t topic_alias;
-		struct variable_string response_topic;
-		struct variable_binary correlation_data;
-		struct variable_string user_property;
-		variable_integer subscription_identifier;
-		struct variable_string content_type;
-	} publish;
-	struct {
-		struct variable_string reason_string;
-		struct variable_string user_property;
-	} pub_arrc, puback, pubrec, pubrel, pubcomp;
+    struct {
+        uint8_t payload_fmt_indicator;
+        uint32_t msg_expiry_interval;
+        uint16_t topic_alias;
+        struct variable_string response_topic;
+        struct variable_binary correlation_data;
+        struct variable_string user_property;
+        variable_integer subscription_identifier;
+        struct variable_string content_type;
+    } publish;
+    struct {
+        struct variable_string reason_string;
+        struct variable_string user_property;
+    } pub_arrc, puback, pubrec, pubrel, pubcomp;
 };
-
-
-//#define PUBLISH_PROPERTIES_TOTAL 10
 
 //Properties
 struct properties {
