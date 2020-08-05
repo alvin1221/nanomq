@@ -18,7 +18,7 @@ void subscribe_handle(nni_msg * msg){
 
 	uint16_t   packet_id;
 	int        len_of_varint;
-	size_t *   remaining_len;
+	size_t     remaining_len;
 	int vpos = 0; // pos in variable
 	int bpos = 0; // pos in payload
 
@@ -33,31 +33,42 @@ void subscribe_handle(nni_msg * msg){
 	// handle variable header
 	variable_ptr = nni_msg_variable_ptr(msg);
 
-	packet_id = (variable_ptr[vpos+1]<<8) + variable_ptr[vpos];
+	packet_id = (variable_ptr[vpos]<<8) + variable_ptr[vpos+1];
+	debug_msg("SUB packet id : %d  originData: %x%x. ", packet_id, variable_ptr[vpos+1], variable_ptr[vpos]);
 	vpos += 2;
 
-	mqtt_property * prop = nni_alloc(sizeof(mqtt_property));
-	property_list_init(prop);
-	prop->len = bin_parse_varint(variable_ptr+vpos, &len_of_varint);
-	vpos += len_of_varint;
+	bool version_v5 = false;
+	mqtt_property * prop;
+	// Only Mqtt_v5 include property. 
+	if(version_v5){
+		prop = nni_alloc(sizeof(mqtt_property));
+		property_list_init(prop);
+		prop->len = bin_parse_varint(variable_ptr+vpos, &len_of_varint);
+		vpos += len_of_varint;
 
-	// parse property in variable
-	if(prop->len > 0){
-		int prop_pos = 0;
-		while(1){
-			uint8_t property_id = variable_ptr[vpos++];
-			len_of_varint = property_list_insert(prop, property_id, variable_ptr+vpos);
-			if(len_of_varint == 0){
-				debug_msg("ERROR IN PACKETID. \n");
-				property_list_free(prop);
+		// parse property in variable
+		if(prop->len > 0){
+			int prop_pos = 0;
+			while(1){
+				uint8_t property_id = variable_ptr[vpos++];
+				len_of_varint = property_list_insert(prop, property_id, variable_ptr+vpos);
+				if(len_of_varint == 0){
+					debug_msg("ERROR IN PACKETID. \n");
+					property_list_free(prop);
+				}
+				prop_pos += (1+len_of_varint);
+				vpos += len_of_varint;
+				if(prop_pos >= prop->len){
+					break;
+				}
 			}
-			prop_pos += (1+len_of_varint);
-			vpos += len_of_varint;
-			if(prop_pos >= prop->len){
-				break;
-			}
+		}else{
+			nni_free(prop, sizeof(mqtt_property));
 		}
 	}
+
+	debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
+	debug_msg("PAYLOAD:  %x %x %x %x. ", payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
     // handle payload
 	debug_msg("Handle the payload IN SUB. \n");
@@ -69,7 +80,9 @@ void subscribe_handle(nni_msg * msg){
 	topic_node * _topic_node;
 
 	while(1){
-		int topic_len = (payload_ptr[bpos+1]<<8)+payload_ptr[bpos]; // len of topic filter
+		int topic_len = (payload_ptr[bpos]<<8)+payload_ptr[bpos+1]; // len of topic filter
+		debug_msg("originData: %x %x", payload_ptr[bpos], payload_ptr[bpos+1]);
+		debug_msg("Length of topic: %d . ", topic_len);
 		bpos += 2;
 		topic_with_option * topic_context = nni_alloc(sizeof(topic_with_option));
 		topic_node_t->it = topic_context;
@@ -79,6 +92,8 @@ void subscribe_handle(nni_msg * msg){
 		str->len = topic_len;
 		memcpy(str->str, payload_ptr+bpos, topic_len);
 		bpos += topic_len;
+
+		debug_msg("Length of topic: %d topic_node: %s. ", topic_len, str->str);
 
 		int tmp_qos = 0x03 & payload_ptr[bpos];
 		if(tmp_qos > 2){
@@ -90,13 +105,14 @@ void subscribe_handle(nni_msg * msg){
 		topic_context->retain_option = (0x30 & payload_ptr[bpos]);
 
 		remaining_len = nni_msg_remaining_len(msg);
-		if(++bpos < *remaining_len - vpos){
+		if(++bpos < remaining_len - vpos){
 			topic_node_t = nni_alloc(sizeof(topic_node));
 			_topic_node->next = topic_node_t;
 		}
 	}
 
 	// generate ctx for each topic
+	debug_msg("GENERATE CTX. ");
 	topic_node_t = payload_sub->node;
 	while(topic_node_t){
 		struct Ctx_sub * ctx_sub = nni_alloc(sizeof(Ctx_sub));
@@ -108,5 +124,6 @@ void subscribe_handle(nni_msg * msg){
 		nni_free(ctx_sub, sizeof(Ctx_sub));
 	}
 	nni_free(payload_sub, sizeof(mqtt_payload_subscribe));
+	debug_msg("END OF SUBSCRIBE Handle. ");
 }
 

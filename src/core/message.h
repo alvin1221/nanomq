@@ -45,7 +45,7 @@ extern uint8_t *nni_msg_variable_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_payload_ptr(const nni_msg *m);
 extern size_t   nni_msg_remaining_len(const nni_msg *m);
 extern void     nni_msg_set_payload_ptr(nni_msg *m, uint8_t * ptr);
-extern void     nni_msg_set_remaining_len(nni_msg *m, size_t * ptr);
+extern void     nni_msg_set_remaining_len(nni_msg *m, size_t len);
 extern void     nni_msg_set_cmd_type(nni_msg *m, uint8_t cmd);
 
 // Reference counting messages. This allows the same message to be

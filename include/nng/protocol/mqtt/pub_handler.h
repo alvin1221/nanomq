@@ -35,11 +35,13 @@ struct fixed_header {
 	uint32_t remain_len;
 };
 
+/*
 struct property {
 	properties_type type: 32;
 	uint32_t len;
 	void *data; //Dynamic alloc memory, need to call the function "nng_free(void *buf, size_t sz)" to free;
 };
+*/
 
 //Special for publish message data structure
 union property_content {
