@@ -5,11 +5,9 @@
 #include <string.h>
 
 #include "core/nng_impl.h"
-#include "core/message.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
-#include "../emq/nanomq/include/subscribe_handle.h"
-#include "nng/protocol/mqtt/pub_handler.h"
+//#include "nng/protocol/mqtt/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
@@ -444,7 +442,7 @@ emq_ctx_recv(void *arg, nni_aio *aio)
 	emq_ctx * ctx = arg;
 	emq_sock *s   = ctx->sock;
 	emq_pipe *p;
-	//size_t     len;
+	size_t     len;
 	nni_msg *  msg;
 
 	if (nni_aio_begin(aio) != 0) {
