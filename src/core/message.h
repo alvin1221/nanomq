@@ -40,8 +40,6 @@ extern uint32_t nni_msg_header_trim_u32(nni_msg *);
 extern uint32_t nni_msg_trim_u32(nni_msg *);
 extern void     nni_msg_set_pipe(nni_msg *, uint32_t);
 extern uint32_t nni_msg_get_pipe(const nni_msg *);
-<<<<<<< HEAD
-extern void     nni_msg_set_cmd_type(nni_msg *m, int cmd);
 extern uint8_t *nni_msg_header_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_variable_ptr(const nni_msg *m);
 extern uint8_t *nni_msg_payload_ptr(const nni_msg *m);

@@ -85,20 +85,6 @@ static void tcptran_pipe_recv_cb(void *);
 static void tcptran_pipe_nego_cb(void *);
 static void tcptran_ep_fini(void *);
 
-uint32_t __bin_parse_varint(uint8_t * bin_pos, int * pos){
-	*pos = 0;
-	uint32_t res = 0;
-	uint32_t multiplier = 1;
-	uint8_t byte;
-	do {
-		byte = *bin_pos++;
-		res += (byte & 127) * multiplier;
-		multiplier *= 128;
-		(*pos)++;
-	} while (*pos < 4 && (byte & 128));
-	return res;
-}
-
 static int
 tcptran_init(void)
 {
@@ -495,20 +481,9 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_mtx_unlock(&p->mtx);
 
 	// set remaining_len of msg
-	len = __bin_parse_varint(p->rxlen+1, len_of_varint);
-	nni_msg_set_remaining_len(msg, &len);
-	remaining_len = nni_msg_remaining_len(msg);
+	remaining_len = get_var_integer(p->rxlen+1, len_of_varint);
+	nni_msg_set_remaining_len(msg, remaining_len);
 
-	// set fixed header pointer of msg
-	nni_msg_set_header_ptr(msg, nni_msg_body(msg));
-	header_ptr = nni_msg_header_ptr(msg);
-
-	// set varibale header pointer of msg
-	if(len != 0){
-		nni_msg_set_variable_ptr(msg, header_ptr + 1 + *len_of_varint);
-	}else{
-		nni_msg_set_variable_ptr(msg, variable_ptr);
-	}
 	variable_ptr = nni_msg_variable_ptr(msg);
 
 	// set the payload pointer of msg according packet_type
@@ -516,23 +491,23 @@ tcptran_pipe_recv_cb(void *arg)
 	debug_msg("The type of msg is %d \n.", ctp);
 	if(ctp == CMD_CONNECT){
 		NNI_GET16(variable_ptr, len);
-		len1 = __bin_parse_varint(variable_ptr+6+len, len_of_varint);
+		len1 = get_var_integer(variable_ptr+6+len, len_of_varint);
 		payload_ptr = variable_ptr + 6 + len + len1 + *len_of_varint;
 	}else if(ctp == CMD_SUBSCRIBE){
-		len = __bin_parse_varint(variable_ptr + 2, len_of_varint);
+		len = get_var_integer(variable_ptr + 2, len_of_varint);
 		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
-	}else if(ctp == CMD_SUBACK){
-		len = __bin_parse_varint(variable_ptr + 2, len_of_varint);
-		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
+//	}else if(ctp == CMD_SUBACK){
+//		len = get_var_integer(variable_ptr + 2, len_of_varint);
+//		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
 	}else if(ctp == CMD_UNSUBSCRIBE){
-		len = __bin_parse_varint(variable_ptr + 2, len_of_varint);
+		len = get_var_integer(variable_ptr + 2, len_of_varint);
 		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
-	}else if(ctp == CMD_UNSUBACK){
-		len = __bin_parse_varint(variable_ptr + 2, len_of_varint);
-		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
+//	}else if(ctp == CMD_UNSUBACK){
+//		len = get_var_integer(variable_ptr + 2, len_of_varint);
+//		payload_ptr = variable_ptr + 2 + len + *len_of_varint;
 	}else if(ctp == CMD_PUBLISH){
 		NNI_GET16(variable_ptr, len); // len of utf8-str
-		len1 = __bin_parse_varint(variable_ptr + 4 + len, len_of_varint);
+		len1 = get_var_integer(variable_ptr + 4 + len, len_of_varint);
 		if(*remaining_len == *len_of_varint + len + len1 + 4){
 			payload_ptr = NULL;
 		}else{

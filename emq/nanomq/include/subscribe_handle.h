@@ -19,8 +19,8 @@ void subscribe_handle(nni_msg * msg){
 	uint16_t   packet_id;
 	int        len_of_varint;
 	size_t *   remaining_len;
-	int vpos = 0; // pos of variable
-	int bpos = 0; // pos of payload
+	int vpos = 0; // pos in variable
+	int bpos = 0; // pos in payload
 
 	// handle subscribe fixed header
 	header_ptr = nni_msg_header_ptr(msg);
@@ -29,8 +29,8 @@ void subscribe_handle(nni_msg * msg){
 	}
 	size_t len = nni_msg_len(msg);
 
+	debug_msg("Handle the SUB request............. \n");
 	// handle variable header
-	debug_msg("Handle the variable header . \n");
 	variable_ptr = nni_msg_variable_ptr(msg);
 
 	packet_id = (variable_ptr[vpos+1]<<8) + variable_ptr[vpos];
@@ -60,13 +60,14 @@ void subscribe_handle(nni_msg * msg){
 	}
 
     // handle payload
-	debug_msg("Handle the payload. \n");
+	debug_msg("Handle the payload IN SUB. \n");
 	payload_ptr = nni_msg_payload_ptr(msg);
 
 	struct mqtt_payload_subscribe * payload_sub = nni_alloc(sizeof(mqtt_payload_subscribe));
 	topic_node * topic_node_t = nni_alloc(sizeof(topic_node)); //header
 	payload_sub->node = topic_node_t;
 	topic_node * _topic_node;
+
 	while(1){
 		int topic_len = (payload_ptr[bpos+1]<<8)+payload_ptr[bpos]; // len of topic filter
 		bpos += 2;

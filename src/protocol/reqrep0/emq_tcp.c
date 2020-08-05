@@ -522,7 +522,6 @@ emq_pipe_recv_cb(void *arg)
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
-	subscribe_handle(msg);
 	/*
 	// Move backtrace from body to header
 	hops = 1;
@@ -560,6 +559,8 @@ emq_pipe_recv_cb(void *arg)
 */
 
 	nni_mtx_lock(&s->lk);
+
+	subscribe_handle(msg);
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.
