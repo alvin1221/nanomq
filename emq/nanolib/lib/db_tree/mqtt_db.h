@@ -3,8 +3,8 @@
 
 
 
-typedef enum {
-    UNEQUAL = -1, EQUAL = 0 } node_state;
+typedef enum {false, true} bool;
+typedef enum {UNEQUAL = -1, EQUAL = 0 } node_state;
     
 
 
@@ -12,21 +12,23 @@ struct mqtt_ctxt {
     // TODO
 };
 
-struct clientId {
-    char                *id;
-    struct clientId     *next;
+struct client {
+    char				*id;
+    struct mqtt_ctxt    *ctxt;
+    struct client		*next;
 };
 
 struct db_node {
     char                *topic;
-    struct clientId     *client;
+	bool				retain;
+	void				*message;
+    int					len;
+    struct client		*sub_client;
     struct db_node      *up;
     struct db_node      *down;
     struct db_node      *next;
-    struct mqtt_ctxt    *ctxt;
-    int len;
-    int first;
-    node_state state;
+    node_state			state;
+    // int					first;
 
     /* hash func will work if len > 3 */ 
     /* or make an array and use binary serach */
@@ -45,21 +47,20 @@ struct db_tree{
 
 };
 
-struct conf {
-    // TODO
-};
 
 /* Create a db_tree */
-void new_db_tree(struct conf *conf, struct db_tree *db);
+void create_db_tree(struct db_tree **db);
 
 /* Delete a db_tree */
 void delete_db_tree(struct db_tree *db);
 
 /* Search node in db_tree*/
-struct topic_and_node *search_node(struct db_tree *db, char *topic_data);
+// struct topic_and_node *search_node(struct db_tree *db, char *topic_data);
+void search_node(struct db_tree *db, char *topic_data, struct topic_and_node
+		**tan);
 
 /* Add node to db_tree */
-void add_node(struct topic_and_node *input, struct clientId *id);
+void add_node(struct topic_and_node *input, struct client *id);
 
 /* Delete node from db_tree when node does not have clientId */
 void del_node(struct db_node *node);

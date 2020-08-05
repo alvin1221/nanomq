@@ -1,29 +1,37 @@
 #include <stdio.h>
+#include <string.h>
 #include "mqtt_db.h"
 #include "zmalloc.h"
 #include "hash.h"
 
 
-struct clientId ID = {"150410"};
-struct db_node node = {"lee", &ID, NULL, NULL, NULL, NULL, 1, -1};  
-struct db_tree db = {&node};
-struct clientId ID1 = {"150429"};
+// struct clientId ID = {"150410"};
+// struct db_node node = {"", &ID, NULL, NULL, NULL, NULL, 1, -1};  
+// struct db_tree db = {&node};
+
+struct db_tree *db = NULL;
+// struct db_tree *db = (struct db_tree*)zmalloc(sizeof(struct db_tree));
+
+struct client ID1 = {"150429", NULL, NULL};
 
 static void Test_topic_parse(void)
 {
     puts(">>>>>>>>>> TEST_TOPIC_PARSE <<<<<<<<");
     // char *data = NULL;
-    char *data = "lee";
-    // char *data = "lee/hom/jian";
+    // char *data = "lee";
+    // char *data = "$share/hom/jian";
+    char *data = "$shar/hom/jian";
     printf("INPUT:%s\n", data);
 
     char **res = topic_parse(data);
     char *t = NULL;
     char **tt = res;
 
+
     while (*res) {
         t = *res;
-        printf("RES: %s\n", *(res++));
+        printf("RES: %s\n", *res);
+		res++;
         zfree(t);
         t = NULL;
     }
@@ -35,17 +43,27 @@ static void Test_topic_parse(void)
 static void Test_search_node(void)
 {
     puts(">>>>>>>>>> TEST_SEARCH_NODE <<<<<<<<");
-    char *data = "lee";
+    // char *data = "lee";
+	char *data = "lee/hom/jian";
 
-    printf("INPUT: %s\n", db.root->topic);
-    printf("INPUT: %s\n", db.root->client->id);
 
-    struct topic_and_node *res = search_node(&db, data);
-    printf("RES_NODE_UP_ID: %s\n", res->node->client->id);
-    printf("RES_NODE_STATE: %d\n", res->node->state);
+	db = (struct db_tree *)zmalloc(sizeof(struct db_tree)); 
+	memset(db, 0, sizeof(struct db_tree));
+	create_db_tree(&db);
+    printf("INPUT: %d\n", db->root->len);
+    printf("INPUT: %s\n", db->root->topic);
+    struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+    search_node(db, data, &res);
+
     if (res->topic) {
-        printf("RES_TOPIC: %s\n", *(res->topic));
+        printf("RES_TOPIC: %s\n", *(res)->topic);
     }
+	if (res->node) {
+		printf("RES_NODE_STATE: %d\n", res->node->state);
+	}
+	if (res->node->sub_client) {
+		printf("RES_NODE_UP_ID: %s\n", res->node->sub_client->id);
+	}
     zfree(res);
 }
 
@@ -54,22 +72,27 @@ static void Test_add_node(void)
     puts(">>>>>>>>>>> TEST_ADD_NODE <<<<<<<<<");
     char *data = "lee/hom/jian";
 
-    struct topic_and_node *res = search_node(&db, data);
-    printf("RES_NODE_ID: %s\n", res->node->client->id);
-    printf("RES_NODE_STATE: %d\n", res->node->state);
-    printf("RES_TOPIC: %s\n", *(res->topic));
-
+    struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+    search_node(db, data, &res);
     add_node(res, &ID1);
-    printf("NODE_NEW_ID: %s\n", db.root->down->down->client->id);
+    search_node(db, data, &res);
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->node->state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
+    printf("NODE_NEW_ID: %s\n", db->root->down->down->down->sub_client->id);
 }
 
 static void Test_del_node(void)
 {
     puts(">>>>>>>>>> TEST_DEL_NODE <<<<<<<<");
     char *data = "lee/hom/jian";
-    struct topic_and_node *res = search_node(&db, data);
+    struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+    search_node(db, data, &res);
     del_client(res, ID1.id);
-    del_node(db.root->down->down);
+    del_node(res->node);
+    // del_node(db->root->down->down->down);
 }
 
 static void Test_hash_table(void) 
@@ -127,13 +150,13 @@ static void Test_hash_table(void)
 
 void test() 
 {
-    puts("---------------TEST----------------");
+    puts("\n----------------TEST START------------------");
     Test_topic_parse();
     Test_search_node();
     Test_add_node();
     Test_del_node();
 	Test_hash_table();
-    puts("---------------TEST----------------");
+    puts("---------------TEST FINISHED----------------\n");
 }
 
 

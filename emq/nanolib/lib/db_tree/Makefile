@@ -12,7 +12,7 @@ OBJ = main.o mqtt_db.o zmalloc.o hash.o
 nanolib:$(OBJ) 
 	$(CC) -o nanolib $(OBJ) -lstdc++
 	rm -f $(OBJ) 
-	./nanolib
+#	./nanolib
 
 
 
