@@ -11,9 +11,6 @@
 #include "core/nng_impl.h"
 
 
-
-
-
 #if 0
 uint32_t get_uint16(const uint8_t *buf);
 
@@ -22,11 +19,7 @@ uint32_t get_uint32(const uint8_t *buf);
 uint64_t get_uint64(const uint8_t *buf);
 #endif
 
-static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src);
-
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-
-
 
 /**
  * publish logic
@@ -44,7 +37,6 @@ void pub_handler(nng_msg *msg)
 		//TODO do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
 	}
 }
-
 
 
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
@@ -406,24 +398,6 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	return false;
 }
 
-uint8_t put_var_integer(uint8_t *dest, uint32_t value)
-{
-	uint8_t len = 0;
-	uint32_t init_val = 0x7F;
-
-	for (uint32_t i = 0; i < sizeof(value); ++i) {
-
-		if (i > 0) {
-			init_val = (init_val * 0x80) | 0xFF;
-		}
-		dest[i] = value / (uint32_t) power(0x80, i);
-		if (value > init_val) {
-			dest[i] |= 0x80;
-		}
-		len++;
-	}
-	return len;
-}
 
 #if 0
 uint32_t get_uint32(const uint8_t *buf)
@@ -452,15 +426,3 @@ uint32_t get_uint16(const uint8_t *buf)
 		   (((uint32_t) (uint8_t) (buf)[1]));
 }
 #endif
-
-
-static uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
-{
-	uint16_t len = 0;
-	NNI_GET16(src, len);
-//	dest = nni_alloc(len);
-
-//	memcpy(dest, src + 2, len);
-	dest = (uint8_t *) (src + 2);
-	return len;
-}

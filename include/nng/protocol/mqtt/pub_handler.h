@@ -90,7 +90,7 @@ struct pub_packet_struct {
 };
 
 void pub_handler(nng_msg *msg);
-uint8_t put_var_integer(uint8_t *dest, uint32_t value);
+
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);

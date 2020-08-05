@@ -31,6 +31,30 @@ static uint32_t power(uint32_t x, uint32_t n)
 	return val / x;
 }
 
+/**
+ * put a value to variable byte array
+ * @param dest
+ * @param value
+ * @return data length
+ */
+uint8_t put_var_integer(uint8_t *dest, uint32_t value)
+{
+	uint8_t len = 0;
+	uint32_t init_val = 0x7F;
+
+	for (uint32_t i = 0; i < sizeof(value); ++i) {
+
+		if (i > 0) {
+			init_val = (init_val * 0x80) | 0xFF;
+		}
+		dest[i] = value / (uint32_t) power(0x80, i);
+		if (value > init_val) {
+			dest[i] |= 0x80;
+		}
+		len++;
+	}
+	return len;
+}
 
 /**
  * Get variable integer value
@@ -50,11 +74,11 @@ uint32_t get_var_integer(const uint8_t *buf, int *pos)
 		temp = *(buf + p);
 		result = result + (uint32_t) (temp & 0x7f) * (power(0x80, i));
 		p++;
-	}
-	while ((temp & 0x80) > 0 && i++ < 4);
+	} while ((temp & 0x80) > 0 && i++ < 4);
 	*pos = p;
 	return result;
 }
+
 /**
  * Get utf-8 string
  *
@@ -63,7 +87,7 @@ uint32_t get_var_integer(const uint8_t *buf, int *pos)
  * @param pos
  * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8 string
  */
-static int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
+int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
 {
 	int32_t str_len = 0;
 	NNI_GET16(src + (*pos), str_len);
@@ -166,6 +190,14 @@ int utf8_check(const char *str, size_t len)
 		}
 	}
 	return ERR_SUCCESS;
+}
+
+uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
+{
+	uint16_t len = 0;
+	NNI_GET16(src, len);
+	dest = (uint8_t *) (src + 2);
+	return len;
 }
 
 /*
@@ -307,7 +339,7 @@ int fixed_header_adaptor(uint8_t *packet, nni_msg *dst)
 
 	m = dst;
 	len = get_var_integer(packet, &pos);
-	
+
 	rv = nni_msg_header_append(m, packet, pos);
 	//cmd = *((char *)nng_msg_body(m));
 	debug_msg("fixed_header_adaptor %d %d %x", pos, rv);
