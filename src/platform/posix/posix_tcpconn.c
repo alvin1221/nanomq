@@ -127,7 +127,6 @@ tcp_doread(nni_tcp_conn *c)
 
 		for (niov = 0, i = 0; i < naiov; i++) {
 			if (aiov[i].iov_len != 0) {
-			  //printf("for niov %d read data: %s length: %d!\n", niov, iovec[niov].iov_base, iovec[niov].iov_len);
 				iovec[niov].iov_len  = aiov[i].iov_len;
 				iovec[niov].iov_base = aiov[i].iov_buf;
 				niov++;
@@ -137,12 +136,13 @@ tcp_doread(nni_tcp_conn *c)
 		if ((n = readv(fd, iovec, niov)) < 0) {
 			switch (errno) {
 			case EINTR:
-			  printf("EINTR\n");
+			  debug_msg("EINTR\n");
 				continue;
 			case EAGAIN:
-			  printf("EAGAIN\n");
+			  debug_msg("EAGAIN\n");
 				return;
 			default:
+				debug_msg("default erro %d", errno);
 				nni_aio_list_remove(aio);
 				nni_aio_finish_error(
 				    aio, nni_plat_errno(errno));
