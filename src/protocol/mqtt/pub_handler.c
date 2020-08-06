@@ -34,20 +34,27 @@ void pub_handler(nng_msg *msg)
 	if (decode_pub_message(msg, pub_packet)) {
 
 		//process topic alias
-		if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value &&
-		    pub_packet->variable_header.publish.properties.content.publish.topic_alias.value == 0) {
-			// protocol error
-			//TODO send DISCONNECT Packet to disconnect
-			return;
-		}
-
 		//TODO get "TOPIC Alias Maximum" from CONNECT Packet Properties ,
 		// topic_alias can't be larger than Topic Alias Maximum when the latter isn't 0;
 		// Compare with TOPIC Alias Maximum;
+		if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value) {
 
-		if ((pub_packet->variable_header.publish.topic_name.str_len == 0) &&
-		    (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value == false)) {
-			return;
+			if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.value == 0) {
+				//Protocol Error
+				//TODO Send a DISCONNECT Packet with Reason Code "0x94" before close the connection;
+				return;
+			}
+
+			if (pub_packet->variable_header.publish.topic_name.str_len == 0) {
+				//TODO
+				// 1, query the entire Topic Name through Topic alias
+				// 2, if query failed, Send a DISCONNECT Packet with Reason Code "0x82" before close the connection and return
+				// 3, if query succeed, query node and data structure through Topic Name
+			} else {
+				//TODO
+				// 1, update Map value of Topic Alias
+				// 2, query node and data structure through Topic Name
+			}
 		}
 
 
@@ -110,7 +117,6 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 	switch (pub_packet->fixed_header.packet_type) {
 		case PUBLISH:
-
 			/*fixed header*/
 			nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
 			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
