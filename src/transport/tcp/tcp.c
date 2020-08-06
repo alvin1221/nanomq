@@ -53,6 +53,8 @@ struct tcptran_pipe {
 	nni_aio *       negoaio;
 	nni_msg *       rxmsg;
 	nni_mtx         mtx;
+	uint32_t	remain_len;
+	//uint8_t		sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
 struct tcptran_ep {
@@ -380,9 +382,10 @@ static void
 tcptran_pipe_recv_cb(void *arg)
 {
 	nni_aio *     aio;
-	int           rv;
+	nni_iov       iov;
+	int           rv, pos = 1;
 	uint16_t      fixed_header;
-	uint32_t      len;
+	uint32_t      len = 0;
 	size_t        n;
 	nni_msg *     msg;
 	tcptran_pipe *p = arg;
@@ -391,6 +394,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 	debug_msg("tcptran_pipe_recv_cb\n");
 	nni_mtx_lock(&p->mtx);
+
 	aio = nni_list_first(&p->recvq);
 
 	if ((rv = nni_aio_result(rxaio)) != 0) {
@@ -403,30 +407,54 @@ tcptran_pipe_recv_cb(void *arg)
 
 	nni_aio_iov_advance(rxaio, n);
 	//not receive enough bytes, deal with remaining length
-	debug_msg("new %d have recevied %d header %x %d", n, p->gotrxhead,p->rxlen[0], p->rxlen[1]);
+	len = get_var_integer(p->rxlen, &pos);
+	debug_msg("new %d recevied %d header %x %d pos: %d len : %d",
+		  n, p->gotrxhead,p->rxlen[0], p->rxlen[1], pos, len);
 	debug_msg("still need byte count:%d > 0\n", nni_aio_iov_count(rxaio));
-	if (nni_aio_iov_count(rxaio) > 0 && p->rxlen[0]!=CMD_PINGREQ) {
+	if (nni_aio_iov_count(rxaio) > 0) {
 		debug_msg("got: %x %x, %d!!\n", p->rxlen[0],p->rxlen[1], strlen(p->rxlen));
 		nng_stream_recv(p->conn, rxaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
+	} else if (p->rxlen[p->gotrxhead - 1] > 0x7f && p->gotrxhead <= EMQ_MAX_FIXED_HEADER_LEN) {
+		//length error
+		if (p->gotrxhead == EMQ_MAX_FIXED_HEADER_LEN) {
+			rv = NNG_EMSGSIZE;
+			goto recv_error;
+		}
+		//same packet
+		iov.iov_buf = &p->rxlen[p->gotrxhead];
+		iov.iov_len = 1;
+		nni_aio_set_iov(rxaio, 1, &iov);
+		debug_msg("reading 1 byte of fixed header");
+		nng_stream_recv(p->conn, rxaio);
+		nni_mtx_unlock(&p->mtx);
+		return;
+	} else if (len == 0 && n == 2) {
+		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
+		//TODO PINGRESP (PUBACK SUBACK) here? BETTER NOT
+		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
+		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
+			rv = 0;
+			goto recv_error;
+		}
 	}
 
-	//TODO PINGRESP (PUBACK SUBACK) here? BETTER NOT
-	if (p->rxlen[0] == CMD_PINGREQ) {
-	}
-	
+
+	//finish fixed header
+	p->wantrxhead = len + p->gotrxhead;
+	debug_msg("len %d!! pre len %d\n", len, p->remain_len);
 	// If we don't have a message yet, we were reading the fixed message
 	// header, which is just the length and type.  This tells us the size of the
 	// message to allocate and how much more to expect.
 	if (p->rxmsg == NULL) {
-		int	 pos = 1;
 		// We should have gotten a message header. len -> remaining length to define how many bytes left
 		//NNI_GET64(p->rxlen, len);	
-		len = get_var_integer(p->rxlen, &pos);
-		p->wantrxhead = len + 2;
 
-		debug_msg("header got: %x %x, %d!!\n", p->rxlen[0],p->rxlen[1], p->wantrxhead);
+		p->remain_len = len;
+
+		debug_msg("header got: %x %x %x %x %x, %d!!\n",
+			  p->rxlen[0],p->rxlen[1], p->rxlen[2], p->rxlen[3], p->rxlen[4], p->wantrxhead);
 		// Make sure the message payload is not too big.  If it is
 		// the caller will shut down the pipe.
 		if ((len > p->rcvmax) && (p->rcvmax > 0)) {
@@ -443,11 +471,11 @@ tcptran_pipe_recv_cb(void *arg)
 		// Submit the rest of the data for a read -- seperate Fixed header with variable header and so on
 		//  we want to read the entire message now.
 		if (len != 0) {
-			nni_iov iov;
 			iov.iov_buf = nni_msg_body(p->rxmsg);
-			iov.iov_len = p->wantrxhead - p->gotrxhead;
+			iov.iov_len = len;
 
 			nni_aio_set_iov(rxaio, 1, &iov);
+			debug_msg("second recv action+++++++++++++++++++++++++++++++++");
 			nng_stream_recv(p->conn, rxaio);
 			nni_mtx_unlock(&p->mtx);
 			return;
@@ -618,9 +646,9 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
 {
 	nni_aio *rxaio;
 	nni_iov  iov;
+	debug_msg("second oder! tcptran_pipe_recv_start\n");
 	NNI_ASSERT(p->rxmsg == NULL);			//SHALL I keep rxmsg solid everytime before receving next packet? In nng yes. MQTT?
 
-	debug_msg("second oder! tcptran_pipe_recv_start\n");
 	if (p->closed) {
 		nni_aio *aio;
 		while ((aio = nni_list_first(&p->recvq)) != NULL) {
@@ -637,10 +665,11 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
 	rxaio       = p->rxaio;
 	p->gotrxhead  = 0;
 	p->gottxhead  = 0;
-	p->wantrxhead = 0;
+	p->wantrxhead = EMQ_MIN_FIXED_HEADER_LEN;
 	p->wanttxhead = 0;
+	p->remain_len = 0;
 	iov.iov_buf = p->rxlen;
-	iov.iov_len = EMQ_MAX_FIXED_HEADER_LEN;
+	iov.iov_len = EMQ_MIN_FIXED_HEADER_LEN;
 	nni_aio_set_iov(rxaio, 1, &iov);
 
 	nng_stream_recv(p->conn, rxaio);
