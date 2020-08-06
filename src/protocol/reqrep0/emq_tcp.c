@@ -9,6 +9,7 @@
 #include "include/nng_debug.h"
 //#include "nng/protocol/mqtt/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
+#include "../emq/nanomq/include/subscribe_handle.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -558,7 +559,8 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_mtx_lock(&s->lk);
 
-	subscribe_handle(msg);
+	if(subscribe_handle(msg) == SUCCESS){
+	};
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.

@@ -130,11 +130,6 @@ struct mqtt_packet_puback {
 //struct mqtt_payload_puback {} = NULL;
 
 //variable header in mqtt_packet_subscribe
-struct mqtt_packet_subscribe {
-	uint16_t        packet_id;
-	struct mqtt_property * property;
-};
-
 struct topic_with_option {
 	mqtt_string *   topic_filter;
 	bool            no_local; //bit2
@@ -146,22 +141,15 @@ typedef struct topic_with_option topic_with_option;
 struct topic_node {
 	topic_with_option * it;
 	struct topic_node * next;
-};
+};	
 typedef struct topic_node topic_node;
 
-struct mqtt_payload_subscribe {
+struct packet_subscribe {
+	uint16_t packet_id;
+	struct mqtt_property * property;
 	topic_node * node;
 };
-
-//variable header in mqtt_apcket_suback
-struct mqtt_packet_suback {
-	uint16_t        packet_id;
-	struct mqtt_property * property;
-};
-
-struct mqtt_payload_suback {
-	mqtt_binary *   reason_code_list; //each byte->topic_filter in order
-};
+typedef struct packet_subscribe packet_subscribe;
 
 //variable header in mqtt_packet_unsubscribe
 struct mqtt_packet_unsubscribe {
@@ -206,8 +194,6 @@ typedef struct mqtt_packet_connect mqtt_packet_connect;
 typedef struct mqtt_packet_connack mqtt_packet_connack;
 typedef struct mqtt_packet_publish mqtt_packet_publish;
 typedef struct mqtt_packet_puback mqtt_packet_puback;
-typedef struct mqtt_packet_subscribe mqtt_packet_subscribe;
-typedef struct mqtt_packet_suback mqtt_packet_suback;
 typedef struct mqtt_packet_unsubscribe mqtt_packet_unsubscribe;
 typedef struct mqtt_packet_unsuback mqtt_packet_unsuback;
 typedef struct mqtt_packet_disconnect mqtt_packet_disconnect;
@@ -215,8 +201,6 @@ typedef struct mqtt_packet_auth mqtt_packet_auth;
 
 typedef struct mqtt_payload_connect mqtt_payload_connect;
 typedef struct mqtt_payload_publish mqtt_payload_publish;
-typedef struct mqtt_payload_subscribe mqtt_payload_subscribe;
-typedef struct mqtt_payload_suback mqtt_payload_suback;
 typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
 typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
@@ -224,7 +208,7 @@ typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 struct Ctx_sub {
 	uint32_t	id; // client id
 	struct mqtt_property * variable_property;
-	struct topic_with_option * option;
+	struct topic_with_option * topic_with_option;
 
 	// connect info
 	struct ctx_connect * ctx_con;
