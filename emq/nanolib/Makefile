@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -g
-DEPS = mqtt_db.h zmalloc.h hash.h
+DEPS = include/mqtt_db.h include/zmalloc.h include/hash.h
 OBJ = main.o mqtt_db.o zmalloc.o hash.o
 
 

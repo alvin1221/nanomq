@@ -477,6 +477,8 @@ if (NNG_ENABLE_TLS)
 endif ()
 
 #add_subdirectory(docs/man)
+add_subdirectory(emq/nanomq)
+add_subdirectory(emq/nanolib)
 
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VERSION ${NNG_PACKAGE_VERSION})

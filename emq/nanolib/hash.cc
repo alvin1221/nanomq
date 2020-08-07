@@ -1,7 +1,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
-#include "hash.h"
+#include "include/hash.h"
 #include <iostream>
 
 using namespace std;
