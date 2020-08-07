@@ -11,6 +11,9 @@
 //
 // The Struct to store mqtt_packet. 
 
+#ifndef MQTT_PACKET_H
+#define MQTT_PACKET_H
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -215,7 +218,7 @@ struct Ctx_sub {
 };
 typedef struct Ctx_sub Ctx_sub;
 
-
+/*
 uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
 	*pos = 0;
 	uint32_t res = 0;
@@ -238,4 +241,7 @@ int len_of_varint(uint32_t num){
 	}
 	return res;
 }
+*/
+
+#endif
 

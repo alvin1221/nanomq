@@ -8,8 +8,8 @@
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
 //#include "nng/protocol/mqtt/pub_handler.h"
-#include "nng/protocol/mqtt/mqtt.h"
-#include "../emq/nanomq/include/subscribe_handle.h"
+#include <nng/protocol/mqtt/mqtt.h>
+#include <nng/protocol/mqtt/subscribe_handle.h>
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -559,12 +559,12 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_mtx_lock(&s->lk);
 
-		/*
-	if(subscribe_handle(msg) == SUCCESS){
+	uint8_t res = subscribe_handle(msg);
+	if(res == SUCCESS){
 		nni_mtx_unlock(&s->lk);
 
 		debug_msg("HERERER");
-		nni_aio_set_msg(p->aio_send, msg);
+		nni_aio_set_msg(aio, msg);
 		debug_msg("back to app layer to reply ack. ");
 		//trigger application level
 		nni_aio_finish_synch(aio, 0, nni_msg_len(msg));
@@ -587,7 +587,6 @@ emq_pipe_recv_cb(void *arg)
 		}
 	}
 
-		*/
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
