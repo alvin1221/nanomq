@@ -18,7 +18,7 @@ include_directories(./include)
 find_package(nng CONFIG REQUIRED)
 
 # list of source files
-set(libsrc hash.cc mqtt_db.c test.c zmalloc.c)
+set(libsrc hash.cc mqtt_db.c zmalloc.c)
 
 # this is the "object library" target: compiles the sources only once
 add_library(nanolib OBJECT ${libsrc})
@@ -31,4 +31,4 @@ add_library(nanolib_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 
 
-#add_executable(test main.c hash.cc mqtt_db.c test.c zmalloc.c)
+#add_executable(test hash.cc mqtt_db.c test.c zmalloc.c)
