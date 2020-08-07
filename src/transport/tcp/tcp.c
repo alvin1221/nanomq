@@ -441,7 +441,7 @@ tcptran_pipe_recv_cb(void *arg)
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			rv = 0;
-			//goto recv_error;
+			goto recv_error;
 		}
 	}
 
