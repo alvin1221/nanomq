@@ -39,7 +39,7 @@ static uint32_t power(uint32_t x, uint32_t n)
  */
 uint8_t put_var_integer(uint8_t *dest, uint32_t value)
 {
-	uint8_t len = 0;
+	uint8_t len = 1;
 	uint32_t init_val = 0x7F;
 
 	for (uint32_t i = 0; i < sizeof(value); ++i) {
@@ -51,7 +51,11 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
 		if (value > init_val) {
 			dest[i] |= 0x80;
 		}
-		len++;
+		if((dest[i] & 0x80) == 0x80){
+			len++;
+		}else{
+			break;
+		}
 	}
 	return len;
 }

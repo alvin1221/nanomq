@@ -560,7 +560,23 @@ emq_pipe_recv_cb(void *arg)
 	nni_mtx_lock(&s->lk);
 
 	if(subscribe_handle(msg) == SUCCESS){
-	};
+		if (!p->busy && !p->closed) {
+			uint8_t  *header,l;
+			uint8_t  *body = nng_msg_body(msg);
+			p->busy = true;
+			len     = nni_msg_len(msg);
+			l = nni_msg_header_len(msg);
+			header = nng_msg_header(msg);
+			debug_msg("body: %x %x %x header: %x %x len:%d headlen:%d", body[0], body[1], body[2] , *header, *(header+1), len, l);
+			nni_aio_set_msg(&p->aio_send, msg);
+			nni_pipe_send(p->pipe, &p->aio_send);
+			nni_mtx_unlock(&s->lk);
+
+			nni_aio_set_msg(aio, NULL);
+			nni_aio_finish(aio, 0, len);
+			return;
+		}
+	}
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.

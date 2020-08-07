@@ -1,4 +1,5 @@
 #include "../../../include/nng/protocol/mqtt/mqtt.h"
+#include "core/nng_impl.h"
 #include "property_handle.h"
 
 struct ctx_sub {
@@ -43,7 +44,6 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
 	uint8_t *  payload_ptr;
 
-	uint16_t   packet_id;
 	int        len_of_varint;
 	size_t     remaining_len;
 	int vpos = 0; // pos in variable
@@ -51,12 +51,10 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 
 	bool version_v5 = false; // v3.1.1/v5
 
-	debug_msg("Handle the SUB request............. \n");
 	// handle variable header
 	variable_ptr = nni_msg_variable_ptr(msg);
 
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
-	debug_msg("SUB packet id : %d  originData: %x%x. ", packet_id, variable_ptr[vpos+1], variable_ptr[vpos]);
 	vpos += 2;
 
 	mqtt_property * prop;
@@ -90,35 +88,30 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 	}
 
 	debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
-	debug_msg("PAYLOAD:  %x %x %x %x. ", payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
     // handle payload
-	debug_msg("Handle the payload IN SUB. \n");
 	payload_ptr = nni_msg_payload_ptr(msg);
+	
+	debug_msg("PAYLOAD:  %x %x %x %x. ", payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
 	topic_node * topic_node_t = nni_alloc(sizeof(topic_node));
 	sub_pkt->node = topic_node_t;
+	topic_node_t->next = NULL;
 	topic_node * _topic_node;
 
 	while(1){
 		int topic_len;
 		NNI_GET16(payload_ptr + bpos, topic_len); // len of topic filter
 		debug_msg("originData: %x %x", payload_ptr[bpos], payload_ptr[bpos+1]);
-		debug_msg("Length of topic: %d . ", topic_len);
 		bpos += 2;
 		topic_with_option * topic_context = nni_alloc(sizeof(topic_with_option));
 		topic_node_t->it = topic_context;
 		_topic_node = topic_node_t;
 
 		mqtt_string * str = nni_alloc(sizeof(mqtt_string));
-		NNI_GET16(payload_ptr + bpos, str->len);
-		bpos += 2;
-		if(str->len + 2 != topic_len){
-			return TOPIC_FILTER_INVALID;
-		}
-
+		str->len = topic_len;
 		memcpy(str->str, payload_ptr+bpos, str->len);
-		bpos += str->len;
+		bpos += topic_len;
 
 		debug_msg("Length of topic: %d topic_node: %s. ", topic_len, str->str);
 
@@ -132,9 +125,13 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 		topic_context->retain_option = (0x30 & payload_ptr[bpos]);
 
 		remaining_len = nni_msg_remaining_len(msg);
+		debug_msg("bpos:%d remaining_len:%d vpos:%d. ", bpos, remaining_len, vpos);
 		if(++bpos < remaining_len - vpos){
 			topic_node_t = nni_alloc(sizeof(topic_node));
+			topic_node_t->next = NULL;
 			_topic_node->next = topic_node_t;
+		}else{
+			break;
 		}
 	}
 	return SUCCESS;
@@ -142,9 +139,14 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 
 uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	// handle variable header first
-	// packet id
+	debug_msg("generate the ack.......");
 	bool version_v5 = false;
-	nng_msg_append(msg, (uint8_t *) &(sub_pkt->packet_id), 2);
+	nng_msg_clear(msg);
+	// packet id
+	uint8_t packet_id[2];
+	NNI_PUT16(packet_id, sub_pkt->packet_id);
+	debug_msg("packetid: %x %x", packet_id[0], packet_id[1]);
+	nng_msg_append(msg, packet_id, 2);
 
 	// handle payload header
 	topic_node * node = sub_pkt->node;
@@ -154,37 +156,44 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 		}else{
 			uint8_t reason_code = 0x00; //qos0
 			// 0x01--qos1     0x02--qos2    0x80--fail
-			nng_msg_append(msg, (uint8_t *) &(sub_pkt->packet_id), 1);
+			nng_msg_append(msg, (uint8_t *) &reason_code, 1);
 		}
 		node = node->next;
+		debug_msg("ERRORRRR.....");
 	}
 	// handle fixed header
 	uint8_t cmd = CMD_SUBACK;
 	nni_msg_header_append(msg, (uint8_t *) &cmd, 1);
 
+	debug_msg("ERRORRRRhererere.....");
 	uint32_t remaining_len = (uint32_t)nni_msg_len(msg);
 	uint8_t varint[4];
 	int len_of_varint = put_var_integer(varint, remaining_len);
+	debug_msg("remain:%d varint:%d %d %d %d len:%d", remaining_len, varint[0], varint[1], varint[2], varint[3], len_of_varint);
 	nni_msg_header_append(msg, varint, len_of_varint);
 	return SUCCESS;
 }
 
 void sub_ctx_handle(nng_msg * msg, packet_subscribe * sub_pkt){
 	// generate ctx for each topic
-	debug_msg("GENERATE CTX. ");
+	debug_msg("Generate ctx for echo topic");
 	bool version_v5 = false;
-	topic_node * topic_node_t;
-	topic_node_t = sub_pkt->node;
+	debug_msg("ERROR???");
+	topic_node * topic_node_t = sub_pkt->node;
+
 	while(topic_node_t){
-		struct Ctx_sub * ctx_sub = nni_alloc(sizeof(Ctx_sub));
+		struct Ctx_sub * ctx_sub = nni_alloc(sizeof(struct Ctx_sub));
 		if(version_v5){
 			ctx_sub->variable_property = sub_pkt->property;
 		}
+		debug_msg("ERROR???");
 		ctx_sub->topic_with_option = topic_node_t->it;
+		debug_msg("ERROR???");
 		topic_node_t = topic_node_t->next;
 		// insert ctx into tree,....
 		//
 		nni_free(ctx_sub, sizeof(Ctx_sub));
 	}
-	nni_free(sub_pkt, sizeof(packet_subscribe));
+	debug_msg("End of sub ctx handle");
 }
+

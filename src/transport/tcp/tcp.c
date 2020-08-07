@@ -496,7 +496,7 @@ tcptran_pipe_recv_cb(void *arg)
 	n        = nni_msg_len(msg);
 	fixed_header_adaptor(p->rxlen, msg);
 
-	debug_msg("REMAINING LENGTH SETTING..............");
+	debug_msg("REMAINING LENGTH SETTING IN MSG..............");
 	// set remaining_len of msg
 	int len_of_varint = 1;
 	remaining_len = get_var_integer(p->rxlen, &len_of_varint);

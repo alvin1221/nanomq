@@ -211,7 +211,7 @@ struct Ctx_sub {
 	struct topic_with_option * topic_with_option;
 
 	// connect info
-	struct ctx_connect * ctx_con;
+	// struct ctx_connect * ctx_con;
 };
 typedef struct Ctx_sub Ctx_sub;
 
