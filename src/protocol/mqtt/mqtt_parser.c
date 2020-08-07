@@ -17,18 +17,39 @@
 #include "nng/protocol/mqtt/mqtt.h"
 #include "include/nng_debug.h"
 
-static uint32_t power(uint32_t x, uint32_t n);
+static uint8_t get_value_size(uint64_t value);
+static uint64_t power(uint64_t x, uint32_t n);
 
-static uint32_t power(uint32_t x, uint32_t n)
+static uint64_t power(uint64_t x, uint32_t n)
 {
-
-	uint32_t val = 1;
+	uint64_t val = 1;
 
 	for (uint32_t i = 0; i <= n; ++i) {
 		val = x * val;
 	}
 
 	return val / x;
+}
+
+/**
+ * get size from value
+ *
+ * @param value
+ * @return
+ */
+static uint8_t get_value_size(uint64_t value)
+{
+	uint8_t  len = 1;
+	uint64_t pow;
+	for (int i   = 1; i <= 4; ++i) {
+		pow = power(0x100, i);
+		if (value >= pow) {
+			++len;
+		} else {
+			break;
+		}
+	}
+	return len;
 }
 
 /**
@@ -39,10 +60,11 @@ static uint32_t power(uint32_t x, uint32_t n)
  */
 uint8_t put_var_integer(uint8_t *dest, uint32_t value)
 {
-	uint8_t len = 0;
-	uint32_t init_val = 0x7F;
+	uint8_t  len        = 0;
+	uint32_t init_val   = 0x7F;
+	uint8_t  value_size = get_value_size(value);
 
-	for (uint32_t i = 0; i < sizeof(value); ++i) {
+	for (uint32_t i = 0; i < value_size; ++i) {
 
 		if (i > 0) {
 			init_val = (init_val * 0x80) | 0xFF;
@@ -65,16 +87,18 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
  */
 uint32_t get_var_integer(const uint8_t *buf, int *pos)
 {
-	uint8_t temp;
+	uint8_t  temp;
 	uint32_t result = 0;
+
 	int p = *pos;
 	int i = 0;
 
 	do {
-		temp = *(buf + p);
+		temp   = *(buf + p);
 		result = result + (uint32_t) (temp & 0x7f) * (power(0x80, i));
 		p++;
-	} while ((temp & 0x80) > 0 && i++ < 4);
+	}
+	while ((temp & 0x80) > 0 && i++ < 4);
 	*pos = p;
 	return result;
 }
@@ -110,6 +134,7 @@ int utf8_check(const char *str, size_t len)
 	int j;
 	int codelen;
 	int codepoint;
+
 	const unsigned char *ustr = (const unsigned char *) str;
 
 	if (!str) return ERR_INVAL;
@@ -119,7 +144,7 @@ int utf8_check(const char *str, size_t len)
 		if (ustr[i] == 0) {
 			return ERR_MALFORMED_UTF8;
 		} else if (ustr[i] <= 0x7f) {
-			codelen = 1;
+			codelen   = 1;
 			codepoint = ustr[i];
 		} else if ((ustr[i] & 0xE0) == 0xC0) {
 			/* 110xxxxx - 2 byte sequence */
@@ -127,11 +152,11 @@ int utf8_check(const char *str, size_t len)
 				/* Invalid bytes */
 				return ERR_MALFORMED_UTF8;
 			}
-			codelen = 2;
+			codelen   = 2;
 			codepoint = (ustr[i] & 0x1F);
 		} else if ((ustr[i] & 0xF0) == 0xE0) {
 			/* 1110xxxx - 3 byte sequence */
-			codelen = 3;
+			codelen   = 3;
 			codepoint = (ustr[i] & 0x0F);
 		} else if ((ustr[i] & 0xF8) == 0xF0) {
 			/* 11110xxx - 4 byte sequence */
@@ -139,7 +164,7 @@ int utf8_check(const char *str, size_t len)
 				/* Invalid, this would produce values > 0x10FFFF. */
 				return ERR_MALFORMED_UTF8;
 			}
-			codelen = 4;
+			codelen   = 4;
 			codepoint = (ustr[i] & 0x07);
 		} else {
 			/* Unexpected continuation byte. */
@@ -333,11 +358,11 @@ int hex_to_oct(char *str)
 */
 int fixed_header_adaptor(uint8_t *packet, nni_msg *dst)
 {
-	nni_msg *m;
-	int rv, pos = 1;
+	nni_msg  *m;
+	int      rv, pos = 1;
 	uint32_t len;
 
-	m = dst;
+	m   = dst;
 	len = get_var_integer(packet, &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
@@ -349,8 +374,8 @@ int fixed_header_adaptor(uint8_t *packet, nni_msg *dst)
 
 int variable_header_adaptor(uint8_t *packet, nni_msg *dst)
 {
-	nni_msg *m;
-	int pos = 0;
+	nni_msg  *m;
+	int      pos = 0;
 	uint32_t len;
 
 	return 0;
