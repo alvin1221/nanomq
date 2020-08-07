@@ -29,12 +29,66 @@ static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *cont
  */
 void pub_handler(nng_msg *msg)
 {
-	struct pub_packet_struct pub_packet;
+	struct pub_packet_struct *pub_packet = NULL; //TODO get from nng_msg context
 
-	if (decode_pub_message(msg, &pub_packet)) {
+	if (decode_pub_message(msg, pub_packet)) {
+
+		//process topic alias
+		//TODO get "TOPIC Alias Maximum" from CONNECT Packet Properties ,
+		// topic_alias can't be larger than Topic Alias Maximum when the latter isn't 0;
+		// Compare with TOPIC Alias Maximum;
+		if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value) {
+
+			if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.value == 0) {
+				//Protocol Error
+				//TODO Send a DISCONNECT Packet with Reason Code "0x94" before close the connection;
+				return;
+			}
+
+			if (pub_packet->variable_header.publish.topic_name.str_len == 0) {
+				//TODO
+				// 1, query the entire Topic Name through Topic alias
+				// 2, if query failed, Send a DISCONNECT Packet with Reason Code "0x82" before close the connection and return
+				// 3, if query succeed, query node and data structure through Topic Name
+			} else {
+				//TODO
+				// 1, update Map value of Topic Alias
+				// 2, query node and data structure through Topic Name
+			}
+		}
+
+
 		//TODO save some useful publish message info and properties to global mqtt context while decode succeed
-		//TODO search clients' pipe from topic_name
+
 		//TODO do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
+
+		if (pub_packet->fixed_header.dup) {
+
+
+		}
+
+		if (pub_packet->fixed_header.retain == 1) {
+			//TODO store this message to the topic node
+		}
+
+		//TODO compare Publish QoS with Subscribe OoS, decide by the minimum;
+
+		switch (pub_packet->fixed_header.qos) {
+			case 0:
+				break;
+			case 1:
+				break;
+			case 2:
+				break;
+			default:
+				//Error Qos
+				break;
+		}
+
+		//TODO search clients' pipe from topic_name
+
+
+
 	}
 }
 
@@ -55,14 +109,14 @@ static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *cont
 
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
-	uint8_t tmp[4] = {0};
+	uint8_t  tmp[4]  = {0};
 	uint32_t arr_len = 0;
+
 	properties_type prop_type;
 
 
 	switch (pub_packet->fixed_header.packet_type) {
 		case PUBLISH:
-			pub_packet->fixed_header.dup = 0;//reset dup to 0 when publish message is sent to client;
 			/*fixed header*/
 			nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
 			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
@@ -95,13 +149,15 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 			//Message Expiry Interval
 			prop_type = MESSAGE_EXPIRY_INTERVAL;
 			nng_msg_append(msg, &prop_type, 1);
-			nng_msg_append_u32(msg, pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval);
+			nng_msg_append_u32(msg,
+			                   pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval.value);
 
 			//Topic Alias
-			if (pub_packet->variable_header.publish.properties.content.publish.topic_alias > 0) {
+			if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value) {
 				prop_type = TOPIC_ALIAS;
 				nng_msg_append(msg, &prop_type, 1);
-				nng_msg_append_u16(msg, pub_packet->variable_header.publish.properties.content.publish.topic_alias);
+				nng_msg_append_u16(msg,
+				                   pub_packet->variable_header.publish.properties.content.publish.topic_alias.value);
 			}
 
 			//Response Topic
@@ -120,12 +176,12 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 			                       pub_packet->variable_header.publish.properties.content.publish.user_property.str_len);
 
 			//Subscription Identifier
-			if (pub_packet->variable_header.publish.properties.content.publish.subscription_identifier > 0) {
+			if (pub_packet->variable_header.publish.properties.content.publish.subscription_identifier.has_value) {
 				prop_type = SUBSCRIPTION_IDENTIFIER;
 				nng_msg_append(msg, &prop_type, 1);
 				memset(tmp, 0, sizeof(tmp));
 				arr_len = put_var_integer(tmp,
-				                          pub_packet->variable_header.publish.properties.content.publish.subscription_identifier);
+				                          pub_packet->variable_header.publish.properties.content.publish.subscription_identifier.value);
 				nng_msg_append(msg, tmp, arr_len);
 			}
 
@@ -172,7 +228,7 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 					                       pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.reason_string.str_len);
 
 					//user properties
-					append_bytes_with_type(msg, REASON_STRING,
+					append_bytes_with_type(msg, USER_PROPERTY,
 					                       (uint8_t *) pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_body,
 					                       pub_packet->variable_header.pub_arrc.properties.content.pub_arrc.user_property.str_len);
 
@@ -216,9 +272,9 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
 	uint8_t *msg_body = nng_msg_body(msg);
-	size_t msg_len = nng_msg_len(msg);
+	size_t  msg_len   = nng_msg_len(msg);
 
-	int pos = 0;
+	int pos      = 0;
 	int temp_pos = 0;
 	int len;
 
@@ -251,84 +307,137 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				if (pub_packet->variable_header.publish.properties.len > 0) {
 					for (uint32_t i = 0; i < pub_packet->variable_header.publish.properties.len;) {
 						properties_type prop_type = get_var_integer(msg_body, &pos);
+						//TODO the same property cannot appear twice
 						switch (prop_type) {
 							case PAYLOAD_FORMAT_INDICATOR:
-								pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator = *(
-										msg_body +
-										pos);
-								++pos;
-								++i;
+								if (pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator.has_value ==
+								    false) {
+									pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator.value =
+											*(msg_body + pos);
+									pub_packet->variable_header.publish.properties.content.publish.payload_fmt_indicator.has_value = true;
+									++pos;
+									++i;
+								} else {
+									//Protocol Error
+									return false;
+								}
 								break;
 
 							case MESSAGE_EXPIRY_INTERVAL:
-								NNI_GET32(
-										msg_body + pos,
-										pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval);
-								pos += 4;
-								i += 4;
+								if (pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval.has_value ==
+								    false) {
+									NNI_GET32(
+											msg_body + pos,
+											pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval.value);
+									pub_packet->variable_header.publish.properties.content.publish.msg_expiry_interval.has_value = true;
+									pos += 4;
+									i += 4;
+								} else {
+									//Protocol Error
+									return false;
+								}
 								break;
 
 							case CONTENT_TYPE:
-								pub_packet->variable_header.publish.properties.content.publish.content_type.str_len =
-										get_utf8_str(
-												pub_packet->variable_header.publish.properties.content.publish.content_type.str_body,
-												msg_body,
-												&pos);
-								i = i +
-								    pub_packet->variable_header.publish.properties.content.publish.content_type.str_len +
-								    2;
+								if (pub_packet->variable_header.publish.properties.content.publish.content_type.str_len ==
+								    0) {
+									pub_packet->variable_header.publish.properties.content.publish.content_type.str_len =
+											get_utf8_str(
+													pub_packet->variable_header.publish.properties.content.publish.content_type.str_body,
+													msg_body,
+													&pos);
+									i = i +
+									    pub_packet->variable_header.publish.properties.content.publish.content_type.str_len +
+									    2;
+								} else {
+									//Protocol Error
+									return false;
+								}
 								break;
 
 							case TOPIC_ALIAS:
-								NNI_GET16(
-										msg_body + pos,
-										pub_packet->variable_header.publish.properties.content.publish.topic_alias);
-								pos += 2;
-								i += 2;
-
-								if (pub_packet->variable_header.publish.properties.content.publish.topic_alias == 0) {
-									//TODO protocol error, free memory and return ?
-//                                return false;
+								if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value ==
+								    false) {
+									NNI_GET16(
+											msg_body + pos,
+											pub_packet->variable_header.publish.properties.content.publish.topic_alias.value);
+									pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value = true;
+									pos += 2;
+									i += 2;
+								} else {
+									//Protocol Error
+									return false;
 								}
 								break;
 
 							case RESPONSE_TOPIC:
-								pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len
-										= get_utf8_str(
-										pub_packet->variable_header.publish.properties.content.publish.response_topic.str_body,
-										msg_body,
-										&pos);
-								i = i +
-								    pub_packet->variable_header.publish.properties.content.publish.content_type.str_len +
-								    2;
+								if (pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len ==
+								    0) {
+									pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len
+											= get_utf8_str(
+											pub_packet->variable_header.publish.properties.content.publish.response_topic.str_body,
+											msg_body,
+											&pos);
+									i = i +
+									    pub_packet->variable_header.publish.properties.content.publish.content_type.str_len +
+									    2;
+								} else {
+									//Protocol Error
+									return false;
+								}
+
 								break;
 
 							case CORRELATION_DATA:
-								pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len
-										= get_variable_binary(
-										pub_packet->variable_header.publish.properties.content.publish.correlation_data.data,
-										msg_body + pos);
-								pos += pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len +
-								       2;
-								i += pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len +
-								     2;
+								if (pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len ==
+								    0) {
+									pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len
+											= get_variable_binary(
+											pub_packet->variable_header.publish.properties.content.publish.correlation_data.data,
+											msg_body + pos);
+									pos += pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len +
+									       2;
+									i += pub_packet->variable_header.publish.properties.content.publish.correlation_data.data_len +
+									     2;
+								} else {
+									//Protocol Error
+									return false;
+								}
 								break;
 
 							case USER_PROPERTY:
-								pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len =
-										get_utf8_str(
-												pub_packet->variable_header.publish.properties.content.publish.user_property.str_body,
-												msg_body,
-												&pos);
-								i += pub_packet->variable_header.publish.properties.content.publish.user_property.str_len +
-								     2;
+								if (pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len ==
+								    0) {
+									pub_packet->variable_header.publish.properties.content.publish.response_topic.str_len =
+											get_utf8_str(
+													pub_packet->variable_header.publish.properties.content.publish.user_property.str_body,
+													msg_body,
+													&pos);
+									i += pub_packet->variable_header.publish.properties.content.publish.user_property.str_len +
+									     2;
+								} else {
+									//Protocol Error
+									return false;
+								}
 								break;
 
 							case SUBSCRIPTION_IDENTIFIER:
-								temp_pos = pos;
-								pub_packet->variable_header.publish.properties.content.publish.subscription_identifier =
-										get_var_integer(msg_body, &pos);
-								i += (pos - temp_pos);
+								if (pub_packet->variable_header.publish.properties.content.publish.subscription_identifier.has_value ==
+								    false) {
+									temp_pos = pos;
+									pub_packet->variable_header.publish.properties.content.publish.subscription_identifier.value =
+											get_var_integer(msg_body, &pos);
+									i += (pos - temp_pos);
+									pub_packet->variable_header.publish.properties.content.publish.subscription_identifier.has_value = true;
+									//Protocol error while Subscription Identifier = 0
+									if (pub_packet->variable_header.publish.properties.content.publish.subscription_identifier.value ==
+									    0) {
+										return false;
+									}
+								} else {
+									//Protocol Error
+									return false;
+								}
 								break;
 
 							default:
@@ -339,10 +448,8 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				}
 
 				//payload
-				pub_packet->payload_body.payload_len = msg_len - used_pos;
-//				pub_packet->payload_body.payload = nni_alloc(pub_packet->payload_body.payload_len);
-				pub_packet->payload_body.payload = msg_body + pos;
-//				memcpy(pub_packet->payload_body.payload, msg_body + pos, pub_packet->payload_body.payload_len);
+				pub_packet->payload_body.payload_len             = msg_len - used_pos;
+				pub_packet->payload_body.payload                 = msg_body + pos;
 				break;
 
 			case PUBACK:
