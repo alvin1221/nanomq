@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <string.h>
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
@@ -160,6 +159,12 @@ void test()
 }
 
 
+int main(int argc, char *argv[]) 
+{
+    test();
+
+    return 0;
+}
 
 
 

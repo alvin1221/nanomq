@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 typedef enum {UNEQUAL = -1, EQUAL = 0 } node_state;
+// typedef enum {null = 0, hashtag = 1, plus = 2, both = 3} wildcard;
     
 
 
@@ -22,6 +23,8 @@ struct client {
 struct db_node {
     char                *topic;
 	bool				retain;
+	bool				hashtag;
+	bool				plus;
 	void				*message;
     int					len;
     struct client		*sub_client;
@@ -29,6 +32,7 @@ struct db_node {
     struct db_node      *down;
     struct db_node      *next;
     node_state			state;
+	// wildcard			wc;			
     // int					first;
 
     /* hash func will work if len > 3 */ 

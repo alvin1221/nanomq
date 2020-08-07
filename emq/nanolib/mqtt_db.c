@@ -1,9 +1,10 @@
 #include <string.h>
 #include <assert.h>
-#include <stdio.h>
+
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
 #include "include/hash.h"
+#include "include/dbg.h"
 
 
 /* Create a db_tree */
@@ -203,19 +204,16 @@ void add_client(struct topic_and_node *input, char *id)
 /* Search node */
 void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **tan)
 {
-
     assert(db && topic_data);
     int len = 0;
     struct db_node *node = NULL;
     struct db_node *fnode = NULL;
-    // struct topic_and_node *res = *tan; 
     char **topic_queue = NULL;
 
     if (db->root) {
         node = db->root;
     }
 
-    // res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
     topic_queue = topic_parse(topic_data);
 
     // char **re = topic_queue;
@@ -238,12 +236,9 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
                 len--;
             }
             if (len == 0) {
-                //res->node = fnode;
-                //res->topic = topic_queue;
                 (*tan)->node = fnode;
                 (*tan)->topic = topic_queue;
 				return;
-                // return res;
             }
         }
         if (node->down && *(topic_queue+1)) {
@@ -253,13 +248,10 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
             node->state = EQUAL;
 			(*tan)->topic = NULL;
  			(*tan)->node = node; 
-            // res->topic = NULL;
-            // res->node = node;
             node->state = EQUAL;
 			return;
-            // return res;
         } else {
-            node->state = EQUAL;
+            node->state = UNEQUAL;
 			(*tan)->topic = topic_queue;
  			(*tan)->node = node; 
 			printf("node state : %d\n", (*tan)->node->state);
@@ -268,10 +260,124 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
         }
     }
 	return;
-
-    // return NULL;
 }
 
+// struct client *search_client(struct db_tree *db, char *topic_data)
+// {
+//     assert(db && topic_data);
+//     int len = 0;
+// 	struct client *res = NULL;
+//     struct db_node *node = NULL;
+//     // struct db_node *fnode = NULL;
+//     char **topic_queue = NULL;
+// 
+//     if (db->root) {
+//         node = db->root;
+//     }
+// 
+//     topic_queue = topic_parse(topic_data);
+// 
+//     while (*topic_queue && node){
+// 		if (strcmp(node->topic, *topic_queue)) {
+//             len = node->len;
+//             while (len > 0 && node->next) {
+//                 node = node->next;
+//                 if (!strcmp(node->topic, *topic_queue)) {
+//                     break;
+//                 }
+//                 len--;
+//             }
+//             if (len == 0) {
+// 				return res;
+//             }
+//         }
+// 		// if (node->wc == hashtag) {
+// 		if (node->hashtag) {
+// 			/* To get client list! */
+// 			res = zrealloc(res, sizeof(struct client));
+// 			res->next = node->next->sub_client;
+// 			while(res->next) {
+// 				res = res->next;
+// 			}
+// 			// TODO
+// 		}
+// 
+// 		if (node->plus) { 
+// 			if (node->down->down && *(topic_queue+2)) {
+//         	    topic_queue += 2;
+//         	    node = node->down->down;
+//         	} else if (*(topic_queue+2) == NULL) {
+//         	    res->next = node->down->sub_client;
+// 				while(res->next) {
+// 					res = res->next;
+// 				}
+//         	} else if (node->down->down == NULL) {
+//         	    res->next = node->down->sub_client;
+// 				while(res->next) {
+// 					res = res->next;
+// 				}
+//         	}
+// 		} else {
+// 
+// 
+// 		}
+// 
+//         if (node->down && *(topic_queue+1)) {
+//             topic_queue++;
+//             node = node->down;
+//         } else if (*(topic_queue+1) == NULL) {
+//             res = node->sub_client;
+// 			return res;
+//         } else {
+// 			return res;
+//         }
+// 		// if (node->wc == null) {
+// 
+// 		// } else if (node->wc == hashtag) {
+// 		// 	/* To get client list! */
+// 		// 	res = node->next->sub_client;
+// 		// 	res = res->down;
+// 		// 	// TODO
+// 
+// 		// 	if (strcmp(node->topic, *topic_queue)) {
+//         // 	    len = node->len;
+//         // 	    while (len > 0 && node->next) {
+//         // 	        node = node->next;
+//         // 	        if (!strcmp(node->topic, *topic_queue)) {
+//         // 	            break;
+//         // 	        }
+//         // 	        len--;
+//         // 	    }
+//         // 	    if (len == 0) {
+// 		// 			return res;
+//         // 	    }
+//         // 	}
+//         // 	if (node->down && *(topic_queue+1)) {
+//         // 	    topic_queue++;
+//         // 	    node = node->down;
+//         // 	} else if (*(topic_queue+1) == NULL) {
+//         //         res = node->sub_client;
+// 		// 		return res;
+//         // 	} else {
+// 		// 		return res;
+//         // 	}
+// 
+// 
+// 
+// 
+// 		// 	return NULL
+// 		// } else if (node->wc == plus) {
+//         // 
+// 		// 	return NULL;
+// 		// } else {
+// 		// 	
+// 		// 	return NULL;
+// 		// }
+// 
+//     }
+// 	return res;
+// 
+// }
 
 /* topic parsing */
 char **topic_parse(char *topic)
