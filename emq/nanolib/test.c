@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <string.h>
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"

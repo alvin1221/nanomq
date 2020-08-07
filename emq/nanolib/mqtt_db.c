@@ -1,6 +1,6 @@
 #include <string.h>
 #include <assert.h>
-#include <stdio.h>
+
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
 #include "include/hash.h"
@@ -268,7 +268,7 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
 //     int len = 0;
 // 	struct client *res = NULL;
 //     struct db_node *node = NULL;
-//     struct db_node *fnode = NULL;
+//     // struct db_node *fnode = NULL;
 //     char **topic_queue = NULL;
 // 
 //     if (db->root) {
@@ -331,48 +331,48 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
 //         } else {
 // 			return res;
 //         }
-// 		if (node->wc == null) {
+// 		// if (node->wc == null) {
 // 
-// 		} else if (node->wc == hashtag) {
-// 			/* To get client list! */
-// 			res = node->next->sub_client;
-// 			res = res->down;
-// 			// TODO
+// 		// } else if (node->wc == hashtag) {
+// 		// 	/* To get client list! */
+// 		// 	res = node->next->sub_client;
+// 		// 	res = res->down;
+// 		// 	// TODO
 // 
-// 			if (strcmp(node->topic, *topic_queue)) {
-//         	    len = node->len;
-//         	    while (len > 0 && node->next) {
-//         	        node = node->next;
-//         	        if (!strcmp(node->topic, *topic_queue)) {
-//         	            break;
-//         	        }
-//         	        len--;
-//         	    }
-//         	    if (len == 0) {
-// 					return res;
-//         	    }
-//         	}
-//         	if (node->down && *(topic_queue+1)) {
-//         	    topic_queue++;
-//         	    node = node->down;
-//         	} else if (*(topic_queue+1) == NULL) {
-//                 res = node->sub_client;
-// 				return res;
-//         	} else {
-// 				return res;
-//         	}
-// 
-// 
+// 		// 	if (strcmp(node->topic, *topic_queue)) {
+//         // 	    len = node->len;
+//         // 	    while (len > 0 && node->next) {
+//         // 	        node = node->next;
+//         // 	        if (!strcmp(node->topic, *topic_queue)) {
+//         // 	            break;
+//         // 	        }
+//         // 	        len--;
+//         // 	    }
+//         // 	    if (len == 0) {
+// 		// 			return res;
+//         // 	    }
+//         // 	}
+//         // 	if (node->down && *(topic_queue+1)) {
+//         // 	    topic_queue++;
+//         // 	    node = node->down;
+//         // 	} else if (*(topic_queue+1) == NULL) {
+//         //         res = node->sub_client;
+// 		// 		return res;
+//         // 	} else {
+// 		// 		return res;
+//         // 	}
 // 
 // 
-// 			return NULL
-// 		} else if (node->wc == plus) {
 // 
-// 			return NULL;
-// 		} else {
-// 			
-// 			return NULL;
-// 		}
+// 
+// 		// 	return NULL
+// 		// } else if (node->wc == plus) {
+//         // 
+// 		// 	return NULL;
+// 		// } else {
+// 		// 	
+// 		// 	return NULL;
+// 		// }
 // 
 //     }
 // 	return res;
