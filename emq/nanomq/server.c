@@ -109,6 +109,7 @@ server_cb(void *arg)
                 fatal("nng_msg_append_u32", rv);
         }
 */
+		/*
                 //reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
                 //TODO
                 if ((rv = nng_msg_alloc(&msg, 0)) != 0) {
@@ -118,6 +119,7 @@ server_cb(void *arg)
                     printf("error nng_msg_append_u32^^^^^^^^^^^^^^^^^^^^^");
                 }
                 work->msg   = msg;
+		*/
                 // We could add more data to the message here.
                 nng_aio_set_msg(work->aio, work->msg);
 

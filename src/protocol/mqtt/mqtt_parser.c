@@ -73,7 +73,11 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
 		if (value > init_val) {
 			dest[i] |= 0x80;
 		}
-		len++;
+		if((dest[i] & 0x80) == 0x80){
+			len++;
+		}else{
+			break;
+		}
 	}
 	return len;
 }

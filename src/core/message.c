@@ -496,6 +496,42 @@ nni_msg_len(const nni_msg *m)
 	return (m->m_body.ch_len);
 }
 
+uint8_t *
+nni_msg_header_ptr(const nni_msg *m)
+{
+	return (m->m_header_buf);
+}
+
+uint8_t	*
+nni_msg_variable_ptr(const nni_msg *m)
+{
+	return (m->m_body.ch_ptr);
+}
+
+uint8_t	*
+nni_msg_payload_ptr(const nni_msg *m)
+{
+	return (m->payload_ptr);
+}
+
+size_t
+nni_msg_remaining_len(const nni_msg *m)
+{
+	return (m->remaining_len);
+}
+
+void
+nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr)
+{
+	m->payload_ptr = ptr;
+}
+
+void
+nni_msg_set_remaining_len(nni_msg *m, size_t len)
+{
+	m->remaining_len = len;
+}
+
 int
 nni_msg_append(nni_msg *m, const void *data, size_t len)
 {
