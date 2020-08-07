@@ -11,6 +11,7 @@
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
+#include <nanolib/mqtt_db.h>
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents

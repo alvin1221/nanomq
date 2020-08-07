@@ -1,7 +1,9 @@
 #ifndef MQTT_DB_H
 #define MQTT_DB_H
-#include<stdbool.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 typedef enum {UNEQUAL = -1, EQUAL = 0 } node_state;
 // typedef enum {null = 0, hashtag = 1, plus = 2, both = 3} wildcard;
