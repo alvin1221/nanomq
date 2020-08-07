@@ -1,20 +1,10 @@
-#include "../../../include/nng/protocol/mqtt/mqtt.h"
+#include <nng/protocol/mqtt/subscribe_handle.h>
 #include "core/nng_impl.h"
-#include "property_handle.h"
+#include <nng/protocol/mqtt/property_handle.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
+#include <nng/protocol/mqtt/mqtt.h>
+#include "include/nng_debug.h"
 
-struct ctx_sub {
-	uint32_t	id;
-	struct mqtt_property * variable_property;
-	struct topic_with_option * option;
-
-// connect info
-//	struct ctx_connect * ctx_con;
-};
-typedef struct ctx_sub ctx_sub;
-
-uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt);
-uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt);
-void sub_ctx_handle(nng_msg * msg, packet_subscribe * sub_pkt);
 
 uint8_t subscribe_handle(nni_msg * msg){
 	// handle subscribe fixed header
@@ -27,10 +17,10 @@ uint8_t subscribe_handle(nni_msg * msg){
 
 	struct packet_subscribe sub_pkt;
 
-	if(reason_code = decode_sub_message(msg, &sub_pkt) != SUCCESS){
+	if((reason_code = decode_sub_message(msg, &sub_pkt)) != SUCCESS){
 		return reason_code;
 	}
-	if(reason_code = encode_suback_message(msg, &sub_pkt) != SUCCESS){
+	if((reason_code = encode_suback_message(msg, &sub_pkt)) != SUCCESS){
 		return reason_code;
 	}else {
 		// TODO send the msg
@@ -44,7 +34,7 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
 	uint8_t *  payload_ptr;
 
-	int        len_of_varint;
+	int        len_of_varint = 0;
 	size_t     remaining_len;
 	int vpos = 0; // pos in variable
 	int bpos = 0; // pos in payload
@@ -63,7 +53,7 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 	if(version_v5){
 		prop = nni_alloc(sizeof(mqtt_property));
 		property_list_init(prop);
-		prop->len = bin_parse_varint(variable_ptr+vpos, &len_of_varint);
+		prop->len = get_var_integer(variable_ptr+vpos, &len_of_varint);
 		vpos += len_of_varint;
 
 		// parse property in variable
@@ -110,7 +100,9 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 
 		mqtt_string * str = nni_alloc(sizeof(mqtt_string));
 		str->len = topic_len;
+		str->str = nni_alloc(topic_len+1);
 		memcpy(str->str, payload_ptr+bpos, str->len);
+		str->str[topic_len] = '\0';
 		bpos += topic_len;
 
 		debug_msg("Length of topic: %d topic_node: %s. ", topic_len, str->str);
