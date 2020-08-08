@@ -18,11 +18,13 @@ set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
 # Call this from your own project's makefile.
 find_package(nng CONFIG REQUIRED)
-find_package(nanolib REQUIRED)
+# find_package(nanolib REQUIRED)
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c)
+include_directories(../../emq/nanolib/include)
 
-target_link_libraries(nanomq apps nanolib)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c hash.cc mqtt_db.c zmalloc.c)
+
+target_link_libraries(nanomq apps)
 
 target_link_libraries(nanomq nng::nng)
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
