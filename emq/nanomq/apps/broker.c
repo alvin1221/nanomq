@@ -11,6 +11,7 @@
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
+#include <nng/nng.h>
 #include "include/mqtt_db.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
@@ -34,6 +35,7 @@ struct work {
 	nng_msg *msg;
 	nng_ctx  ctx;
 	struct db_tree *db;
+	conn_param *cparam;
 };
 
 void
@@ -56,6 +58,7 @@ server_cb(void *arg)
 	int          rv;
 	uint32_t     when;
 	uint8_t      buf[2] = {1,2};
+	conn_param	*cp;
 
 	switch (work->state) {
 	case INIT:
@@ -86,7 +89,8 @@ server_cb(void *arg)
                 break;
 	case WAIT:
 		// We could add more data to the message here.
-		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s\n", nng_msg_cmd_type(work->msg));
+	  cp = (conn_param *)nng_msg_get_conn_param(work->msg);
+		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s\n", nng_msg_cmd_type(work->msg), conn_param_get_clentid(cp));
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -115,14 +119,13 @@ server_cb(void *arg)
 			// insert ctx_sub into treeDB
 //			Ctx_sub * ctx_sub = nni_alloc(sizeof(Ctx_sub));
 //			ctx_sub->id = 5; // clientid; // id?????
-			struct client * client = nni_alloc(sizeof(struct client));
-			char * clientid = "66665";
-			client->id = clientid; // client id should be uint32 ????
+			//struct client * client = nni_alloc(sizeof(struct client));
+			//client->id = clientid; // client id should be uint32 ????
 //			client->ctxt = ; // wait the ctx??????
-		    struct topic_and_node *tan = nni_alloc(sizeof(struct topic_and_node));
+		        //struct topic_and_node *tan = nni_alloc(sizeof(struct topic_and_node));
 //			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
-			search_node(work->db, "a/b/t", &tan);
-			add_node(tan, client);
+			//search_node(work->db, "a/b/t", &tan);
+			//add_node(tan, client);
 //			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
 //			add_client(tan, client->id);
 			printf("FINISH ADD ctx & clientid. ");

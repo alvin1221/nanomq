@@ -1161,12 +1161,6 @@ nng_msg_set_remaining_len(nng_msg *msg, size_t len)
 	nni_msg_set_remaining_len(msg, len);
 }
 
-void *
-nng_msg_get_conn_param(nng_msg *msg)
-{
-	return (nni_msg_get_conn_param(msg));
-}
-
 int
 nng_msg_header_trim(nng_msg *msg, size_t sz)
 {
@@ -1595,3 +1589,16 @@ nng_version(void)
 	return (xstr(NNG_MAJOR_VERSION) "." xstr(NNG_MINOR_VERSION) "." xstr(
 	    NNG_PATCH_VERSION) NNG_RELEASE_SUFFIX);
 }
+
+conn_param *
+nng_msg_get_conn_param(nng_msg *msg)
+{
+	return ((conn_param *)nni_msg_get_conn_param(msg));
+}
+
+uint8_t *
+conn_param_get_clentid(conn_param *cparam)
+{
+	return cparam->clientid;
+}
+
