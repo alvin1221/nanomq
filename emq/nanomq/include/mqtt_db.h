@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 typedef enum {UNEQUAL = -1, EQUAL = 0 } node_state;
+// typedef enum {null = 0, hashtag = 1, plus = 2, both = 3} wildcard;
     
 
 
@@ -15,13 +16,16 @@ struct mqtt_ctxt {
 
 struct client {
     char				*id;
-    struct mqtt_ctxt    *ctxt;
+    void			    *ctxt;
     struct client		*next;
+	size_t				len;
 };
 
 struct db_node {
     char                *topic;
 	bool				retain;
+	bool				hashtag;
+	bool				plus;
 	void				*message;
     int					len;
     struct client		*sub_client;
@@ -29,6 +33,7 @@ struct db_node {
     struct db_node      *down;
     struct db_node      *next;
     node_state			state;
+	// wildcard			wc;			
     // int					first;
 
     /* hash func will work if len > 3 */ 
@@ -72,6 +77,8 @@ void free_node(struct db_node *node);
 /* Parsing topic from char* with '/' to char** */
 char **topic_parse(char *topic);
 
+struct client *search_client(struct db_node *root, char **topic_queue);
+
 /* Delete client id. */
 void del_client(struct topic_and_node *input, char *id);
 
@@ -79,9 +86,9 @@ void del_client(struct topic_and_node *input, char *id);
 void add_client(struct topic_and_node *input, char *id);
 
 /* A hash table, clientId or alias as key, topic as value */ 
-struct topic* hash_check_topic(int alias);
+char* hash_check_topic(int alias);
 
-void hash_add_topic(int alias, struct topic *topic_data);
+void hash_add_topic(int alias, char *topic_data);
 
 void hash_del_topic(int alias);
 
