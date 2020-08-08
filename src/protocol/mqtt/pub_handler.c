@@ -178,9 +178,9 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	switch (pub_packet->fixed_header.packet_type) {
 		case PUBLISH:
 			/*fixed header*/
-			nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
+			nng_msg_header_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
 			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
-			nng_msg_append(msg, tmp, arr_len);
+			nng_msg_header_append(msg, tmp, arr_len);
 			/*variable header*/
 			//topic name
 			if (pub_packet->variable_header.publish.topic_name.str_len > 0) {
@@ -263,9 +263,9 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 		case PUBREC:
 		case PUBCOMP:
 			/*fixed header*/
-			nng_msg_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
+			nng_msg_header_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
 			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
-			nng_msg_append(msg, tmp, arr_len);
+			nng_msg_header_append(msg, tmp, arr_len);
 
 			/*variable header*/
 			//identifier
@@ -358,11 +358,8 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	          pub_packet->fixed_header.qos,
 	          pub_packet->fixed_header.dup);
 
-//	pub_packet->fixed_header.remain_len =
-	temp_pos++;
-	pub_packet->fixed_header.remain_len = get_var_integer(msg_header,
-	                                                      &temp_pos);//Fixme replace for nni_msg_remain_len(msg);
-	temp_pos = 0;
+	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
+
 	debug_msg("remaining length-------> %d\n", pub_packet->fixed_header.remain_len);
 
 	if (pub_packet->fixed_header.remain_len <= msg_len) {
@@ -629,7 +626,7 @@ static char *bytes_to_str(const unsigned char *src, char *dest, int src_len)
 
 static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 {
-	if(src_len > 0) {
+	if (src_len > 0) {
 		char *dest = nni_alloc(src_len * 2);
 
 		if (dest == NULL) {
@@ -643,7 +640,6 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 		nni_free(dest, src_len * 2);
 	}
 }
-
 
 
 #if 0

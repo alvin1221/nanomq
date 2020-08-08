@@ -7,8 +7,9 @@
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
-//#include "nng/protocol/mqtt/pub_handler.h"
+#include "nng/protocol/mqtt/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
+//#include "nng/protocol/mqtt/subscribe_handle.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -558,7 +559,18 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_mtx_lock(&s->lk);
 
-	uint8_t res = subscribe_handle(msg);
+	switch (nng_msg_cmd_type(msg)) {
+		case CMD_SUBSCRIBE:
+//			subscribe_handle(msg);
+			break;
+
+		case CMD_PUBLISH:
+//			decode_pub_message(msg, );
+			break;
+
+	}
+
+
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.
