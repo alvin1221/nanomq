@@ -7,8 +7,9 @@
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
-//#include "nng/protocol/mqtt/pub_handler.h"
+#include "nng/protocol/mqtt/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
+#include "../src/core/message.h"
 
 //TODO rewrite as emq_mq protocol with RPC support
 
@@ -22,14 +23,14 @@ static void emq_pipe_fini(void *);
 
 //huge context/ dynamic context?
 struct emq_ctx {
-	emq_sock *   sock;
+	emq_sock      *sock;
 	uint32_t      pipe_id;
-	emq_pipe *   spipe; // send pipe
-	nni_aio *     saio;  // send aio
-	nni_aio *     raio;  // recv aio
+	emq_pipe      *spipe; // send pipe
+	nni_aio       *saio;  // send aio
+	nni_aio       *raio;  // recv aio
 	nni_list_node sqnode;
 	nni_list_node rqnode;
-	size_t        btrace_len;			//SP Header
+	size_t        btrace_len;            //SP Header
 	uint32_t      btrace[NNI_MAX_MAX_TTL + 1];
 };
 
@@ -37,40 +38,40 @@ struct emq_ctx {
 struct emq_sock {
 	nni_mtx        lk;
 	nni_atomic_int ttl;
-	nni_idhash *   pipes;
+	nni_idhash     *pipes;
 	nni_list       recvpipes; // list of pipes with data to receive
 	nni_list       recvq;
-	emq_ctx       ctx;
+	emq_ctx        ctx;
 	nni_pollable   readable;
 	nni_pollable   writable;
 };
 
 // emq_pipe is our per-pipe protocol private structure.
 struct emq_pipe {
-	nni_pipe *    pipe;
-	emq_sock *    rep;
+	nni_pipe      *pipe;
+	emq_sock      *rep;
 	uint32_t      id;
 	nni_aio       aio_send;
 	nni_aio       aio_recv;
 	nni_list_node rnode; // receivable list linkage
 	nni_list      sendq; // contexts waiting to send
-	bool          busy;
-	bool          closed;
+	bool busy;
+	bool closed;
 };
 
 static void
 emq_ctx_close(void *arg)
 {
-	emq_ctx * ctx = arg;
+	emq_ctx  *ctx = arg;
 	emq_sock *s   = ctx->sock;
-	nni_aio *  aio;
+	nni_aio  *aio;
 
 	debug_msg("emq_ctx_close");
 	nni_mtx_lock(&s->lk);
 	if ((aio = ctx->saio) != NULL) {
 		emq_pipe *pipe = ctx->spipe;
-		ctx->saio       = NULL;
-		ctx->spipe      = NULL;
+		ctx->saio  = NULL;
+		ctx->spipe = NULL;
 		nni_list_remove(&pipe->sendq, ctx);
 		nni_aio_finish_error(aio, NNG_ECLOSED);
 	}
@@ -94,7 +95,7 @@ static int
 emq_ctx_init(void *carg, void *sarg)
 {
 	emq_sock *s   = sarg;
-	emq_ctx * ctx = carg;
+	emq_ctx  *ctx = carg;
 
 	debug_msg("&&&&&&&&&&&&&&& emq_ctx_init");
 	NNI_LIST_NODE_INIT(&ctx->sqnode);
@@ -109,7 +110,7 @@ emq_ctx_init(void *carg, void *sarg)
 static void
 emq_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 {
-	emq_ctx * ctx = arg;
+	emq_ctx  *ctx = arg;
 	emq_sock *s   = ctx->sock;
 
 	nni_mtx_lock(&s->lk);
@@ -128,13 +129,13 @@ emq_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 static void
 emq_ctx_send(void *arg, nni_aio *aio)
 {
-	emq_ctx * ctx = arg;
+	emq_ctx  *ctx = arg;
 	emq_sock *s   = ctx->sock;
 	emq_pipe *p;
-	nni_msg *  msg;
-	int        rv;
-	size_t     len;
-	uint32_t   p_id; // pipe id
+	nni_msg  *msg;
+	int      rv;
+	size_t   len;
+	uint32_t p_id; // pipe id
 
 	msg = nni_aio_get_msg(aio);
 	//nni_msg_header_clear(msg);
@@ -194,12 +195,12 @@ emq_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	if (!p->busy) {
-		uint8_t  *header,l;
+		uint8_t *header, l;
 		p->busy = true;
-		len     = nni_msg_len(msg);
-		l = nni_msg_header_len(msg);
+		len    = nni_msg_len(msg);
+		l      = nni_msg_header_len(msg);
 		header = nng_msg_header(msg);
-		debug_msg("%s %x %x %d", nng_msg_body(msg),*header,*(header+1),len);
+		debug_msg("%s %x %x %d", nng_msg_body(msg), *header, *(header + 1), len);
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&s->lk);
@@ -232,7 +233,7 @@ static int
 emq_sock_init(void *arg, nni_sock *sock)
 {
 	emq_sock *s = arg;
-	int        rv;
+	int      rv;
 
 	NNI_ARG_UNUSED(sock);
 
@@ -285,7 +286,7 @@ static void
 emq_pipe_fini(void *arg)
 {
 	emq_pipe *p = arg;
-	nng_msg *  msg;
+	nng_msg  *msg;
 
 	if ((msg = nni_aio_get_msg(&p->aio_recv)) != NULL) {
 		nni_aio_set_msg(&p->aio_recv, NULL);
@@ -317,7 +318,7 @@ emq_pipe_start(void *arg)
 {
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
-	int        rv;
+	int      rv;
 	//TODO check MQTT protocol version here
 	/*
 	if (nni_pipe_peer(p->pipe) != NNG_REP0_PEER) {
@@ -341,7 +342,7 @@ emq_pipe_close(void *arg)
 {
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
-	emq_ctx * ctx;
+	emq_ctx  *ctx;
 
 	debug_msg("emq_pipe_close!!");
 	nni_aio_close(&p->aio_send);
@@ -359,9 +360,9 @@ emq_pipe_close(void *arg)
 		// Pipe was closed.  To avoid pushing an error back to the
 		// entire socket, we pretend we completed this successfully.
 		nni_list_remove(&p->sendq, ctx);
-		aio       = ctx->saio;
+		aio = ctx->saio;
 		ctx->saio = NULL;
-		msg       = nni_aio_get_msg(aio);
+		msg = nni_aio_get_msg(aio);
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, nni_msg_len(msg));
 		nni_msg_free(msg);
@@ -380,10 +381,10 @@ emq_pipe_send_cb(void *arg)
 {
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
-	emq_ctx * ctx;
-	nni_aio *  aio;
-	nni_msg *  msg;
-	size_t     len;
+	emq_ctx  *ctx;
+	nni_aio  *aio;
+	nni_msg  *msg;
+	size_t   len;
 
 	debug_msg("emq_pipe_send_cb");
 	if (nni_aio_result(&p->aio_send) != 0) {
@@ -405,12 +406,12 @@ emq_pipe_send_cb(void *arg)
 	}
 
 	nni_list_remove(&p->sendq, ctx);
-	aio        = ctx->saio;
+	aio = ctx->saio;
 	ctx->saio  = NULL;
 	ctx->spipe = NULL;
 	p->busy    = true;
-	msg        = nni_aio_get_msg(aio);
-	len        = nni_msg_len(msg);
+	msg = nni_aio_get_msg(aio);
+	len = nni_msg_len(msg);
 	nni_aio_set_msg(aio, NULL);
 	nni_aio_set_msg(&p->aio_send, msg);
 	nni_pipe_send(p->pipe, &p->aio_send);
@@ -424,7 +425,7 @@ emq_pipe_send_cb(void *arg)
 static void
 emq_cancel_recv(nni_aio *aio, void *arg, int rv)
 {
-	emq_ctx * ctx = arg;
+	emq_ctx  *ctx = arg;
 	emq_sock *s   = ctx->sock;
 
 	nni_mtx_lock(&s->lk);
@@ -439,11 +440,11 @@ emq_cancel_recv(nni_aio *aio, void *arg, int rv)
 static void
 emq_ctx_recv(void *arg, nni_aio *aio)
 {
-	emq_ctx * ctx = arg;
+	emq_ctx  *ctx = arg;
 	emq_sock *s   = ctx->sock;
 	emq_pipe *p;
-	size_t     len;
-	nni_msg *  msg;
+	size_t   len;
+	nni_msg  *msg;
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
@@ -485,7 +486,7 @@ emq_ctx_recv(void *arg, nni_aio *aio)
 	//len = nni_msg_header_len(msg);			//use btrace as header, wait for nanomq mqtt adapter
 	//memcpy(ctx->btrace, nni_msg_header(msg), len);
 	//ctx->btrace_len = len;
-	ctx->pipe_id    = nni_pipe_id(p->pipe);
+	ctx->pipe_id = nni_pipe_id(p->pipe);
 	debug_msg("emq_ctx_recv ends %p pipe: %p", ctx, p);
 	nni_mtx_unlock(&s->lk);
 
@@ -499,13 +500,21 @@ emq_pipe_recv_cb(void *arg)
 {
 	emq_pipe *p = arg;
 	emq_sock *s = p->rep;
-	emq_ctx *  ctx;
-	nni_msg *  msg;
-	uint8_t *  body, *header;
-	nni_aio *  aio;
-	size_t     len;
-	int        hops;
-	int        ttl;
+	emq_ctx  *ctx;
+	nni_msg  *msg;
+	uint8_t  *body, *header;
+	nni_aio  *aio;
+	size_t   len;
+
+	//Fixme remove after testing
+	char str[200] = "";
+
+	//TODO remove below 2 lines in the future;
+	struct pub_packet_struct *mqtt_pub_packet;
+	mqtt_pub_packet = NNI_ALLOC_STRUCT(mqtt_pub_packet);
+
+	int hops;
+	int ttl;
 
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
@@ -516,10 +525,14 @@ emq_pipe_recv_cb(void *arg)
 	msg = nni_aio_get_msg(&p->aio_recv);
 
 	header = nng_msg_header(msg);
-	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n",p ,nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
+	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n", p, nng_msg_cmd_type(msg),
+	          *header, *(header + 1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
+	debug_msg("start decode msg! \n");
+	decode_pub_message(msg, mqtt_pub_packet);
+	debug_msg("end decode msg! \n");
 	/*
 	// Move backtrace from body to header
 	hops = 1;
@@ -574,28 +587,30 @@ emq_pipe_recv_cb(void *arg)
 		return;
 	}
 
+
+
 	//TODO PINGRESP (PUBACK SUBACK) here?
-	if (nng_msg_cmd_type(msg) == CMD_PINGREQ) {
-		debug_msg("PINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
-	}
+//	if (nng_msg_cmd_type(msg) == CMD_PINGREQ) {
+//		debug_msg("PINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
+//	}
 
 	nni_list_remove(&s->recvq, ctx);
-	aio       = ctx->raio;
+	aio = ctx->raio;
 	ctx->raio = NULL;
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
 	}
-	debug_msg("ctx %p pipe: %p",ctx,p);
+	debug_msg("ctx %p pipe: %p", ctx, p);
 
 	// schedule another receive
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 
 	len = 0;
-	ctx->btrace_len = len;		//TODO Rewrite mqtt header length
+	ctx->btrace_len = len;        //TODO Rewrite mqtt header length
 	//memcpy(ctx->btrace, nni_msg_header(msg), len);
 	//nni_msg_header_clear(msg);
-	ctx->pipe_id = p->id;			//use pipe id to identify which client
+	ctx->pipe_id    = p->id;            //use pipe id to identify which client
 	debug_msg("pipe_id: %d", p->id);
 
 	nni_mtx_unlock(&s->lk);
@@ -606,7 +621,7 @@ emq_pipe_recv_cb(void *arg)
 	debug_msg("end of emq_pipe_recv_cb");
 	return;
 
-drop:
+	drop:
 	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
@@ -616,8 +631,8 @@ static int
 emq_sock_set_max_ttl(void *arg, const void *buf, size_t sz, nni_opt_type t)
 {
 	emq_sock *s = arg;
-	int        ttl;
-	int        rv;
+	int      ttl;
+	int      rv;
 
 	if ((rv = nni_copyin_int(&ttl, buf, sz, 1, NNI_MAX_MAX_TTL, t)) == 0) {
 		nni_atomic_set(&s->ttl, ttl);
@@ -630,7 +645,7 @@ emq_sock_get_max_ttl(void *arg, void *buf, size_t *szp, nni_opt_type t)
 {
 	emq_sock *s = arg;
 
-	debug_msg("sock_get_max_ttl: %d",nni_copyout_int(nni_atomic_get(&s->ttl), buf, szp, t) );
+	debug_msg("sock_get_max_ttl: %d", nni_copyout_int(nni_atomic_get(&s->ttl), buf, szp, t));
 	return (nni_copyout_int(nni_atomic_get(&s->ttl), buf, szp, t));
 }
 
@@ -638,8 +653,8 @@ static int
 emq_sock_get_sendfd(void *arg, void *buf, size_t *szp, nni_opt_type t)
 {
 	emq_sock *s = arg;
-	int        rv;
-	int        fd;
+	int      rv;
+	int      fd;
 
 	if ((rv = nni_pollable_getfd(&s->writable, &fd)) != 0) {
 		return (rv);
@@ -651,8 +666,8 @@ static int
 emq_sock_get_recvfd(void *arg, void *buf, size_t *szp, nni_opt_type t)
 {
 	emq_sock *s = arg;
-	int        rv;
-	int        fd;
+	int      rv;
+	int      fd;
 
 	if ((rv = nni_pollable_getfd(&s->readable, &fd)) != 0) {
 		return (rv);
@@ -680,61 +695,61 @@ emq_sock_recv(void *arg, nni_aio *aio)
 // This is the global protocol structure -- our linkage to the core.
 // This should be the only global non-static symbol in this file.
 static nni_proto_pipe_ops emq_pipe_ops = {
-	.pipe_size  = sizeof(emq_pipe),
-	.pipe_init  = emq_pipe_init,
-	.pipe_fini  = emq_pipe_fini,
-	.pipe_start = emq_pipe_start,
-	.pipe_close = emq_pipe_close,
-	.pipe_stop  = emq_pipe_stop,
+		.pipe_size  = sizeof(emq_pipe),
+		.pipe_init  = emq_pipe_init,
+		.pipe_fini  = emq_pipe_fini,
+		.pipe_start = emq_pipe_start,
+		.pipe_close = emq_pipe_close,
+		.pipe_stop  = emq_pipe_stop,
 };
 
 static nni_proto_ctx_ops emq_ctx_ops = {
-	.ctx_size = sizeof(emq_ctx),
-	.ctx_init = emq_ctx_init,
-	.ctx_fini = emq_ctx_fini,
-	.ctx_send = emq_ctx_send,
-	.ctx_recv = emq_ctx_recv,
+		.ctx_size = sizeof(emq_ctx),
+		.ctx_init = emq_ctx_init,
+		.ctx_fini = emq_ctx_fini,
+		.ctx_send = emq_ctx_send,
+		.ctx_recv = emq_ctx_recv,
 };
 
 static nni_option emq_sock_options[] = {
-	{
-	    .o_name = NNG_OPT_MAXTTL,
-	    .o_get  = emq_sock_get_max_ttl,
-	    .o_set  = emq_sock_set_max_ttl,
-	},
-	{
-	    .o_name = NNG_OPT_RECVFD,
-	    .o_get  = emq_sock_get_recvfd,
-	},
-	{
-	    .o_name = NNG_OPT_SENDFD,
-	    .o_get  = emq_sock_get_sendfd,
-	},
-	// terminate list
-	{
-	    .o_name = NULL,
-	},
+		{
+				.o_name = NNG_OPT_MAXTTL,
+				.o_get  = emq_sock_get_max_ttl,
+				.o_set  = emq_sock_set_max_ttl,
+		},
+		{
+				.o_name = NNG_OPT_RECVFD,
+				.o_get  = emq_sock_get_recvfd,
+		},
+		{
+				.o_name = NNG_OPT_SENDFD,
+				.o_get  = emq_sock_get_sendfd,
+		},
+		// terminate list
+		{
+				.o_name = NULL,
+		},
 };
 
 static nni_proto_sock_ops emq_sock_ops = {
-	.sock_size    = sizeof(emq_sock),
-	.sock_init    = emq_sock_init,
-	.sock_fini    = emq_sock_fini,
-	.sock_open    = emq_sock_open,
-	.sock_close   = emq_sock_close,
-	.sock_options = emq_sock_options,
-	.sock_send    = emq_sock_send,
-	.sock_recv    = emq_sock_recv,
+		.sock_size    = sizeof(emq_sock),
+		.sock_init    = emq_sock_init,
+		.sock_fini    = emq_sock_fini,
+		.sock_open    = emq_sock_open,
+		.sock_close   = emq_sock_close,
+		.sock_options = emq_sock_options,
+		.sock_send    = emq_sock_send,
+		.sock_recv    = emq_sock_recv,
 };
 
 static nni_proto emq_tcp_proto = {
-	.proto_version  = NNI_PROTOCOL_VERSION,
-	.proto_self     = { NNG_EMQ_TCP_SELF, NNG_EMQ_TCP_SELF_NAME },
-	.proto_peer     = { NNG_EMQ_TCP_PEER, NNG_EMQ_TCP_PEER_NAME },
-	.proto_flags    = NNI_PROTO_FLAG_SNDRCV | NNI_PROTO_FLAG_NOMSGQ,
-	.proto_sock_ops = &emq_sock_ops,
-	.proto_pipe_ops = &emq_pipe_ops,
-	.proto_ctx_ops  = &emq_ctx_ops,
+		.proto_version  = NNI_PROTOCOL_VERSION,
+		.proto_self     = {NNG_EMQ_TCP_SELF, NNG_EMQ_TCP_SELF_NAME},
+		.proto_peer     = {NNG_EMQ_TCP_PEER, NNG_EMQ_TCP_PEER_NAME},
+		.proto_flags    = NNI_PROTO_FLAG_SNDRCV | NNI_PROTO_FLAG_NOMSGQ,
+		.proto_sock_ops = &emq_sock_ops,
+		.proto_pipe_ops = &emq_pipe_ops,
+		.proto_ctx_ops  = &emq_ctx_ops,
 };
 
 int

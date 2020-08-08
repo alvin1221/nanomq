@@ -694,6 +694,7 @@ NNG_DECL int      nng_msg_append(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_insert(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_trim(nng_msg *, size_t);
 NNG_DECL int      nng_msg_chop(nng_msg *, size_t);
+NNG_DECL int      nng_msg_cmd_type(nng_msg *msg);
 NNG_DECL int      nng_msg_header_append(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_header_insert(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_header_trim(nng_msg *, size_t);
