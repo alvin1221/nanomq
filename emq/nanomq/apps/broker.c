@@ -119,8 +119,11 @@ server_cb(void *arg)
 			// insert ctx_sub into treeDB
 //			Ctx_sub * ctx_sub = nni_alloc(sizeof(Ctx_sub));
 //			ctx_sub->id = 5; // clientid; // id?????
-			//struct client * client = nni_alloc(sizeof(struct client));
-			//client->id = clientid; // client id should be uint32 ????
+/*
+			struct client * client = nni_alloc(sizeof(struct client));
+			char clientid[6] = "66665";
+			client->id = clientid; // client id should be uint32 ????
+>>>>>>> wangha/sub
 //			client->ctxt = ; // wait the ctx??????
 		        //struct topic_and_node *tan = nni_alloc(sizeof(struct topic_and_node));
 //			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
@@ -128,6 +131,7 @@ server_cb(void *arg)
 			//add_node(tan, client);
 //			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
 //			add_client(tan, client->id);
+			*/
 			printf("FINISH ADD ctx & clientid. ");
 		}
 		else {
