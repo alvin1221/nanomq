@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <string.h>
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
@@ -46,9 +45,6 @@ static void Test_search_node(void)
     // char *data = "lee";
 	char *data = "lee/hom/jian";
 
-
-	db = (struct db_tree *)zmalloc(sizeof(struct db_tree)); 
-	memset(db, 0, sizeof(struct db_tree));
 	create_db_tree(&db);
     printf("INPUT: %d\n", db->root->len);
     printf("INPUT: %s\n", db->root->topic);
@@ -75,7 +71,20 @@ static void Test_add_node(void)
     struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
     search_node(db, data, &res);
     add_node(res, &ID1);
+
+
+   //  char **topic_queue = topic_parse(data);
+   //  struct client* sub_client = NULL;
+   //  sub_client = search_client(db->root, topic_queue);
+   //  int i = 10;
+   //  while (sub_client && i > 0) {
+   //  	printf("RES: sub_client is:%s\n", sub_client->id);
+   //      sub_client = sub_client->next;
+   //  	i--;
+   //  }
+
     search_node(db, data, &res);
+    add_client(res, ID1.id);
     printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
     printf("RES_NODE_STATE: %d\n", res->node->state);
 	if (res->topic) {
@@ -90,6 +99,13 @@ static void Test_del_node(void)
     char *data = "lee/hom/jian";
     struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
     search_node(db, data, &res);
+    add_client(res, ID1.id);
+    puts(ID1.id);
+
+    del_client(res, ID1.id);
+    del_node(res->node);
+    del_client(res, ID1.id);
+    del_node(res->node);
     del_client(res, ID1.id);
     del_node(res->node);
     // del_node(db->root->down->down->down);
@@ -104,29 +120,23 @@ static void Test_hash_table(void)
 	char *topic1 = "topic1";
 	char *topic2 = "topic2";
 	char *topic3 = "topic3";
-	struct topic topic_data1 = {topic1, NULL};
-	struct topic topic_data2 = {topic2, NULL};
-	struct topic topic_data3 = {topic3, NULL};
-	printf("INPUT: %d --> %s\n", i, topic_data1.topic_data);
-	printf("INPUT: %d --> %s\n", j, topic_data2.topic_data);
-	printf("INPUT: %d --> %s\n", k, topic_data3.topic_data);
+	printf("INPUT: %d --> %s\n", i, topic1);
+	printf("INPUT: %d --> %s\n", j, topic2);
+	printf("INPUT: %d --> %s\n", k, topic3);
 
 
-	hash_add_topic(i, &topic_data1);
-	hash_add_topic(i, &topic_data2);
-	hash_add_topic(i, &topic_data3);
-	hash_add_topic(j, &topic_data2);
-	hash_add_topic(k, &topic_data3);
-	struct topic* t1 = hash_check_topic(i);
-	struct topic* t2 = hash_check_topic(j);
-	struct topic* t3 = hash_check_topic(k);
-	while (t1) {
-		printf("RES: t1 %s\n", t1->topic_data);
-		t1 = t1->next;
-	}
+	hash_add_topic(i, topic1);
+	hash_add_topic(i, topic2);
+	hash_add_topic(i, topic3);
+	hash_add_topic(j, topic2);
+	hash_add_topic(k, topic3);
+	char* t1 = hash_check_topic(i);
+	char* t2 = hash_check_topic(j);
+	char* t3 = hash_check_topic(k);
 
-	printf("RES: %s\n", t2->topic_data);
-	printf("RES: %s\n", t3->topic_data);
+	printf("RES: %s\n", t1);
+	printf("RES: %s\n", t2);
+	printf("RES: %s\n", t3);
 	hash_del_topic(i);
 	hash_del_topic(j);
 	hash_del_topic(k);
@@ -134,15 +144,15 @@ static void Test_hash_table(void)
 	t2 = hash_check_topic(j);
 	t3 = hash_check_topic(k);
 	if (t1) {
-		printf("RES: %s\n", t1->topic_data);
+		printf("RES: %s\n", t1);
 	}
 
 	if (t2) {
-		printf("RES: %s\n", t2->topic_data);
+		printf("RES: %s\n", t2);
 	}
 	
 	if (t3) {
-		printf("RES: %s\n", t3->topic_data);
+		printf("RES: %s\n", t3);
 	}
 
 }
@@ -160,6 +170,12 @@ void test()
 }
 
 
+int main(int argc, char *argv[]) 
+{
+    test();
+
+    return 0;
+}
 
 
 

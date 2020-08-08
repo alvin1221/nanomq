@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "core/nng_impl.h"
+//#include "nng/protocol/mqtt/mqtt_parser.h"
 
 // Message API.
 
@@ -37,6 +38,7 @@ struct nng_msg {
 	uint8_t		 CMD_TYPE;
 //	uint8_t		 *variable_ptr;		//equal to m_body
 	uint8_t		 *payload_ptr;		//payload
+	emq_conn_param	 *cparam;
 };
 
 #if 0
@@ -502,13 +504,13 @@ nni_msg_header_ptr(const nni_msg *m)
 	return (m->m_header_buf);
 }
 
-uint8_t	*
+uint8_t *
 nni_msg_variable_ptr(const nni_msg *m)
 {
 	return (m->m_body.ch_ptr);
 }
 
-uint8_t	*
+uint8_t *
 nni_msg_payload_ptr(const nni_msg *m)
 {
 	return (m->payload_ptr);
@@ -524,6 +526,18 @@ void
 nni_msg_set_payload_ptr(nni_msg *m, uint8_t *ptr)
 {
 	m->payload_ptr = ptr;
+}
+
+void
+nni_msg_set_conn_param(nni_msg *m, void *ptr)
+{
+	m->cparam = ptr;
+}
+
+void *
+nni_msg_get_conn_param(nni_msg *m)
+{
+	return m->cparam;
 }
 
 void

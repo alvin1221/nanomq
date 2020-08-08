@@ -4,13 +4,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-struct topic {
-	char	*topic_data;
-	struct	topic *next;
-};
-void push_val(int key, struct topic *val) ;
+void push_val(int key, char *val);
 
-struct topic *get_val(int key);
+char *get_val(int key);
 
 void del_val(int key); 
 #ifdef __cplusplus

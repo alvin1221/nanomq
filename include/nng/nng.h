@@ -689,6 +689,7 @@ NNG_DECL int      nng_msg_realloc(nng_msg *, size_t);
 NNG_DECL void *   nng_msg_header(nng_msg *);
 NNG_DECL size_t   nng_msg_header_len(const nng_msg *);
 NNG_DECL void *   nng_msg_body(nng_msg *);
+NNG_DECL void *   nng_msg_get_conn_param(nng_msg *msg);
 NNG_DECL size_t   nng_msg_len(const nng_msg *);
 NNG_DECL int      nng_msg_append(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_insert(nng_msg *, const void *, size_t);

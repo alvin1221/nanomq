@@ -1125,6 +1125,7 @@ nng_msg_cmd_type(nng_msg *msg)
 	return (nni_msg_cmd_type(msg));
 }
 
+
 size_t
 nng_msg_remaining_len(nng_msg *msg)
 {
@@ -1158,6 +1159,12 @@ void
 nng_msg_set_remaining_len(nng_msg *msg, size_t len)
 {
 	nni_msg_set_remaining_len(msg, len);
+}
+
+void *
+nng_msg_get_conn_param(nng_msg *msg)
+{
+	return (nni_msg_get_conn_param(msg));
 }
 
 int
