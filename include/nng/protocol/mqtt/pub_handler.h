@@ -105,5 +105,4 @@ struct pub_packet_struct {
 void pub_handler(nng_msg *msg);
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
-
 #endif //NNG_PUB_HANDLER_H
