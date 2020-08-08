@@ -54,7 +54,8 @@ struct tcptran_pipe {
 	nni_msg *       rxmsg;
 	nni_mtx         mtx;
 	uint32_t	remain_len;
-	//uint8_t		sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
+	emq_conn_param	tcp_cparam;
+	//uint8_t	sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
 struct tcptran_ep {
@@ -288,15 +289,21 @@ tcptran_pipe_nego_cb(void *arg)
 	//reply error/CONNECT ACK
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
-		iov.iov_len = p->wanttxhead - p->gottxhead;
-		iov.iov_buf = &p->txlen[p->gottxhead];
-		// send it down...
-		nni_aio_set_iov(aio, 1, &iov);
-		nng_stream_send(p->conn, aio);
-		debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
-		p->gottxhead = p->wanttxhead;
-		nni_mtx_unlock(&ep->mtx);
-		return;
+		if (conn_handler(p->rxlen, &p->tcp_cparam) > 0) {
+			iov.iov_len = p->wanttxhead - p->gottxhead;
+			iov.iov_buf = &p->txlen[p->gottxhead];
+			// send it down...
+			nni_aio_set_iov(aio, 1, &iov);
+			nng_stream_send(p->conn, aio);
+			debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
+			p->gottxhead = p->wanttxhead;
+			nni_mtx_unlock(&ep->mtx);
+			return;
+		} else {
+			debug_msg("%d", rv);
+			rv = NNG_EPROTO;
+			goto error;
+		}
 	}
 
 	//TODO:  define what version of MQTT
@@ -385,12 +392,15 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_iov       iov;
 	int           rv, pos = 1;
 	uint16_t      fixed_header;
-	uint32_t      len = 0;
+	uint32_t      remaining_len = 0, len = 0;
 	size_t        n;
 	nni_msg *     msg;
 	tcptran_pipe *p = arg;
 	nni_aio *     rxaio = p->rxaio;
 	nni_aio *     txaio = p->txaio;
+	uint8_t * header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
+	uint32_t len1 = 0;
+	conn_param	*cparam;
 
 	debug_msg("tcptran_pipe_recv_cb\n");
 	nni_mtx_lock(&p->mtx);
@@ -436,14 +446,15 @@ tcptran_pipe_recv_cb(void *arg)
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			rv = 0;
-			//goto recv_error;
+			goto recv_error;
 		}
 	}
 
 
 	//finish fixed header
 	p->wantrxhead = len + p->gotrxhead;
-	debug_msg("len %d!! pre len %d\n", len, p->remain_len);
+	cparam = &p->tcp_cparam;
+
 	// If we don't have a message yet, we were reading the fixed message
 	// header, which is just the length and type.  This tells us the size of the
 	// message to allocate and how much more to expect.
@@ -487,20 +498,69 @@ tcptran_pipe_recv_cb(void *arg)
 	// We read a message completely.  Let the user know the good news. use as application message callback of users
 	nni_aio_list_remove(aio);		//need this to align with nng 
 	msg      = p->rxmsg;
+	nni_msg_set_conn_param(msg, cparam);
 	p->rxmsg = NULL;
 	n        = nni_msg_len(msg);
 	fixed_header_adaptor(p->rxlen, msg);
-
+	debug_msg("len %d!! pre len %d  %s %s\n", len, p->remain_len,  cparam->clientid, cparam->username);
+	debug_msg("REMAINING LENGTH SETTING IN MSG..............");
+	// set remaining_len of msg
+	int len_of_varint = 1;
+	remaining_len = get_var_integer(p->rxlen, &len_of_varint);
+	debug_msg("Len is : %d. ", remaining_len);
+	nni_msg_set_remaining_len(msg, remaining_len);
 
 	//TODO distribute PUB/SUB/PING processes
 	//switch (p->rxlen[0])
 	nni_msg_set_cmd_type(msg, p->rxlen[0]&0xf0);
+
+	header_ptr = nni_msg_header(msg);
+	variable_ptr = nni_msg_variable_ptr(msg);
+
+	// set the payload pointer of msg according packet_type
+	uint8_t ctp = header_ptr[0] & 0xF0;
+	debug_msg("The type of msg is %x.", ctp);
+	if(ctp == CMD_CONNECT){
+		NNI_GET16(variable_ptr, len);
+		len1 = get_var_integer(variable_ptr+6+len, &len_of_varint);
+		payload_ptr = variable_ptr + 6 + len + len1 + len_of_varint;
+	}else if(ctp == CMD_SUBSCRIBE){
+		debug_msg("The Type is SUBSCRIBE...........");
+		// mqtt_v5
+		// len = get_var_integer(variable_ptr + 2, &len_of_varint);
+		// payload_ptr = variable_ptr + 2 + len + len_of_varint;
+		// mqtt_v3
+		payload_ptr = variable_ptr + 2;
+		debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
+
+//	}else if(ctp == CMD_SUBACK){
+//		len = get_var_integer(variable_ptr + 2, &len_of_varint);
+//		payload_ptr = variable_ptr + 2 + len + len_of_varint;
+	}else if(ctp == CMD_UNSUBSCRIBE){
+		len = get_var_integer(variable_ptr + 2, &len_of_varint);
+		payload_ptr = variable_ptr + 2 + len + len_of_varint;
+//	}else if(ctp == CMD_UNSUBACK){
+//		len = get_var_integer(variable_ptr + 2, &len_of_varint);
+//		payload_ptr = variable_ptr + 2 + len + len_of_varint;
+	}else if(ctp == CMD_PUBLISH){
+		NNI_GET16(variable_ptr, len); // len of utf8-str
+		len1 = get_var_integer(variable_ptr + 4 + len, &len_of_varint);
+		if(remaining_len == len_of_varint + len + len1 + 4){
+			payload_ptr = NULL;
+		}else{
+			payload_ptr = variable_ptr + len_of_varint+len+len1+4;
+		}
+	}else{
+		payload_ptr = NULL;
+	}
+	nni_msg_set_payload_ptr(msg, payload_ptr);
 
 
 	//keep connection & Schedule next receive
 	nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
+
 
 	nni_aio_set_msg(aio, msg);
 	// control/expose msg to EMQ_NANO protocl level

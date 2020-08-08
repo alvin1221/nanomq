@@ -10,7 +10,6 @@
  **/
 
 #include <stdio.h>
-#include <nng/nng.h>
 #include <string.h>
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/mqtt_parser.h"
@@ -73,7 +72,11 @@ uint8_t put_var_integer(uint8_t *dest, uint32_t value)
 		if (value > init_val) {
 			dest[i] |= 0x80;
 		}
-		len++;
+		if((dest[i] & 0x80) == 0x80){
+			len++;
+		}else{
+			break;
+		}
 	}
 	return len;
 }
@@ -115,11 +118,38 @@ int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
 {
 	int32_t str_len = 0;
 	NNI_GET16(src + (*pos), str_len);
+	debug_msg("strlen %d %d", str_len, pos);
 
 	*pos = (*pos) + 2;
 	if (str_len > 0) {
 		if (utf8_check((const char *) (src + *pos), str_len) == ERR_SUCCESS) {
 			dest = (char *) (src + (*pos));
+			*pos = (*pos) + str_len;
+		} else {
+			str_len = -1;
+		}
+	}
+	return str_len;
+}
+
+/**
+ * copy utf-8 string to dst
+ *
+ * @param dest output string
+ * @param src input bytes
+ * @param pos
+ * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8 string
+ */
+int32_t copy_utf8_str(uint8_t *dest, const uint8_t *src, int *pos)
+{
+	int32_t str_len = 0;
+
+	NNI_GET16(src + (*pos), str_len);
+
+	*pos = (*pos) + 2;
+	if (str_len > 0) {
+		if (utf8_check((const char *) (src + *pos), str_len) == ERR_SUCCESS) {
+			memcpy(dest, src + (*pos), str_len);
 			*pos = (*pos) + str_len;
 		} else {
 			str_len = -1;
@@ -225,137 +255,6 @@ uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
 	return len;
 }
 
-/*
-uint32_t htoi(char *str)
-{
-	int hexdigit;//记录每个16进制数对应的十进制数
-	int i;//工作指针
-	int ishex;//是否有效的16进制数
-	int n;//返回的10进制数
-
-	i = 0;
-	if('0' == str[i]){
-		i++;
-		if('x' == str[i] || 'X' == str[i]){
-			i++;
-		}
-	}
-	n = 0;
-	ishex = 1;
-	for(; 1 == ishex; i++)
-	{
-		if('0' <= str[i] && '9' >= str[i]){
-			hexdigit = str[i] - '0';
-		}
-		else if('a' <= str[i] && 'f' >= str[i]){
-			hexdigit = str[i] - 'a' + 10;
-		}
-		else if('A' <= str[i] && 'F' >= str[i]){
-			hexdigit = str[i] - 'A' + 10;
-		}
-		else{
-			ishex = 0;
-		}
-		if(1 == ishex){
-			n = 16 * n + hexdigit;
-		}
-	}
-	return n;
-}
-
-int hex_to_oct(char *str)
-{
-    char temp[4];    //temp string
-    int j,i,length,flag=0,oct=0,num=0,t;
-    length=strlen(str); //length of the binary string 
-    //printf("%d",length);
-
-    i=length-1;  //last index of a binary string 
-
-    while(i>=0){
-
-    j=2;    // as we want to divide it into grp of 3
-    while(j>=0){
-
-        if(i>=0){
-
-        temp[j]=str[i--];  // take 3 characters in the temporary string 
-        j--;
-      }
-      else{
-        flag=1;   // if binary string length is not numtiple of 3
-        break;
-      }
-
-    }
-    if(flag==1){
-
-    while(j>=0){
-        temp[j]='0';  //add leading 0 if length is not multiple of 3 
-        j--;
-    }
-     flag=0;
-    }
-
-    temp[3]='\0'; //add null character at the end of the tempory string 
-
-
-
-    // use comparisons of tempory string with binary numbers 
-    if(strcmp(temp,"000")==0){
-        oct=oct*10+0;
-    }
-    else if(strcmp(temp,"001")==0){
-        oct=oct*10+1;
-    }
-    else if(strcmp(temp,"010")==0){
-        oct=oct*10+2;
-    }
-    else if(strcmp(temp,"011")==0){
-        oct=oct*10+3;
-    }
-    else if(strcmp(temp,"100")==0){
-        oct=oct*10+4;
-    }
-    else if(strcmp(temp,"101")==0){
-        oct=oct*10+5;
-    }
-    else if(strcmp(temp,"110")==0){
-        oct=oct*10+6;
-    }
-    else if(strcmp(temp,"111")==0){
-        oct=oct*10+7;
-    }
-
-   //        printf("\n%s",temp);
-
- }
-
- //as we move from last first character reverse the number
- num=oct;
- flag=0;
- t=1;
- while(num>0){
-    if(flag==0){
-
-      t=num%10;
-      flag=1;
-     }
-    else{
-        t=t*10+num%10;
-    }
-     num=num/10;
-     
-     return t;
- }
-
-
-
- //print the octal number
- printf("\n Octal number is : %d",t);
-
- }
-*/
 int fixed_header_adaptor(uint8_t *packet, nni_msg *dst)
 {
 	nni_msg  *m;
@@ -387,4 +286,70 @@ static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_p
 	char *client_id;
 
 	return client_id;
+}
+
+/**
+ * TODO length limitation
+ * 
+ */
+int32_t conn_handler(u_int8_t *packet, conn_param *cparam)
+{
+
+	uint32_t	len, tmp, pos = 0;
+	int32_t		rv = 0;
+
+	if (packet[pos] != CMD_CONNECT) {
+		rv = -1;
+		return rv;
+	} else {
+		pos++;
+	}
+	//remaining length
+	len = get_var_integer(packet, &pos);
+	//protocol name
+	rv = copy_utf8_str(cparam->pro_name, packet, &pos);
+	debug_msg("pro_name: %s", cparam->pro_name);
+	//protocol ver
+	cparam->pro_ver = packet[pos];
+	pos ++;
+	//connect flag
+	cparam->con_flag = packet[pos];
+	cparam->clean_start = cparam->con_flag & 0x02;
+	cparam->will_flag   = cparam->con_flag & 0x04;
+	cparam->will_qos    = cparam->con_flag & 0x18;
+	debug_msg("conn flag:%x", cparam->con_flag);
+	pos ++;
+	//keepalive
+	NNI_GET16(packet + pos, tmp);
+	cparam->keepalive_mqtt = tmp;
+	pos+=2;
+	//properties
+	if (cparam->pro_ver == 5) {
+		//TODO
+		debug_msg("MQTT 5 Properties");
+	}
+	//payload client_id
+	rv =rv&copy_utf8_str(cparam->clientid, packet, &pos);
+	debug_msg("clientid: %s", cparam->clientid);
+	//will properties
+	if (cparam->pro_ver == 5) {
+		debug_msg("MQTT 5 Will Properties");
+	}
+	//will topic
+	if(cparam->will_flag != 0) {
+		rv =rv&copy_utf8_str(cparam->will_topic, packet, &pos);
+		//will msg
+		rv =rv&copy_utf8_str(cparam->will_msg, packet, &pos);
+	}
+	//username
+	if ((cparam->con_flag & 0x80) > 0) {
+		rv =rv&copy_utf8_str(cparam->username, packet, &pos);
+		debug_msg("username: %s", cparam->username);
+	}
+	//password
+	if ((cparam->con_flag & 0x40) > 0) {
+		rv =rv&copy_utf8_str(cparam->password, packet, &pos);
+		debug_msg("password: %s", cparam->password);
+	}
+	return rv;
 }

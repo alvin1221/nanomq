@@ -55,6 +55,9 @@ server_cb(void *arg)
 	int          rv;
 	uint32_t     when;
 	uint8_t      buf[2] = {1,2};
+	// init tree
+//	struct db_tree *db;
+//	create_db_tree(&db);
 
 	switch (work->state) {
 	case INIT:
@@ -85,7 +88,7 @@ server_cb(void *arg)
                 break;
 	case WAIT:
 		// We could add more data to the message here.
-		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x\n", nng_msg_cmd_type(work->msg));
+		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s\n", nng_msg_cmd_type(work->msg));
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -93,38 +96,59 @@ server_cb(void *arg)
 */
                 //reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
                 //TODO
-                if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
-                    printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
-                }
-                if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
+        if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
+            printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
+        }
+        if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 
 			buf[0] = CMD_PINGRESP;
 			buf[1] = 0x00;
 			debug_msg("reply PINGRESP\n");
-			
+
 			if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
 				printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
 			}
-		} else {
+		}
+		else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
+			debug_msg("reply Subscribe. \n");
+			smsg = work->msg;
+			// prevent we got the ctx_sub
+			// insert ctx_sub into treeDB
+			/*
+			Ctx_sub * ctx_sub = (Ctx_sub *)zmalloc(sizeof(Ctx_sub));
+			ctx_sub->id = 5; // clientid; // id?????
+			struct client * client = (struct client *)zmalloc(sizeof(struct client));
+			char * clientid = "66665";
+			client->id = clientid; // client id should be uint32 ????
+//			client->ctxt = ; // wait the ctx??????
+		    struct topic_and_node *tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
+			add_node(tan, client);
+//			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
+//			add_client(tan, client->id);
+			printf("FINISH ADD ctx & clientid. ");
+			*/
+		}
+		else {
 			work->msg   = NULL;
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
 		}
 
-                work->msg   = smsg;
-                // We could add more data to the message here.
-                nng_aio_set_msg(work->aio, work->msg);
+		work->msg   = smsg;
+		// We could add more data to the message here.
+		nng_aio_set_msg(work->aio, work->msg);
 
-                printf("before send aio msg %s\n",(char *)nng_msg_body( work->msg));
-                work->msg   = NULL;
-                work->state = SEND;
-                nng_ctx_send(work->ctx, work->aio);
+		printf("before send aio msg %s\n",(char *)nng_msg_body( work->msg));
+		work->msg   = NULL;
+		work->state = SEND;
+		nng_ctx_send(work->ctx, work->aio);
 		//nng_ctx_recv(work->ctx, work->aio);
-                printf("after send aio\n");
-                //work->state = RECV;
-                //nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here
-                //printf("WAIT ********************* msg: %s ******************************************\n", (char *)nng_msg_body(work->msg));
+		printf("after send aio\n");
+		//work->state = RECV;
+		//nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here
+		//printf("WAIT ********************* msg: %s ******************************************\n", (char *)nng_msg_body(work->msg));
 
 		break;
 	case SEND:
