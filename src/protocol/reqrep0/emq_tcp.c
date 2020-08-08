@@ -560,6 +560,7 @@ emq_pipe_recv_cb(void *arg)
 	nni_mtx_lock(&s->lk);
 
 	uint8_t res = subscribe_handle(msg);
+	/*
 	if(res == SUCCESS){
 		nni_mtx_unlock(&s->lk);
 
@@ -585,7 +586,7 @@ emq_pipe_recv_cb(void *arg)
 			nni_aio_finish(aio, 0, len);
 			return;
 		}
-	}
+	}*/
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.

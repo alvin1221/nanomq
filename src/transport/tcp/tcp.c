@@ -54,7 +54,8 @@ struct tcptran_pipe {
 	nni_msg *       rxmsg;
 	nni_mtx         mtx;
 	uint32_t	remain_len;
-	//uint8_t		sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
+	emq_conn_param	tcp_cparam;
+	//uint8_t	sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
 struct tcptran_ep {
@@ -288,15 +289,21 @@ tcptran_pipe_nego_cb(void *arg)
 	//reply error/CONNECT ACK
 	if (p->gottxhead < p->wanttxhead && p->gotrxhead >= p->wantrxhead) {
 		nni_iov iov;
-		iov.iov_len = p->wanttxhead - p->gottxhead;
-		iov.iov_buf = &p->txlen[p->gottxhead];
-		// send it down...
-		nni_aio_set_iov(aio, 1, &iov);
-		nng_stream_send(p->conn, aio);
-		debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
-		p->gottxhead = p->wanttxhead;
-		nni_mtx_unlock(&ep->mtx);
-		return;
+		if (conn_handler(p->rxlen, &p->tcp_cparam) > 0) {
+			iov.iov_len = p->wanttxhead - p->gottxhead;
+			iov.iov_buf = &p->txlen[p->gottxhead];
+			// send it down...
+			nni_aio_set_iov(aio, 1, &iov);
+			nng_stream_send(p->conn, aio);
+			debug_msg("tcptran_pipe_nego_cb: reply ACK\n");
+			p->gottxhead = p->wanttxhead;
+			nni_mtx_unlock(&ep->mtx);
+			return;
+		} else {
+			debug_msg("%d", rv);
+			rv = NNG_EPROTO;
+			goto error;
+		}
 	}
 
 	//TODO:  define what version of MQTT
@@ -385,17 +392,15 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_iov       iov;
 	int           rv, pos = 1;
 	uint16_t      fixed_header;
-	uint32_t      len = 0;
+	uint32_t      remaining_len = 0, len = 0;
 	size_t        n;
 	nni_msg *     msg;
 	tcptran_pipe *p = arg;
 	nni_aio *     rxaio = p->rxaio;
 	nni_aio *     txaio = p->txaio;
-
 	uint8_t * header_ptr = NULL, * variable_ptr = NULL, * payload_ptr = NULL;
-	size_t remaining_len = 0;
-	
 	uint32_t len1 = 0;
+	conn_param	*cparam;
 
 	debug_msg("tcptran_pipe_recv_cb\n");
 	nni_mtx_lock(&p->mtx);
@@ -448,7 +453,8 @@ tcptran_pipe_recv_cb(void *arg)
 
 	//finish fixed header
 	p->wantrxhead = len + p->gotrxhead;
-	debug_msg("len %d!! pre len %d\n", len, p->remain_len);
+	cparam = &p->tcp_cparam;
+
 	// If we don't have a message yet, we were reading the fixed message
 	// header, which is just the length and type.  This tells us the size of the
 	// message to allocate and how much more to expect.
@@ -492,10 +498,11 @@ tcptran_pipe_recv_cb(void *arg)
 	// We read a message completely.  Let the user know the good news. use as application message callback of users
 	nni_aio_list_remove(aio);		//need this to align with nng 
 	msg      = p->rxmsg;
+	nni_msg_set_conn_param(msg, cparam);
 	p->rxmsg = NULL;
 	n        = nni_msg_len(msg);
 	fixed_header_adaptor(p->rxlen, msg);
-
+	debug_msg("len %d!! pre len %d  %s %s\n", len, p->remain_len,  cparam->clientid, cparam->username);
 	debug_msg("REMAINING LENGTH SETTING IN MSG..............");
 	// set remaining_len of msg
 	int len_of_varint = 1;

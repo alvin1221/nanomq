@@ -85,7 +85,7 @@ server_cb(void *arg)
                 break;
 	case WAIT:
 		// We could add more data to the message here.
-		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x\n", nng_msg_cmd_type(work->msg));
+		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s\n", nng_msg_cmd_type(work->msg));
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);

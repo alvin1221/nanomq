@@ -1124,6 +1124,13 @@ nng_msg_cmd_type(nng_msg *msg)
 {
 	return (nni_msg_cmd_type(msg));
 }
+
+void *
+nng_msg_get_conn_param(nng_msg *msg)
+{
+	return (nni_msg_get_conn_param(msg));
+}
+
 int
 nng_msg_header_trim(nng_msg *msg, size_t sz)
 {
