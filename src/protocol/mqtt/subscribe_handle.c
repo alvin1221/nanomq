@@ -112,6 +112,7 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 			debug_msg("ERROR IN QOS OF SUBSCRIBE. \n");
 		}
 
+		topic_context->topic_filter = str;
 		topic_context->no_local = (0x04 & payload_ptr[bpos]) == 1;
 		topic_context->retain = (0x08 & payload_ptr[bpos]) == 1;
 		topic_context->retain_option = (0x30 & payload_ptr[bpos]);

@@ -728,6 +728,13 @@ NNG_DECL void     nng_msg_clear(nng_msg *);
 NNG_DECL void     nng_msg_header_clear(nng_msg *);
 NNG_DECL void     nng_msg_set_pipe(nng_msg *, nng_pipe);
 NNG_DECL nng_pipe nng_msg_get_pipe(const nng_msg *);
+NNG_DECL int      nng_msg_cmd_type(nng_msg *);
+NNG_DECL size_t   nng_msg_remaining_len(nng_msg *);
+NNG_DECL uint8_t* nng_msg_header_ptr(nng_msg *);
+NNG_DECL uint8_t* nng_msg_variable_ptr(nng_msg *);
+NNG_DECL uint8_t* nng_msg_payload_ptr(nng_msg *);
+NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *, uint8_t *);
+NNG_DECL void     nng_msg_set_remaining_len(nng_msg *, size_t);
 
 // nng_msg_getopt is defunct, and should not be used by programs. It
 // always returns NNG_ENOTSUP.
