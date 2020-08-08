@@ -47,25 +47,17 @@ private:
 
 
 
-mqtt_hash<int, struct topic*> _mqtt_hash;
+mqtt_hash<int, char*> _mqtt_hash;
  
  
-void push_val(int key, struct topic *val)
+void push_val(int key, char *val)
 {
-	struct topic *tmp = _mqtt_hash[key];
-	if (tmp == NULL) {
 		_mqtt_hash[key] = val;
-	} else {
-		while (tmp->next) {
-			tmp = tmp->next;
-		}
-		tmp->next = val;
-	}
 
 }
  
  
-struct topic *get_val(int key)
+char *get_val(int key)
 {
 	return _mqtt_hash.get(key);
 }
