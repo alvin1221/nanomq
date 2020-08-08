@@ -1124,6 +1124,42 @@ nng_msg_cmd_type(nng_msg *msg)
 {
 	return (nni_msg_cmd_type(msg));
 }
+
+size_t
+nng_msg_remaining_len(nng_msg *msg)
+{
+	return (nni_msg_remaining_len(msg));
+}
+
+uint8_t *
+nng_msg_header_ptr(nng_msg *msg)
+{
+	return (nni_msg_header_ptr(msg));
+}
+
+uint8_t *
+nng_msg_variable_ptr(nng_msg *msg)
+{
+	return (nni_msg_variable_ptr(msg));
+}
+
+uint8_t *
+nng_msg_payload_ptr(nng_msg *msg)
+{
+	return (nni_msg_payload_ptr(msg));
+}
+
+void
+nng_msg_set_payload_ptr(nng_msg *msg, uint8_t *ptr){
+	nni_msg_set_payload_ptr(msg, ptr);
+}
+
+void
+nng_msg_set_remaining_len(nng_msg *msg, size_t len)
+{
+	nni_msg_set_remaining_len(msg, len);
+}
+
 int
 nng_msg_header_trim(nng_msg *msg, size_t sz)
 {
