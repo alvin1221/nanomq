@@ -11,7 +11,7 @@
 #include <nng/protocol/reqrep0/rep.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
-#include <nanolib/mqtt_db.h>
+#include "include/mqtt_db.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -33,6 +33,7 @@ struct work {
 	nng_aio *aio;
 	nng_msg *msg;
 	nng_ctx  ctx;
+	struct db_tree *db;
 };
 
 void
@@ -55,9 +56,6 @@ server_cb(void *arg)
 	int          rv;
 	uint32_t     when;
 	uint8_t      buf[2] = {1,2};
-	// init tree
-//	struct db_tree *db;
-//	create_db_tree(&db);
 
 	switch (work->state) {
 	case INIT:
@@ -112,22 +110,24 @@ server_cb(void *arg)
 		else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
 			debug_msg("reply Subscribe. \n");
 			smsg = work->msg;
+
 			// prevent we got the ctx_sub
 			// insert ctx_sub into treeDB
-			/*
-			Ctx_sub * ctx_sub = (Ctx_sub *)zmalloc(sizeof(Ctx_sub));
-			ctx_sub->id = 5; // clientid; // id?????
-			struct client * client = (struct client *)zmalloc(sizeof(struct client));
-			char * clientid = "66665";
+//			Ctx_sub * ctx_sub = nni_alloc(sizeof(Ctx_sub));
+//			ctx_sub->id = 5; // clientid; // id?????
+/*
+			struct client * client = nni_alloc(sizeof(struct client));
+			char clientid[6] = "66665";
 			client->id = clientid; // client id should be uint32 ????
 //			client->ctxt = ; // wait the ctx??????
-		    struct topic_and_node *tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
-			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
+		    struct topic_and_node *tan = nni_alloc(sizeof(struct topic_and_node));
+//			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
+			search_node(work->db, "a/b/t", &tan);
 			add_node(tan, client);
 //			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
 //			add_client(tan, client->id);
-			printf("FINISH ADD ctx & clientid. ");
 			*/
+			printf("FINISH ADD ctx & clientid. ");
 		}
 		else {
 			work->msg   = NULL;
@@ -193,6 +193,9 @@ server(const char *url)
 	struct work *works[PARALLEL];
 	int          rv;
 	int          i;
+	// init tree
+	struct db_tree *db;
+	create_db_tree(&db);
 
 	/*  Create the socket. */
 	rv = nng_rep0_open(&sock);
@@ -204,6 +207,7 @@ server(const char *url)
 	printf("PARALLEL: %d\n", PARALLEL);
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
+		works[i]->db = db;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
