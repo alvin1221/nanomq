@@ -112,26 +112,26 @@ server_cb(void *arg)
 			}
 		}
 		else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
-			debug_msg("reply Subscribe. \n");
 			smsg = work->msg;
+			debug_msg("reply Subscribe. \n");
 
 			// prevent we got the ctx_sub
 			// insert ctx_sub into treeDB
-//			Ctx_sub * ctx_sub = nni_alloc(sizeof(Ctx_sub));
-//			ctx_sub->id = 5; // clientid; // id?????
-/*
-			struct client * client = nni_alloc(sizeof(struct client));
-			char clientid[6] = "66665";
-			client->id = clientid; // client id should be uint32 ????
->>>>>>> wangha/sub
-//			client->ctxt = ; // wait the ctx??????
-		        //struct topic_and_node *tan = nni_alloc(sizeof(struct topic_and_node));
-//			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
-			//search_node(work->db, "a/b/t", &tan);
-			//add_node(tan, client);
-//			search_node(db, ctx_sub->topic_with_option->topic_filter->str, &tan);
-//			add_client(tan, client->id);
-			*/
+			struct client * client = nng_alloc(sizeof(struct client));
+		    struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
+			char topic_str[6] = "a/b/t";
+			search_node(work->db, topic_str, &tan);
+			add_node(tan, client);
+
+			// check treeDB
+			debug_msg("start check dbtree");
+			for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
+				for(struct db_node * snode = mnode; snode; snode = snode->next){
+					debug_msg("%s ", snode->topic);
+				}
+				debug_msg("----------");
+			}
+
 			printf("FINISH ADD ctx & clientid. ");
 		}
 		else {
