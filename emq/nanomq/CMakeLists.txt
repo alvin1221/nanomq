@@ -4,9 +4,11 @@
 # file was obtained (LICENSE.txt).  A copy of the license may also be
 # found online at https://opensource.org/licenses/MIT.
 
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required(VERSION 2.8.8)
 
 project(nanomq)
+
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 aux_source_directory(. DIRSRCS)
 
@@ -22,7 +24,7 @@ find_package(nng CONFIG REQUIRED)
 
 include_directories(../../emq/nanolib/include)
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c hash.cc mqtt_db.c zmalloc.c property_handle.c pub_handler.c subscribe_handle.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c hash.cc mqtt_db.c zmalloc.c pub_handler.c)
 
 target_link_libraries(nanomq apps)
 

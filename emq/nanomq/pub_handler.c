@@ -2,8 +2,7 @@
   * Created by Alvin on 2020/7/25.
   */
 
-//#include "../emq/nanolib/include/mqtt_db.h"
-//#include "../emq/nanolib/include/zmalloc.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <nng/nng.h>
@@ -628,7 +627,7 @@ static char *bytes_to_str(const unsigned char *src, char *dest, int src_len)
 static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 {
 	if (src_len > 0) {
-		char *dest = nni_alloc(src_len * 2);
+		char *dest = nng_alloc(src_len * 2);
 
 		if (dest == NULL) {
 			debug_msg("alloc fail!");
@@ -638,7 +637,7 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 
 		debug_msg("%s%s\n", prefix, dest);
 
-		nni_free(dest, src_len * 2);
+		nng_free(dest, src_len * 2);
 	}
 }
 

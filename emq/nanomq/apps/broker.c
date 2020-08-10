@@ -12,6 +12,7 @@
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
+#include <include/pub_handler.h>
 #include "include/mqtt_db.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
@@ -110,27 +111,27 @@ server_cb(void *arg)
 				printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
 			}
 		} else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
-			smsg = work->msg;
-			debug_msg("reply Subscribe. \n");
-
-			// prevent we got the ctx_sub
-			// insert ctx_sub into treeDB
-			struct client * client = nng_alloc(sizeof(struct client));
-			struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
-			char topic_str[6] = "a/b/t";
-			search_node(work->db, topic_str, &tan);
-			add_node(tan, client);
-
-			// check treeDB
-			debug_msg("start check dbtree");
-			for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
-				for(struct db_node * snode = mnode; snode; snode = snode->next){
-					debug_msg("%s ", snode->topic);
-				}
-				debug_msg("----------");
-			}
-
-			printf("FINISH ADD ctx & clientid. ");
+//			smsg = work->msg;
+//			debug_msg("reply Subscribe. \n");
+//
+//			// prevent we got the ctx_sub
+//			// insert ctx_sub into treeDB
+//			struct client * client = nng_alloc(sizeof(struct client));
+//			struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
+//			char topic_str[6] = "a/b/t";
+//			search_node(work->db, topic_str, &tan);
+//			add_node(tan, client);
+//
+//			// check treeDB
+//			debug_msg("start check dbtree");
+//			for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
+//				for(struct db_node * snode = mnode; snode; snode = snode->next){
+//					debug_msg("%s ", snode->topic);
+//				}
+//				debug_msg("----------");
+//			}
+//
+//			printf("FINISH ADD ctx & clientid. ");
 		}
 		else {
 			work->msg   = NULL;
