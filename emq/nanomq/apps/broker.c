@@ -111,8 +111,8 @@ server_cb(void *arg)
 			}
 		} else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
 			smsg = work->msg;
-			debug_msg("reply Subscribe. \n");
-
+			debug_msg("reply Subscribe.");
+/*
 			// prevent we got the ctx_sub
 			// insert ctx_sub into treeDB
 			struct client * client = nng_alloc(sizeof(struct client));
@@ -131,6 +131,7 @@ server_cb(void *arg)
 			}
 
 			printf("FINISH ADD ctx & clientid. ");
+*/
 		}
 		else {
 			work->msg   = NULL;

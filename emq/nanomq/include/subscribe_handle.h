@@ -1,4 +1,6 @@
-//#include "nng/protocol/mqtt/mqtt.h"
+#ifndef MQTT_SUBSCRIBE_HANDLE_H
+#define MQTT_SUBSCRIBE_HANDLE_H
+
 #include <nng/nng.h>
 #ifndef MQTT_PACKET_H
 #include "include/packet.h"
@@ -19,3 +21,5 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt);
 uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt);
 void sub_ctx_handle(nng_msg * msg, packet_subscribe * sub_pkt);
 uint8_t subscribe_handle(nng_msg *msg);
+
+#endif

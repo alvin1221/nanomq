@@ -19,17 +19,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* fixed header
-struct mqtt_packet_header {
-    bool                    dup;
-    Packet_qos              qos;
-    bool                    retain;
-    uint32_t                remain_len;
-};
-*/
-
 struct mqtt_string {
-	char *  str;
+	char *  str_body;
 	int     len;
 };
 typedef struct mqtt_string mqtt_string;
@@ -41,16 +32,16 @@ struct mqtt_string_node {
 typedef struct mqtt_string_node mqtt_string_node;
 
 struct mqtt_binary {
-	unsigned char * str;
+	unsigned char * str_body;
 	int             len;
 };
 typedef struct mqtt_binary mqtt_binary;
 
 struct mqtt_str_pair {
-	char *	str1; // key
-	int 	len1;
-	char *	str2; // value
-	int 	len2;
+	char *	str_key; // key
+	int 	len_key;
+	char *	str_value; // value
+	int 	len_value;
 };
 typedef struct mqtt_str_pair mqtt_str_pair;
 
@@ -78,6 +69,31 @@ struct mqtt_property {
 	struct property *	property_end;
 };
 typedef struct mqtt_property mqtt_property;
+
+//variable header in mqtt_packet_subscribe
+struct topic_with_option {
+	uint8_t         qos: 2;
+	uint8_t         no_local: 1;
+	uint8_t         retain_as_publish: 1;
+	uint8_t         retain_handling: 4; // !!!!!TODO actually 2 bits
+	mqtt_string     topic_filter;
+};
+typedef struct topic_with_option topic_with_option;
+
+struct topic_node {
+	topic_with_option * it;
+	struct topic_node * next;
+};	
+typedef struct topic_node topic_node;
+
+struct packet_subscribe {
+	uint16_t packet_id;
+	union Property_type sub_id;
+	union Property_type user_property;
+	topic_node * node; // storage topic_with_option
+};
+typedef struct packet_subscribe packet_subscribe;
+
 
 // variable header in mqtt_packet_connect
 struct mqtt_packet_connect {
@@ -131,28 +147,6 @@ struct mqtt_packet_puback {
 };
 
 //struct mqtt_payload_puback {} = NULL;
-
-//variable header in mqtt_packet_subscribe
-struct topic_with_option {
-	mqtt_string *   topic_filter;
-	bool            no_local; //bit2
-	bool            retain; //bit3
-	uint8_t         retain_option; //bit45
-};
-typedef struct topic_with_option topic_with_option;
-
-struct topic_node {
-	topic_with_option * it;
-	struct topic_node * next;
-};	
-typedef struct topic_node topic_node;
-
-struct packet_subscribe {
-	uint16_t packet_id;
-	struct mqtt_property * property;
-	topic_node * node;
-};
-typedef struct packet_subscribe packet_subscribe;
 
 //variable header in mqtt_packet_unsubscribe
 struct mqtt_packet_unsubscribe {
@@ -209,39 +203,17 @@ typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
 // ctx of subscribe
 struct Ctx_sub {
-	uint32_t	id; // client id
-	struct mqtt_property * variable_property;
-	struct topic_with_option * topic_with_option;
+	mqtt_string	id; // client id
+	// properties
+	union Property_type sub_id;
+	union Property_type user_property;
+	// topic with option
+	struct topic_with_option * topic_option;
 
 	// connect info
 	// struct ctx_connect * ctx_con;
 };
 typedef struct Ctx_sub Ctx_sub;
-
-/*
-uint32_t bin_parse_varint(uint8_t * bin_pos, int * pos){
-	*pos = 0;
-	uint32_t res = 0;
-	uint32_t multiplier = 1;
-	uint8_t byte;
-	do {
-		byte = *bin_pos++;
-		res += (byte & 127) * multiplier;
-		multiplier *= 128;
-		(*pos)++;
-	} while (*pos < 4 && (byte & 128));
-	return res;
-}
-
-int len_of_varint(uint32_t num){
-	int tmp = num, res = 0;
-	while(tmp>0){
-		res ++;
-		tmp >> 8;
-	}
-	return res;
-}
-*/
 
 #endif
 
