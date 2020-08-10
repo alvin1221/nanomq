@@ -1,16 +1,15 @@
-#include <nng/protocol/mqtt/subscribe_handle.h>
-#include "core/nng_impl.h"
-#include <nng/protocol/mqtt/property_handle.h>
+#include <nng/nng.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/protocol/mqtt/mqtt.h>
-#include "include/nng_debug.h"
 
+#include "nanolib.h"
+#include "include/subscribe_handle.h"
 
-uint8_t subscribe_handle(nni_msg * msg){
+uint8_t subscribe_handle(nng_msg * msg){
 	// handle subscribe fixed header
 	uint8_t *  header_ptr;
 	uint8_t reason_code;
-	header_ptr = nni_msg_header_ptr(msg);
+	header_ptr = nng_msg_header_ptr(msg);
 	if((header_ptr[0] & 0xF0) != CMD_SUBSCRIBE){
 		return SUCCESS;
 	}
@@ -30,7 +29,7 @@ uint8_t subscribe_handle(nni_msg * msg){
 	return SUCCESS;
 }
 
-uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
+uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
 	uint8_t *  payload_ptr;
 
@@ -42,7 +41,7 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 	bool version_v5 = false; // v3.1.1/v5
 
 	// handle variable header
-	variable_ptr = nni_msg_variable_ptr(msg);
+	variable_ptr = nng_msg_variable_ptr(msg);
 
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
 	vpos += 2;
@@ -51,7 +50,7 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 	sub_pkt->property = prop;
 	// Only Mqtt_v5 include property. 
 	if(version_v5){
-		prop = nni_alloc(sizeof(mqtt_property));
+		prop = nng_alloc(sizeof(mqtt_property));
 		property_list_init(prop);
 		prop->len = get_var_integer(variable_ptr+vpos, &len_of_varint);
 		vpos += len_of_varint;
@@ -73,14 +72,14 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 				}
 			}
 		}else{
-			nni_free(prop, sizeof(mqtt_property));
+			nng_free(prop, sizeof(mqtt_property));
 		}
 	}
 
 	debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
 
     // handle payload
-	payload_ptr = nni_msg_payload_ptr(msg);
+	payload_ptr = nng_msg_payload_ptr(msg);
 	
 	debug_msg("PAYLOAD:  %x %x %x %x. ", payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
@@ -117,7 +116,7 @@ uint8_t decode_sub_message(nni_msg * msg, packet_subscribe * sub_pkt){
 		topic_context->retain = (0x08 & payload_ptr[bpos]) == 1;
 		topic_context->retain_option = (0x30 & payload_ptr[bpos]);
 
-		remaining_len = nni_msg_remaining_len(msg);
+		remaining_len = nng_msg_remaining_len(msg);
 		debug_msg("bpos:%d remaining_len:%d vpos:%d. ", bpos, remaining_len, vpos);
 		if(++bpos < remaining_len - vpos){
 			topic_node_t = nni_alloc(sizeof(topic_node));
@@ -156,14 +155,14 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	}
 	// handle fixed header
 	uint8_t cmd = CMD_SUBACK;
-	nni_msg_header_append(msg, (uint8_t *) &cmd, 1);
+	nng_msg_header_append(msg, (uint8_t *) &cmd, 1);
 
 	debug_msg("ERRORRRRhererere.....");
-	uint32_t remaining_len = (uint32_t)nni_msg_len(msg);
+	uint32_t remaining_len = (uint32_t)nng_msg_len(msg);
 	uint8_t varint[4];
 	int len_of_varint = put_var_integer(varint, remaining_len);
 	debug_msg("remain:%d varint:%d %d %d %d len:%d", remaining_len, varint[0], varint[1], varint[2], varint[3], len_of_varint);
-	nni_msg_header_append(msg, varint, len_of_varint);
+	nng_msg_header_append(msg, varint, len_of_varint);
 	return SUCCESS;
 }
 

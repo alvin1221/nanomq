@@ -1,7 +1,7 @@
 #include <string.h>
 #include <nng/nng.h>
 #ifndef MQTT_PACKET_H
-#include <nng/protocol/mqtt/packet.h>
+#include "include/packet.h"
 #endif
 
 int type_of_variable_property(uint8_t id);

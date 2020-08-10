@@ -7,7 +7,6 @@
 #include "core/nng_impl.h"
 #include "nng/protocol/mqtt/emq_tcp.h"
 #include "include/nng_debug.h"
-#include "nng/protocol/mqtt/pub_handler.h"
 #include "nng/protocol/mqtt/mqtt.h"
 //#include "nng/protocol/mqtt/subscribe_handle.h"
 
@@ -23,9 +22,9 @@ static void emq_pipe_fini(void *);
 
 //huge context/ dynamic context?
 struct emq_ctx {
-	emq_sock *   sock;
+	emq_sock *    sock;
 	uint32_t      pipe_id;
-	emq_pipe *   spipe; // send pipe
+	emq_pipe *    spipe; // send pipe
 	nni_aio *     saio;  // send aio
 	nni_aio *     raio;  // recv aio
 	nni_list_node sqnode;
@@ -167,7 +166,7 @@ emq_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	//TODO MQTT rewrite part
+	//TODO MQTT rewrite part HOOK
 	/*
 	if (len == 0) {
 		nni_mtx_unlock(&s->lk);
@@ -559,13 +558,12 @@ emq_pipe_recv_cb(void *arg)
 
 	nni_mtx_lock(&s->lk);
 
+	//TODO HOOK
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
-//			subscribe_handle(msg);
 			break;
 
 		case CMD_PUBLISH:
-//			decode_pub_message(msg, );
 			break;
 
 	}
@@ -588,11 +586,6 @@ emq_pipe_recv_cb(void *arg)
 		return;
 	}
 
-	//TODO PINGRESP (PUBACK SUBACK) here?
-	if (nng_msg_cmd_type(msg) == CMD_PINGREQ) {
-		debug_msg("PINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
-	}
-
 	nni_list_remove(&s->recvq, ctx);
 	aio       = ctx->raio;
 	ctx->raio = NULL;
@@ -605,8 +598,7 @@ emq_pipe_recv_cb(void *arg)
 	// schedule another receive
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 
-	len = 0;
-	ctx->btrace_len = len;		//TODO Rewrite mqtt header length
+	//ctx->btrace_len = len;		//TODO Rewrite mqtt header length
 	//memcpy(ctx->btrace, nni_msg_header(msg), len);
 	//nni_msg_header_clear(msg);
 	ctx->pipe_id = p->id;			//use pipe id to identify which client

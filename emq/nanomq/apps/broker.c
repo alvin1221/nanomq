@@ -8,9 +8,9 @@
 
 #include <nng/nng.h>
 #include <nng/protocol/mqtt/emq_tcp.h>
-#include <nng/protocol/reqrep0/rep.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
 #include "include/mqtt_db.h"
 
@@ -29,13 +29,14 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
-struct work {	
+struct work {
 	enum { INIT, RECV, WAIT, SEND } state;
 	nng_aio *aio;
 	nng_msg *msg;
 	nng_ctx  ctx;
 	struct db_tree *db;
 	conn_param *cparam;
+	pub_packet_struct *pp;
 };
 
 void
@@ -58,7 +59,6 @@ server_cb(void *arg)
 	int          rv;
 	uint32_t     when;
 	uint8_t      buf[2] = {1,2};
-	conn_param	*cp;
 
 	switch (work->state) {
 	case INIT:
@@ -68,7 +68,7 @@ server_cb(void *arg)
 		printf("INIT!!\n");
 		break;
 	case RECV:
-		printf("RECV  ^^^^^^^^^^^^^^^^^^^^^\n");
+		printf("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
                 if ((rv = nng_aio_result(work->aio)) != 0) {
                         fatal("nng_ctx_recv", rv);
                 }
@@ -89,8 +89,8 @@ server_cb(void *arg)
                 break;
 	case WAIT:
 		// We could add more data to the message here.
-	  cp = (conn_param *)nng_msg_get_conn_param(work->msg);
-		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s\n", nng_msg_cmd_type(work->msg), conn_param_get_clentid(cp));
+		work->cparam = nng_msg_get_conn_param(work->msg);
+		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d\n", nng_msg_cmd_type(work->msg), conn_param_get_clentid(work->cparam), work->ctx.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -102,7 +102,6 @@ server_cb(void *arg)
             printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
         }
         if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-
 			buf[0] = CMD_PINGRESP;
 			buf[1] = 0x00;
 			debug_msg("reply PINGRESP\n");
@@ -110,15 +109,14 @@ server_cb(void *arg)
 			if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
 				printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
 			}
-		}
-		else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
+		} else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
 			smsg = work->msg;
 			debug_msg("reply Subscribe. \n");
 
 			// prevent we got the ctx_sub
 			// insert ctx_sub into treeDB
 			struct client * client = nng_alloc(sizeof(struct client));
-		    struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
+			struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
 			char topic_str[6] = "a/b/t";
 			search_node(work->db, topic_str, &tan);
 			add_node(tan, client);
@@ -183,6 +181,7 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
 		fatal("nng_aio_alloc", rv);
 	}
+	//not pipe id; max id = uint32_t
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
 	}
@@ -203,7 +202,6 @@ server(const char *url)
 	create_db_tree(&db);
 
 	/*  Create the socket. */
-	rv = nng_rep0_open(&sock);
 	rv = nng_emq_tcp0_open(&sock);
 	if (rv != 0) {
 		fatal("nng_rep0_open", rv);

@@ -95,7 +95,9 @@ typedef struct nng_socket_s {
 	uint32_t id;
 } nng_socket;
 
+//EMQ MQTT variables
 typedef struct conn_param conn_param;
+typedef struct pub_packet_struct pub_packet_struct;
 
 typedef int32_t         nng_duration; // in milliseconds
 typedef struct nng_msg  nng_msg;

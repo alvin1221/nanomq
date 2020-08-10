@@ -251,13 +251,13 @@ uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
 	return len;
 }
 
-int fixed_header_adaptor(uint8_t *packet, nni_msg *dst)
+int fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 {
 	nni_msg  *m;
 	int      rv, pos = 1;
 	uint32_t len;
 
-	m   = dst;
+	m   = (nni_msg *)dst;
 	len = get_var_integer(packet, &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);

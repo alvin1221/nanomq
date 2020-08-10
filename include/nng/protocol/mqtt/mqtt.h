@@ -1,5 +1,5 @@
 /*
-
+TODO rewrite whole file
 */
 
 #ifndef MQTT_PROTOCOL_H
@@ -278,7 +278,5 @@ enum mqtt5_sub_options {
 	MQTT_SUB_OPT_SEND_RETAIN_NEW = 0x10,
 	MQTT_SUB_OPT_SEND_RETAIN_NEVER = 0x20,
 };
-
-#define MQTT_MAX_PAYLOAD 268435455U
 
 #endif
