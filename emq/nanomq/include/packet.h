@@ -201,6 +201,7 @@ typedef struct mqtt_payload_publish mqtt_payload_publish;
 typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
 typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
+/*
 // ctx of subscribe
 struct ctx_sub {
 	mqtt_string	id; // client id
@@ -214,6 +215,7 @@ struct ctx_sub {
 	// struct ctx_connect * ctx_con;
 };
 typedef struct ctx_sub ctx_sub;
+*/
 
 #endif
 
