@@ -22,7 +22,7 @@ find_package(nng CONFIG REQUIRED)
 
 include_directories(../../emq/nanolib/include)
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c hash.cc mqtt_db.c zmalloc.c property_handle.c pub_handler.c subscribe_handle.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c hash.cc mqtt_db.c zmalloc.c pub_handler.c subscribe_handle.c)
 
 target_link_libraries(nanomq apps)
 
