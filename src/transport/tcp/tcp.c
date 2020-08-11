@@ -347,7 +347,7 @@ tcptran_pipe_send_cb(void *arg)
 	nni_mtx_lock(&p->mtx);
 	aio = nni_list_first(&p->sendq);
 
-	debug_msg("###############tcptran_pipe_send_cb################");
+	debug_msg("###############tcptran_pipe_send_cb################ %s", aio);
 	if ((rv = nni_aio_result(txaio)) != 0) {
 		nni_pipe_bump_error(p->npipe, rv);
 		// Intentionally we do not queue up another transfer.
@@ -363,15 +363,19 @@ tcptran_pipe_send_cb(void *arg)
 
 	n = nni_aio_count(txaio);
 	nni_aio_iov_advance(txaio, n);
+	debug_msg("sent %d iov %d", n, nni_aio_iov_count(txaio));
+	if (aio == NULL || p->rxmsg == NULL) {
+		nni_pipe_bump_tx(p->npipe, n);
+		nni_mtx_unlock(&p->mtx);
+		return;
+	}
 	if (nni_aio_iov_count(txaio) > 0) {
 		nng_stream_send(p->conn, txaio);
 		nni_mtx_unlock(&p->mtx);
 		return;
 	}
-
 	nni_aio_list_remove(aio);
 	tcptran_pipe_send_start(p);
-
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
 	nni_pipe_bump_tx(p->npipe, n);
@@ -447,8 +451,18 @@ tcptran_pipe_recv_cb(void *arg)
 		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
 		//TODO PINGRESP (PUBACK SUBACK) here? BETTER NOT
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
+			p->txlen[0] = CMD_PINGRESP;
+			p->txlen[1] = 0x00;
+			iov.iov_len = 2;
+			iov.iov_buf = &p->txlen;
+			// send it down...
+			nni_aio_set_iov(txaio, 1, &iov);
+			nng_stream_send(p->conn, txaio);
+			debug_msg("ping");
+			goto quit;
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
+			return;
 		}
 	}
 
@@ -543,7 +557,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 
 	nni_aio_set_msg(aio, msg);
-	// control/expose msg to EMQ_NANO protocl level
+	// finish IO expose msg to EMQ_NANO protocl level
 	nni_aio_finish_synch(aio, 0, n);
 	debug_msg("tcptran_pipe_recv_cb: synch!\n");
 	return;
@@ -560,6 +574,14 @@ recv_error:
 	nni_msg_free(msg);
 	nni_aio_finish_error(aio, rv);
 	printf("tcptran_pipe_recv_cb: error\n");
+	return;
+quit:
+	nni_aio_list_remove(aio);
+	//simply quit after reply PINGRESP to clinet
+	tcptran_pipe_recv_start(p);
+	nni_mtx_unlock(&p->mtx);
+	nni_aio_finish(aio,0,2);
+	debug_msg("finish PINGRESP");
 }
 
 static void

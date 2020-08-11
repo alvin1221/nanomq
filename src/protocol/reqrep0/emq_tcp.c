@@ -514,6 +514,9 @@ emq_pipe_recv_cb(void *arg)
 	debug_msg("emq_pipe_recv_cb !");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
+	if (msg == NULL) {
+		goto drop;
+	}
 
 	header = nng_msg_header(msg);
 	debug_msg("start emq_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n",p ,nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
