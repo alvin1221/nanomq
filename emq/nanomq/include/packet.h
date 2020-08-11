@@ -83,7 +83,7 @@ typedef struct topic_with_option topic_with_option;
 struct topic_node {
 	topic_with_option * it;
 	struct topic_node * next;
-};	
+};
 typedef struct topic_node topic_node;
 
 struct packet_subscribe {
@@ -202,7 +202,7 @@ typedef struct mqtt_payload_unsubscribe mqtt_payload_unsubscribe;
 typedef struct mqtt_payload_unsuback mqtt_payload_unsuback;
 
 // ctx of subscribe
-struct Ctx_sub {
+struct ctx_sub {
 	mqtt_string	id; // client id
 	// properties
 	union Property_type sub_id;
@@ -213,7 +213,7 @@ struct Ctx_sub {
 	// connect info
 	// struct ctx_connect * ctx_con;
 };
-typedef struct Ctx_sub Ctx_sub;
+typedef struct ctx_sub ctx_sub;
 
 #endif
 

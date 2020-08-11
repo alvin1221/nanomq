@@ -2,9 +2,7 @@
 #define MQTT_SUBSCRIBE_HANDLE_H
 
 #include <nng/nng.h>
-#ifndef MQTT_PACKET_H
 #include "include/packet.h"
-#endif
 /*
 struct Ctx_sub {
 	uint32_t	id;
