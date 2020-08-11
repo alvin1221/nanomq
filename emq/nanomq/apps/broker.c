@@ -1,6 +1,3 @@
-#include "broker.h"
-#include "nanolib.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +9,8 @@
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
+
+#include "include/nanomq.h"
 #include "include/mqtt_db.h"
 #include "include/subscribe_handle.h"
 

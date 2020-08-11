@@ -1,6 +1,5 @@
 
-#include "include/nanolib.h"
-
+#include "include/nanomq.h"
 #include "include/cmd.h"
 #include "include/file.h"
 

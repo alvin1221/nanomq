@@ -3,7 +3,7 @@
  *
  ***/
 
-#include "include/nanolib.h"
+#include "include/nanomq.h"
 #include "include/file.h"
 
 #include <sys/types.h>

@@ -11,7 +11,7 @@
 #include <nng/protocol/mqtt/mqtt_parser.h>
 
 #include "include/pub_handler.h"
-#include "nanolib.h"
+#include "include/nanomq.h"
 
 #define SUPPORT_MQTT5_0 0
 

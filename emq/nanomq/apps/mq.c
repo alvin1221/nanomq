@@ -1,5 +1,5 @@
 #include "mq.h"
-#include "../include/nanolib.h"
+#include "../include/nanomq.h"
 
 #include <stdio.h>
 #include <stdlib.h>

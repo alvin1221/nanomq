@@ -1,9 +1,7 @@
 #include <nng/nng.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/protocol/mqtt/mqtt.h>
-#include "../../src/include/nng_debug.h"
-
-#include "nanolib.h"
+#include "include/nanomq.h"
 #include "include/subscribe_handle.h"
 
 uint8_t subscribe_handle(nng_msg * msg){

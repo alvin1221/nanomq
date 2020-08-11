@@ -3,7 +3,7 @@
 #include "include/process.h"
 #include "include/cmd.h"
 #include "include/const_strings.h"
-#include "include/nanolib.h"
+#include "include/nanomq.h"
 
 #include <stdio.h>
 #include <stdlib.h>
