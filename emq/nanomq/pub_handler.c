@@ -124,13 +124,20 @@ void pub_handler(void *arg)
 
 						while (clients) {
 							emq_work *client_work = (emq_work *) clients->ctxt;
-							clients->id;
-							clients = clients->next;
 
-							nng_aio_set_msg(work->aio, send_msg);
+							client_work->state = SEND;
+							client_work->msg   = send_msg;
+
+							debug_msg("send msg to client.id: %s, ctx.id: %d\n", clients->id, client_work->ctx.id);
+							print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
+							print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
+
+							nng_aio_set_msg(client_work->aio, send_msg);
 							nng_ctx_send(client_work->ctx, client_work->aio);
-							//TODO need to free send_msg ?
+
+							clients = clients->next;
 						}
+						//TODO need to free send_msg ?
 
 						break;
 
