@@ -6,13 +6,10 @@
 #include <string.h>
 #include <time.h>
 
-#include <nng/nng.h>
-#include <nng/protocol/mqtt/emq_tcp.h>
-#include <nng/supplemental/util/platform.h>
-#include <nng/protocol/mqtt/mqtt.h>
+
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
-#include <include/pub_handler.h>
+#include "include/pub_handler.h"
 #include "include/mqtt_db.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
@@ -30,15 +27,6 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
-struct work {
-	enum { INIT, RECV, WAIT, SEND } state;
-	nng_aio *aio;
-	nng_msg *msg;
-	nng_ctx  ctx;
-	struct db_tree *db;
-	conn_param *cparam;
-	pub_packet_struct *pp;
-};
 
 void
 fatal(const char *func, int rv)
