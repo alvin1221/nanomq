@@ -4,9 +4,11 @@
 # file was obtained (LICENSE.txt).  A copy of the license may also be
 # found online at https://opensource.org/licenses/MIT.
 
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required(VERSION 2.8.8)
 
 project(nanomq)
+
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 aux_source_directory(. DIRSRCS)
 

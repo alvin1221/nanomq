@@ -3,6 +3,7 @@
 
 #include <nng/nng.h>
 #include "include/packet.h"
+#include "apps/broker.h"
 /*
 struct Ctx_sub {
 	uint32_t	id;

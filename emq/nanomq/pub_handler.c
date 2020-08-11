@@ -2,13 +2,15 @@
   * Created by Alvin on 2020/7/25.
   */
 
-//#include "../emq/nanolib/include/mqtt_db.h"
-//#include "../emq/nanolib/include/zmalloc.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <nng/nng.h>
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
+#include <include/zmalloc.h>
+#include <include/mqtt_db.h>
+#include <apps/broker.h>
 
 #include "include/pub_handler.h"
 #include "include/nanomq.h"
@@ -23,134 +25,141 @@ uint32_t get_uint32(const uint8_t *buf);
 uint64_t get_uint64(const uint8_t *buf);
 #endif
 
+
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
 
 /**
- * publish logic
+ * pub handler
  *
- * @param msg
- * @param pub_packet
+ * @param arg: struct work pointer
  */
-void pub_handler(nng_msg *msg) //FIXME remove this function to application layer
+void pub_handler(void *arg)
 {
+	emq_work *work = arg;
 
-//	//TODO remove
-//	struct pub_packet_struct *pub_packet     = NULL; //TODO get from nng_msg context
-//	struct client            *current_client = NULL; //TODO get from CONNECT Packet of nng_msg context
-//	struct db_tree           *gb_db_tree     = NULL; //TODO replace for global variable db_tree
-//
-//	struct pub_packet_struct *pub_response = NULL;
-//	struct variable_string   *topic_name   = NULL;
-//
-//	if (decode_pub_message(msg, pub_packet)) {
-//
-//		switch (pub_packet->fixed_header.packet_type) {
-//			case PUBLISH:
-//				//process topic alias (For MQTT 5.0)
-//				//TODO get "TOPIC Alias Maximum" from CONNECT Packet Properties ,
-//				// topic_alias can't be larger than Topic Alias Maximum when the latter isn't equals 0;
-//				// Compare with TOPIC Alias Maximum;
-//				if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value) {
-//
-//					if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.value == 0) {
-//						//Protocol Error
-//						//TODO Send a DISCONNECT Packet with Reason Code "0x94" before close the connection (MQTT 5.0);
-//						return;
-//					}
-//
-//					if (pub_packet->variable_header.publish.topic_name.str_len == 0) {
-//						//TODO
-//						// 1, query the entire Topic Name through Topic alias
-//						// 2, if query failed, Send a DISCONNECT Packet with Reason Code "0x82" before close the connection and return (MQTT 5.0);
-//						// 3, if query succeed, query node and data structure through Topic Name
-//
-//					} else {
-//						topic_name = &pub_packet->variable_header.publish.topic_name;
-//						//TODO
-//						// 1, update Map value of Topic Alias
-//						// 2, query node and data structure through Topic Name
-//					}
-//				}
-//
-//
-//
-//
-//				//TODO save some useful publish message info and properties to global mqtt context while decode succeed
-//
-//				//TODO do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
-//
-//
-//				struct topic_and_node *res_node = (struct topic_and_node *) zmalloc(sizeof(struct topic_and_node));
-//				search_node(gb_db_tree, topic_name->str_body, &res_node);
-//
-//				if (pub_packet->fixed_header.retain == 1) {
-//					//store this message to the topic node
-//					res_node->node->retain  = true;
-//					res_node->node->len     = pub_packet->payload_body.payload_len;
-//					res_node->node->message = nng_alloc(res_node->node->len);
-//
-//					memcpy((uint8_t *) res_node->node->message, pub_packet->payload_body.payload,
-//					       res_node->node->len);//according to node.len, free memory before delete this node
-//
-//					if (res_node->node->state == UNEQUAL) {
-//						add_node(res_node, current_client);
-//					}
-//
-//				} else {
-//					if (res_node->node->state == UNEQUAL) {
-//						//topic not found,
-//
-//						zfree(res_node);
-//						return;
-//					}
-//				}
-//
-//				//TODO compare Publish QoS with Subscribe OoS, decide by the minimum;
-//
-//				switch (pub_packet->fixed_header.qos) {
-//					case 0:
-//						//publish only once
-//						pub_packet->fixed_header.dup = 0;
-//
-//						encode_pub_message(msg, pub_packet);
-//						struct client *c = res_node->node->sub_client;
-//
-//						while (c) {
-//							c->id; //TODO publish message which is after encoded to this client id;
-//
-//							c = c->next;
-//						}
-//						break;
-//
-//					case 1:
-//						break;
-//
-//					case 2:
-//						break;
-//
-//					default:
-//						//Error Qos
-//						break;
-//				}
-//
-//				//TODO search clients' pipe from topic_name
-//
-//				break;
-//
-//			case PUBREL:
-//			case PUBACK:
-//			case PUBREC:
-//			case PUBCOMP:
-//				break;
-//
-//			default:
-//				break;
-//		}
-//
-//	}
+
+	//TODO remove
+	struct pub_packet_struct *pub_packet   = NULL; //TODO get from nng_msg context
+
+	struct topic_and_node    *res_node;
+	struct pub_packet_struct *pub_response = NULL;
+	struct variable_string   *topic_name   = NULL;
+
+	nng_msg *send_msg;
+
+	if (decode_pub_message(work->msg, work->pub_packet)) {
+
+		switch (pub_packet->fixed_header.packet_type) {
+			case PUBLISH:
+#if SUPPORT_MQTT5_0
+				//process topic alias (For MQTT 5.0)
+				//TODO get "TOPIC Alias Maximum" from CONNECT Packet Properties ,
+				// topic_alias can't be larger than Topic Alias Maximum when the latter isn't equals 0;
+				// Compare with TOPIC Alias Maximum;
+				if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.has_value) {
+
+					if (pub_packet->variable_header.publish.properties.content.publish.topic_alias.value == 0) {
+						//Protocol Error
+						//TODO Send a DISCONNECT Packet with Reason Code "0x94" before close the connection (MQTT 5.0);
+						return;
+					}
+
+					if (pub_packet->variable_header.publish.topic_name.str_len == 0) {
+						//TODO
+						// 1, query the entire Topic Name through Topic alias
+						// 2, if query failed, Send a DISCONNECT Packet with Reason Code "0x82" before close the connection and return (MQTT 5.0);
+						// 3, if query succeed, query node and data structure through Topic Name
+
+					} else {
+						topic_name = &pub_packet->variable_header.publish.topic_name;
+						//TODO
+						// 1, update Map value of Topic Alias
+						// 2, query node and data structure through Topic Name
+					}
+				}
+				//TODO save some useful publish message info and properties to global mqtt context while decode succeed
+#endif
+
+
+				//do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
+
+				res_node = (struct topic_and_node *) zmalloc(sizeof(struct topic_and_node));
+				search_node(work->db, topic_name->str_body, &res_node);
+
+				if (pub_packet->fixed_header.retain == 1) {
+					//store this message to the topic node
+					res_node->node->retain  = true;
+					res_node->node->len     = pub_packet->payload_body.payload_len;
+					res_node->node->message = nng_alloc(res_node->node->len);
+
+					memcpy((uint8_t *) res_node->node->message, pub_packet->payload_body.payload,
+					       res_node->node->len);//according to node.len, free memory before delete this node
+
+					if (res_node->node->state == UNEQUAL) {
+						//TODO add node but client_id is unnecessary;
+					}
+
+				} else {
+					if (res_node->node->state == UNEQUAL) {
+						//topic not found,
+
+						zfree(res_node);
+						return;
+					}
+				}
+
+				//TODO compare Publish QoS with Subscribe OoS, decide by the maximum;
+
+				switch (pub_packet->fixed_header.qos) {
+					case 0:
+						//publish only once
+						pub_packet->fixed_header.dup = 0;
+
+						encode_pub_message(send_msg, pub_packet);
+
+						struct client *clients = search_client(res_node->node, &topic_name->str_body);
+
+						while (clients) {
+							emq_work *client_work = (emq_work *) clients->ctxt;
+							clients->id;
+							clients = clients->next;
+
+							nng_aio_set_msg(work->aio, send_msg);
+							nng_ctx_send(client_work->ctx, client_work->aio);
+							//TODO need to free send_msg ?
+						}
+
+						break;
+
+					case 1:
+						break;
+
+					case 2:
+						break;
+
+					default:
+						//Error Qos
+						break;
+				}
+
+				//TODO search clients' pipe from topic_name
+
+				break;
+
+			case PUBREL:
+			case PUBACK:
+			case PUBREC:
+			case PUBCOMP:
+				break;
+
+			default:
+				break;
+		}
+
+	}
 }
 
 
@@ -175,7 +184,7 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 	properties_type prop_type;
 
-
+	//TODO nng_msg_set_cmd_type ?
 	switch (pub_packet->fixed_header.packet_type) {
 		case PUBLISH:
 			/*fixed header*/
@@ -349,8 +358,6 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	debug_msg("nng_msg len: %zu", msg_len);
 
 	memcpy((uint8_t *) &pub_packet->fixed_header, nng_msg_header(msg), 1);
-//	++pos;
-//	pub_packet->fixed_header.remain_len = get_var_integer(msg_body, &pos);
 
 	debug_msg("fixed header----------> ");
 	debug_msg("cmd: %d, retain: %d, qos: %d, dup: %d\n",
@@ -377,7 +384,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				          pub_packet->variable_header.publish.topic_name.str_body, len);
 
 				if (len < 0
-//				    ||
+//Fixme 			||
 //				    strchr(pub_packet->variable_header.publish.topic_name.str_body, '+') != NULL ||
 //				    strchr(pub_packet->variable_header.publish.topic_name.str_body, '#') != NULL
 						) {
@@ -601,7 +608,6 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 	}
 
-
 	return false;
 }
 
@@ -628,7 +634,7 @@ static char *bytes_to_str(const unsigned char *src, char *dest, int src_len)
 static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 {
 	if (src_len > 0) {
-		char *dest = nni_alloc(src_len * 2);
+		char *dest = nng_alloc(src_len * 2);
 
 		if (dest == NULL) {
 			debug_msg("alloc fail!");
@@ -638,7 +644,7 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 
 		debug_msg("%s%s\n", prefix, dest);
 
-		nni_free(dest, src_len * 2);
+		nng_free(dest, src_len * 2);
 	}
 }
 

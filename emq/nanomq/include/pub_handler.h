@@ -2,8 +2,8 @@
   * Created by Alvin on 2020/7/25.
   */
 
-#ifndef NNG_PUB_HANDLER_H
-#define NNG_PUB_HANDLER_H
+#ifndef NANOMQ_PUB_HANDLER_H
+#define NANOMQ_PUB_HANDLER_H
 
 #include <nng/nng.h>
 #include "nng/protocol/mqtt/mqtt.h"
@@ -102,7 +102,7 @@ struct pub_packet_struct {
 
 };
 
-void pub_handler(nng_msg *msg);
+void pub_handler(void *arg);
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 #endif //NNG_PUB_HANDLER_H

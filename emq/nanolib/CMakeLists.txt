@@ -7,6 +7,9 @@
 cmake_minimum_required (VERSION 2.8.8)
 
 project(nanolib)
+
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+
 set(DEFAULT_BUILD_TYPE "Release")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

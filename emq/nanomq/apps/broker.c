@@ -3,14 +3,11 @@
 #include <string.h>
 #include <time.h>
 
-#include <nng/nng.h>
-#include <nng/protocol/mqtt/emq_tcp.h>
-#include <nng/supplemental/util/platform.h>
-#include <nng/protocol/mqtt/mqtt.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
 
 #include "include/nanomq.h"
+#include "include/pub_handler.h"
 #include "include/mqtt_db.h"
 #include "include/subscribe_handle.h"
 
@@ -29,16 +26,6 @@
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
 // use in poll.
-struct work {
-	enum { INIT, RECV, WAIT, SEND } state;
-	nng_aio *aio;
-	nng_msg *msg;
-	nng_ctx  ctx;
-	struct db_tree *db;
-	conn_param *cparam;
-	pub_packet_struct *pp;
-	ctx_sub *sub_ctx;
-};
 
 void
 fatal(const char *func, int rv)
@@ -122,7 +109,6 @@ server_cb(void *arg)
 			}
 			debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(work->msg)), *((uint8_t *)nng_msg_header(work->msg)+1), *((uint8_t *)nng_msg_body(work->msg)), *((uint8_t *)nng_msg_body(work->msg)+1));
 			smsg = work->msg;
-			// TODO handle the sub_ctx & ops to tree
 		}
 		else {
 			work->msg   = NULL;
