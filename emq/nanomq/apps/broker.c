@@ -41,9 +41,9 @@ fatal(const char *func, int rv)
 void
 server_cb(void *arg)
 {
-	struct work *work       = arg;
-	nng_msg *msg;
-	nng_msg *smsg;
+	struct work      *work  = arg;
+	nng_msg          *msg;
+	nng_msg          *smsg;
 	int              rv;
 	uint32_t         when;
 	uint8_t          buf[2] = {1, 2};
@@ -135,9 +135,10 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
+				debug_msg("handle CMD_PUBLISH\n");
 				pub_handler(work);
-
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
+				debug_msg("handle CMD_PUBACK\n");
 				pub_handler(work);
 			} else {
 				work->msg   = NULL;
@@ -198,7 +199,7 @@ server(const char *url)
 	int            rv;
 	int            i;
 	// init tree
-	struct db_tree *db;
+	struct db_tree *db=NULL;
 	create_db_tree(&db);
 
 	/*  Create the socket. */

@@ -168,8 +168,10 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 
 void sub_ctx_handle(emq_work * work){
 	// generate ctx for each topic
-	debug_msg("Generate ctx for each topic");
+	int count = 0;
 	bool version_v5 = false;
+	debug_msg("Generate ctx for each topic");
+
 	topic_node * topic_node_t = work->sub_pkt->node;
 
 	// insert ctx_sub into treeDB
@@ -187,7 +189,7 @@ void sub_ctx_handle(emq_work * work){
 
 	// check treeDB
 	debug_msg("---check dbtree---");
-	int count = 0;
+
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
 		for(struct db_node * snode = mnode; snode; snode = snode->next){
 			debug_msg("%d: %s ", count, snode->topic);
