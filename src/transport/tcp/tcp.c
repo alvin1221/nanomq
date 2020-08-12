@@ -348,7 +348,7 @@ tcptran_pipe_send_cb(void *arg)
 	aio = nni_list_first(&p->sendq);
 
 	debug_msg("###############tcptran_pipe_send_cb################ %s", aio);
-	if (aio == NULL || p->rxmsg == NULL) {
+	if (aio == NULL) {
 		//nni_pipe_bump_tx(p->npipe, n);
 		// be aware null aio BUG
 		nni_mtx_unlock(&p->mtx);
@@ -453,6 +453,8 @@ tcptran_pipe_recv_cb(void *arg)
 		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
 		//BUG? PINGRESP (PUBACK SUBACK) here
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
+			debug_msg("ping");
+		  /*
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
 			iov.iov_len = 2;
@@ -460,8 +462,8 @@ tcptran_pipe_recv_cb(void *arg)
 			// send it down...
 			nni_aio_set_iov(txaio, 1, &iov);
 			nng_stream_send(p->conn, txaio);
-			debug_msg("ping");
 			goto quit;
+		*/
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
 			return;
