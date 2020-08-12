@@ -7,7 +7,6 @@
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
 
-
 struct work {
 	enum { INIT, RECV, WAIT, SEND } state;
 	nng_aio *aio;
@@ -16,6 +15,7 @@ struct work {
 	struct db_tree *db;
 	conn_param *cparam;
 	struct pub_packet_struct *pub_packet;
+	struct packet_subscribe *sub_pkt;
 };
 
 

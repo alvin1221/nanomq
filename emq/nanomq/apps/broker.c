@@ -109,6 +109,10 @@ server_cb(void *arg)
 			}
 			debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(work->msg)), *((uint8_t *)nng_msg_header(work->msg)+1), *((uint8_t *)nng_msg_body(work->msg)), *((uint8_t *)nng_msg_body(work->msg)+1));
 			smsg = work->msg;
+			// TODO handle the sub_ctx & ops to tree
+			debug_msg("In sub_pkt: pktid:%d, topicLen: %d", sub_pkt.packet_id, sub_pkt.node->it->topic_filter.len);
+			work->sub_pkt = &sub_pkt;
+			sub_ctx_handle(work);
 		}
 		else {
 			work->msg   = NULL;

@@ -3,6 +3,7 @@
 #include <nng/protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
 #include "include/subscribe_handle.h"
+#include "include/mqtt_db.h"
 
 uint8_t subscribe_handle(nng_msg * msg){
 	// handle subscribe fixed header
@@ -20,10 +21,8 @@ uint8_t subscribe_handle(nng_msg * msg){
 	}
 	if((reason_code = encode_suback_message(msg, &sub_pkt)) != SUCCESS){
 		return reason_code;
-	}else {
-		// TODO send the msg
 	}
-	sub_ctx_handle(msg, &sub_pkt);
+//	sub_ctx_handle(msg, &sub_pkt);
 	debug_msg("END OF SUBSCRIBE Handle. ");
 	return SUCCESS;
 }
@@ -66,12 +65,12 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 						break;
 					case USER_PROPERTY:
 						// key
-						len_of_str = get_utf8_str(sub_pkt->user_property.strpair.str_key, variable_ptr, &vpos);
+						len_of_str = get_utf8_str(&(sub_pkt->user_property.strpair.str_key), variable_ptr, &vpos);
 						sub_pkt->user_property.strpair.len_key = len_of_str;
 						// vpos += len_of_str;
 
 						// value
-						len_of_str = get_utf8_str(sub_pkt->user_property.strpair.str_value, variable_ptr, &vpos);
+						len_of_str = get_utf8_str(&(sub_pkt->user_property.strpair.str_value), variable_ptr, &vpos);
 						sub_pkt->user_property.strpair.str_value = len_of_str;
 						// vpos += len_of_str;
 						break;
@@ -97,15 +96,18 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	topic_node_t->next = NULL;
 
 	while(1){
-		debug_msg("originData: %x %x", payload_ptr[bpos], payload_ptr[bpos+1]);
 		topic_with_option * topic_option = nng_alloc(sizeof(topic_with_option));
 		topic_node_t->it = topic_option;
 		_topic_node = topic_node_t;
 
-		len_of_topic = get_utf8_str(topic_option->topic_filter.str_body, payload_ptr, &bpos); // len of topic filter
-		topic_option->topic_filter.len = len_of_topic;
+		len_of_topic = get_utf8_str(&(topic_option->topic_filter.str_body), payload_ptr, &bpos); // len of topic filter
+		if(len_of_topic != -1){
+			topic_option->topic_filter.len = len_of_topic;
+		}else {
+			debug_msg("NOT utf-8 format string. ");
+		}
 
-		debug_msg("Length of topic: %d topic_node: %s. ", len_of_topic, topic_option->topic_filter.str_body);
+		debug_msg("Length of topic: %d topic_node: %x %x. ", len_of_topic, (uint8_t)(topic_option->topic_filter.str_body[0]), (uint8_t)(topic_option->topic_filter.str_body[1]));
 
 		memcpy(topic_option, payload_ptr+bpos, 1);
 
@@ -164,45 +166,38 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	return SUCCESS;
 }
 
-void sub_ctx_handle(nng_msg * msg, packet_subscribe * sub_pkt){
+void sub_ctx_handle(emq_work * work){
 	// generate ctx for each topic
-	debug_msg("Generate ctx for echo topic");
+	debug_msg("Generate ctx for each topic");
 	bool version_v5 = false;
-	topic_node * topic_node_t = sub_pkt->node;
-	struct ctx_sub * ctx_sub;
+	topic_node * topic_node_t = work->sub_pkt->node;
 
-	while(topic_node_t){
-		ctx_sub = nng_alloc(sizeof(ctx_sub));
-		if(version_v5){
-			ctx_sub->user_property.strpair.str_key = sub_pkt->user_property.strpair.str_key;
-			ctx_sub->user_property.strpair.len_key = sub_pkt->user_property.strpair.len_key;
-			ctx_sub->user_property.strpair.str_value = sub_pkt->user_property.strpair.str_value;
-			ctx_sub->user_property.strpair.len_value = sub_pkt->user_property.strpair.len_value;
-			// if(){} length should be limited
-		}
-		ctx_sub->topic_option = topic_node_t->it;
-		topic_node_t = topic_node_t->next;
-		debug_msg("Ctx generating.....");
-		// insert ctx into tree, expose to app-layer to handle
-		nng_free(ctx_sub, sizeof(ctx_sub));
-	}
-/*
 	// insert ctx_sub into treeDB
-	struct client * client = nng_alloc(sizeof(struct client));
-	struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
-	char topic_str[6] = "a/b/t";
-	search_node(work->db, topic_str, &tan);
-	add_node(tan, client);
+	while(topic_node_t){
+		struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
+		struct client * client = nng_alloc(sizeof(struct client));
+		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
+		client->ctxt = work;
+
+		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, (char *)topic_node_t->it->topic_filter.str_body);
+		search_node(work->db, topic_node_t->it->topic_filter.str_body, &tan);
+		add_node(tan, client);
+		topic_node_t = topic_node_t->next;
+	}
 
 	// check treeDB
-	debug_msg("start check dbtree");
+	debug_msg("---check dbtree---");
+	int count = 0;
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
 		for(struct db_node * snode = mnode; snode; snode = snode->next){
-			debug_msg("%s ", snode->topic);
+			debug_msg("%d: %s ", count, snode->topic);
 		}
 		debug_msg("----------");
+		if(++count > 1){
+			break;
+		}
 	}
-*/
+
 	debug_msg("End of sub ctx handle. \n");
 }
 
