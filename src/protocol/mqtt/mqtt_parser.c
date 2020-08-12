@@ -110,16 +110,15 @@ uint32_t get_var_integer(const uint8_t *buf, int *pos)
  * @param pos
  * @return string length -1: not utf-8, 0: empty string, >0 : normal utf-8 string
  */
-int32_t get_utf8_str(char *dest, const uint8_t *src, int *pos)
+int32_t get_utf8_str(char **dest, const uint8_t *src, int *pos)
 {
 	int32_t str_len = 0;
 	NNI_GET16(src + (*pos), str_len);
-	debug_msg("strlen %d %d", str_len, pos);
 
 	*pos = (*pos) + 2;
 	if (str_len > 0) {
 		if (utf8_check((const char *) (src + *pos), str_len) == ERR_SUCCESS) {
-			dest = (char *) (src + (*pos));
+			*dest = (char *) (src + (*pos));
 			*pos = (*pos) + str_len;
 		} else {
 			str_len = -1;
@@ -243,11 +242,11 @@ int utf8_check(const char *str, size_t len)
 	return ERR_SUCCESS;
 }
 
-uint16_t get_variable_binary(uint8_t *dest, const uint8_t *src)
+uint16_t get_variable_binary(uint8_t **dest, const uint8_t *src)
 {
 	uint16_t len = 0;
 	NNI_GET16(src, len);
-	dest = (uint8_t *) (src + 2);
+	*dest = (uint8_t *) (src + 2);
 	return len;
 }
 
