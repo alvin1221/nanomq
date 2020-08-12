@@ -6,7 +6,6 @@
 #include <nng/protocol/mqtt/emq_tcp.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
- 
 
 struct work {
 	enum { INIT, RECV, WAIT, SEND } state;

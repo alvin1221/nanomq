@@ -96,11 +96,10 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	topic_node_t->next = NULL;
 
 	while(1){
-		debug_msg("originData: %p %x", payload_ptr+2, payload_ptr[bpos+1]);
 		topic_with_option * topic_option = nng_alloc(sizeof(topic_with_option));
 		topic_node_t->it = topic_option;
 		_topic_node = topic_node_t;
-		
+
 		len_of_topic = get_utf8_str(&(topic_option->topic_filter.str_body), payload_ptr, &bpos); // len of topic filter
 		if(len_of_topic != -1){
 			topic_option->topic_filter.len = len_of_topic;
@@ -175,16 +174,10 @@ void sub_ctx_handle(emq_work * work){
 
 	// insert ctx_sub into treeDB
 	while(topic_node_t){
-		// TODO: init client 
 		struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
 		struct client * client = nng_alloc(sizeof(struct client));
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
-
-		/*
-		char * topic_str = topic_node_t->it->topic_filter.str_body;
-		debug_msg("BBBBBBody: %x %x %x %x %x %x", topic_str[0], topic_str[1], topic_str[2], topic_str[3], topic_str[4], topic_str[5]);
-		*/
 
 		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, (char *)topic_node_t->it->topic_filter.str_body);
 		search_node(work->db, topic_node_t->it->topic_filter.str_body, &tan);
@@ -196,14 +189,13 @@ void sub_ctx_handle(emq_work * work){
 	debug_msg("---check dbtree---");
 	int count = 0;
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
-		for(struct db_node * snode = mnode; snode && snode->topic; snode = snode->next){
+		for(struct db_node * snode = mnode; snode; snode = snode->next){
 			debug_msg("%d: %s ", count, snode->topic);
 		}
 		debug_msg("----------");
-		if(++count > 2){
+		if(++count > 1){
 			break;
 		}
-
 	}
 
 	debug_msg("End of sub ctx handle. \n");
