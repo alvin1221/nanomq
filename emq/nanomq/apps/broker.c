@@ -38,31 +38,31 @@ fatal(const char *func, int rv)
 	     2 KV
 	     3 tree 
 */
-	     void
+void
 server_cb(void *arg)
 {
-	struct work *work = arg;
-	nng_msg *    msg;
-	nng_msg *    smsg;
-	int          rv;
-	uint32_t     when;
-	uint8_t      buf[2] = {1,2};
-	uint8_t      reason_code;
+	struct work *work       = arg;
+	nng_msg *msg;
+	nng_msg *smsg;
+	int              rv;
+	uint32_t         when;
+	uint8_t          buf[2] = {1, 2};
+	uint8_t          reason_code;
 	packet_subscribe sub_pkt;
 
 	switch (work->state) {
-	case INIT:
-		printf("INIT ^^^^^^^^^^^^^^^^^^^^^ \n");
-                work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
-		printf("INIT!!\n");
-		break;
-	case RECV:
-		printf("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
-                if ((rv = nng_aio_result(work->aio)) != 0) {
-                        fatal("nng_ctx_recv", rv);
-                }
-                msg = nng_aio_get_msg(work->aio);
+		case INIT:
+			printf("INIT ^^^^^^^^^^^^^^^^^^^^^ \n");
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+			printf("INIT!!\n");
+			break;
+		case RECV:
+			printf("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
+			if ((rv = nng_aio_result(work->aio)) != 0) {
+				fatal("nng_ctx_recv", rv);
+			}
+			msg     = nng_aio_get_msg(work->aio);
 /*
                 if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
                         // bad message, just ignore it.
@@ -72,82 +72,100 @@ server_cb(void *arg)
                         return;
                 }
 */
-                work->msg   = msg;
-                work->state = WAIT;
-                printf("RECV ********************* msg: %s ******************************************\n", (char *)nng_msg_body(work->msg));
-                nng_sleep_aio(200, work->aio);
-                break;
-	case WAIT:
-		// We could add more data to the message here.
-		work->cparam = nng_msg_get_conn_param(work->msg);
-		printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d\n", nng_msg_cmd_type(work->msg), conn_param_get_clentid(work->cparam), work->ctx.id);
+			work->msg   = msg;
+			work->state = WAIT;
+			printf("RECV ********************* msg: %s ******************************************\n",
+			       (char *) nng_msg_body(work->msg));
+			nng_sleep_aio(200, work->aio);
+			break;
+		case WAIT:
+			// We could add more data to the message here.
+			work->cparam = nng_msg_get_conn_param(work->msg);
+			printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d\n", nng_msg_cmd_type(work->msg),
+			       conn_param_get_clentid(work->cparam), work->ctx.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
         }
 */
-                //reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
-                //TODO
-        if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
-            printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
-        }
-        if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
-			buf[0] = CMD_PINGRESP;
-			buf[1] = 0x00;
-			debug_msg("reply PINGRESP\n");
+			//reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
+			//TODO
+			if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
+				printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
+			}
+			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
+				buf[0] = CMD_PINGRESP;
+				buf[1] = 0x00;
+				debug_msg("reply PINGRESP\n");
 
-			if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
-				printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
+				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
+					printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
+				}
+				work->msg = smsg;
+				// We could add more data to the message here.
+				nng_aio_set_msg(work->aio, work->msg);
+
+				printf("before send aio msg %s\n", (char *) nng_msg_body(work->msg));
+				work->msg   = NULL;
+				work->state = SEND;
+				nng_ctx_send(work->ctx, work->aio);
+
+			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
+				debug_msg("reply Subscribe.");
+				if ((reason_code = decode_sub_message(work->msg, &sub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in decode: %x.", reason_code);
+				}
+				if ((reason_code = encode_suback_message(work->msg, &sub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in encode: %x.", reason_code);
+				}
+				debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(work->msg)),
+				          *((uint8_t *) nng_msg_header(work->msg) + 1), *((uint8_t *) nng_msg_body(work->msg)),
+				          *((uint8_t *) nng_msg_body(work->msg) + 1));
+				smsg = work->msg;
+				// TODO handle the sub_ctx & ops to tree
+				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", sub_pkt.packet_id, sub_pkt.node->it->topic_filter.len);
+				work->sub_pkt = &sub_pkt;
+				sub_ctx_handle(work);
+				work->msg = smsg;
+				// We could add more data to the message here.
+				nng_aio_set_msg(work->aio, work->msg);
+
+				printf("before send aio msg %s\n", (char *) nng_msg_body(work->msg));
+				work->msg   = NULL;
+				work->state = SEND;
+				nng_ctx_send(work->ctx, work->aio);
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
+				pub_handler(work);
+
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
+				pub_handler(work);
+			} else {
+				work->msg   = NULL;
+				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
+				break;
 			}
-		} else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
-			debug_msg("reply Subscribe.");
-			if((reason_code = decode_sub_message(work->msg, &sub_pkt)) != SUCCESS){
-				debug_msg("ERROR in decode: %x.", reason_code);
+
+
+			//nng_ctx_recv(work->ctx, work->aio);
+			printf("after send aio\n");
+			//work->state = RECV;
+			//nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here
+			//printf("WAIT ********************* msg: %s ******************************************\n", (char *)nng_msg_body(work->msg));
+
+			break;
+		case SEND:
+			printf("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
+			if ((rv = nng_aio_result(work->aio)) != 0) {
+				nng_msg_free(work->msg);
+				fatal("nng_ctx_send", rv);
 			}
-			if((reason_code = encode_suback_message(work->msg, &sub_pkt)) != SUCCESS){
-				debug_msg("ERROR in encode: %x.", reason_code);
-			}
-			debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(work->msg)), *((uint8_t *)nng_msg_header(work->msg)+1), *((uint8_t *)nng_msg_body(work->msg)), *((uint8_t *)nng_msg_body(work->msg)+1));
-			smsg = work->msg;
-			// TODO handle the sub_ctx & ops to tree
-			debug_msg("In sub_pkt: pktid:%d, topicLen: %d", sub_pkt.packet_id, sub_pkt.node->it->topic_filter.len);
-			work->sub_pkt = &sub_pkt;
-			sub_ctx_handle(work);
-		}
-		else {
-			work->msg   = NULL;
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 			break;
-		}
-
-		work->msg   = smsg;
-		// We could add more data to the message here.
-		nng_aio_set_msg(work->aio, work->msg);
-
-		printf("before send aio msg %s\n",(char *)nng_msg_body( work->msg));
-		work->msg   = NULL;
-		work->state = SEND;
-		nng_ctx_send(work->ctx, work->aio);
-		//nng_ctx_recv(work->ctx, work->aio);
-		printf("after send aio\n");
-		//work->state = RECV;
-		//nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here
-		//printf("WAIT ********************* msg: %s ******************************************\n", (char *)nng_msg_body(work->msg));
-
-		break;
-	case SEND:
-		printf("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
-		if ((rv = nng_aio_result(work->aio)) != 0) {
-			nng_msg_free(work->msg);
-			fatal("nng_ctx_send", rv);
-		}
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
-		break;
-	default:
-		fatal("bad state!", NNG_ESTATE);
-		break;
+		default:
+			fatal("bad state!", NNG_ESTATE);
+			break;
 	}
 }
 
@@ -155,9 +173,9 @@ struct work *
 alloc_work(nng_socket sock)
 {
 	struct work *w;
-	int          rv;
+	int         rv;
 
-	if ((w = nng_alloc(sizeof(*w))) == NULL) {
+	if ((w  = nng_alloc(sizeof(*w))) == NULL) {
 		fatal("nng_alloc", NNG_ENOMEM);
 	}
 	if ((rv = nng_aio_alloc(&w->aio, server_cb, w)) != 0) {
@@ -175,10 +193,10 @@ alloc_work(nng_socket sock)
 int
 server(const char *url)
 {
-	nng_socket   sock;
-	struct work *works[PARALLEL];
-	int          rv;
-	int          i;
+	nng_socket     sock;
+	struct work    *works[PARALLEL];
+	int            rv;
+	int            i;
 	// init tree
 	struct db_tree *db;
 	create_db_tree(&db);
