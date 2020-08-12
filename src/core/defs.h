@@ -39,9 +39,9 @@ typedef nng_aio           nni_aio;
 typedef struct nng_event  nni_event;
 typedef struct nng_notify nni_notify;
 
-//EMQTT
-typedef struct conn_param emq_conn_param;
-typedef struct conn_propt emq_conn_propt;
+//nanomq
+typedef struct conn_param nano_conn_param;
+typedef struct conn_propt nano_conn_propt;
 
 // These are our own names.
 typedef struct nni_socket   nni_sock;

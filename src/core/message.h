@@ -20,7 +20,7 @@ struct conn_propt {
 	u_int8_t	session_exp_int[5];
 };
 
-//ZALLOC later
+//TODO use ZALLOC later
 struct conn_param {
 	uint8_t		pro_ver;
 	uint8_t		pro_name[10];

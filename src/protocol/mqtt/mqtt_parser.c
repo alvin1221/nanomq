@@ -313,6 +313,7 @@ int32_t conn_handler(u_int8_t *packet, conn_param *cparam)
 	cparam->clean_start = cparam->con_flag & 0x02;
 	cparam->will_flag   = cparam->con_flag & 0x04;
 	cparam->will_qos    = cparam->con_flag & 0x18;
+	cparam->will_retain = cparam->con_flag & 0x20;
 	debug_msg("conn flag:%x", cparam->con_flag);
 	pos ++;
 	//keepalive

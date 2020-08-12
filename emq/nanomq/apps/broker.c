@@ -180,7 +180,7 @@ server(const char *url)
 	create_db_tree(&db);
 
 	/*  Create the socket. */
-	rv = nng_emq_tcp0_open(&sock);
+	rv = nng_nano_tcp0_open(&sock);
 	if (rv != 0) {
 		fatal("nng_rep0_open", rv);
 	}

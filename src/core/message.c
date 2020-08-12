@@ -38,7 +38,7 @@ struct nng_msg {
 	uint8_t		 CMD_TYPE;
 //	uint8_t		 *variable_ptr;		//equal to m_body
 	uint8_t		 *payload_ptr;		//payload
-	emq_conn_param	 *cparam;
+	nano_conn_param	 *cparam;
 };
 
 #if 0

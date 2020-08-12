@@ -54,7 +54,7 @@ struct tcptran_pipe {
 	nni_msg *       rxmsg;
 	nni_mtx         mtx;
 	uint32_t	remain_len;
-	emq_conn_param	tcp_cparam;
+	conn_param	tcp_cparam;
 	//uint8_t	sli_win[5];	//use aio multiple times instead of seperating 2 packets manually
 };
 
@@ -348,6 +348,12 @@ tcptran_pipe_send_cb(void *arg)
 	aio = nni_list_first(&p->sendq);
 
 	debug_msg("###############tcptran_pipe_send_cb################ %s", aio);
+	if (aio == NULL || p->rxmsg == NULL) {
+		//nni_pipe_bump_tx(p->npipe, n);
+		// be aware null aio BUG
+		nni_mtx_unlock(&p->mtx);
+		return;
+	}
 	if ((rv = nni_aio_result(txaio)) != 0) {
 		nni_pipe_bump_error(p->npipe, rv);
 		// Intentionally we do not queue up another transfer.
@@ -364,11 +370,7 @@ tcptran_pipe_send_cb(void *arg)
 	n = nni_aio_count(txaio);
 	nni_aio_iov_advance(txaio, n);
 	debug_msg("sent %d iov %d", n, nni_aio_iov_count(txaio));
-	if (aio == NULL || p->rxmsg == NULL) {
-		nni_pipe_bump_tx(p->npipe, n);
-		nni_mtx_unlock(&p->mtx);
-		return;
-	}
+
 	if (nni_aio_iov_count(txaio) > 0) {
 		nng_stream_send(p->conn, txaio);
 		nni_mtx_unlock(&p->mtx);
@@ -449,7 +451,7 @@ tcptran_pipe_recv_cb(void *arg)
 		return;
 	} else if (len == 0 && n == 2) {
 		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
-		//TODO PINGRESP (PUBACK SUBACK) here? BETTER NOT
+		//BUG? PINGRESP (PUBACK SUBACK) here? BETTER NOT
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;

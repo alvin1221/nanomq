@@ -15,17 +15,17 @@
 extern "C" {
 #endif
 
-NNG_DECL int nng_emq_tcp0_open(nng_socket *);
+NNG_DECL int nng_nano_tcp0_open(nng_socket *);
 
-#ifndef nng_emq_tcp_open
-#define nng_emq_tcp_open nng_emq_tcp0_open
+#ifndef nng_nano_tcp_open
+#define nng_nano_tcp_open nng_nano_tcp0_open
 #endif
 
 
-#define NNG_EMQ_TCP_SELF 0x31
-#define NNG_EMQ_TCP_PEER 0x30
-#define NNG_EMQ_TCP_SELF_NAME "emq_rep"
-#define NNG_EMQ_TCP_PEER_NAME "emq_req"
+#define NNG_NANO_TCP_SELF 0x31
+#define NNG_NANO_TCP_PEER 0x30
+#define NNG_NANO_TCP_SELF_NAME "nano_rep"
+#define NNG_NANO_TCP_PEER_NAME "nano_req"
 
 #ifdef __cplusplus
 }

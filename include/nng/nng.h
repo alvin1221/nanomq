@@ -693,7 +693,6 @@ NNG_DECL int      nng_msg_realloc(nng_msg *, size_t);
 NNG_DECL void *   nng_msg_header(nng_msg *);
 NNG_DECL size_t   nng_msg_header_len(const nng_msg *);
 NNG_DECL void *   nng_msg_body(nng_msg *);
-NNG_DECL conn_param *   nng_msg_get_conn_param(nng_msg *msg);
 NNG_DECL size_t   nng_msg_len(const nng_msg *);
 NNG_DECL int      nng_msg_append(nng_msg *, const void *, size_t);
 NNG_DECL int      nng_msg_insert(nng_msg *, const void *, size_t);
@@ -742,8 +741,21 @@ NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *, uint8_t *);
 NNG_DECL void     nng_msg_set_remaining_len(nng_msg *, size_t);
 
 
-//conn_param
-NNG_DECL uint8_t* conn_param_get_clentid(conn_param *cparam);
+//NANOMQ
+NNG_DECL const uint8_t * conn_param_get_clentid(conn_param *cparam);
+NNG_DECL const conn_param *   nng_msg_get_conn_param(nng_msg *msg);
+NNG_DECL const uint8_t * conn_param_get_pro_name(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_will_topic(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_will_msg(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_username(conn_param *cparam);
+NNG_DECL const uint8_t * conn_param_get_password(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_con_flag(conn_param *cparam);
+NNG_DECL const uint16_t  conn_param_get_keepalive(conn_param *cparam);
+NNG_DECL const uint8_t   conn_param_get_protover(conn_param *cparam);
+
+
+
+
 
 // nng_msg_getopt is defunct, and should not be used by programs. It
 // always returns NNG_ENOTSUP.
