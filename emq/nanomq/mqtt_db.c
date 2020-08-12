@@ -76,6 +76,7 @@ void add_node(struct topic_and_node *input, struct client *id)
     }
     new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
     memcpy(new_node->sub_client, id, sizeof(struct client));
+	new_node->sub_client->next = NULL;
     return;
 }
 
@@ -193,7 +194,8 @@ void add_client(struct topic_and_node *input, char *id)
     struct client *cli_add = NULL;
     cli_add = (struct client*)zmalloc(sizeof(struct client));
     cli_add->id = (char*)zmalloc(strlen(id)+1);
-    memcpy(cli_add->id, id, strlen(id)+1);
+    memcpy(cli_add->id, id, strlen(id));
+	cli_add->id[strlen(id)] = '\0';
     puts(cli_add->id);
 
     if (input->node->sub_client == NULL) {
@@ -202,10 +204,10 @@ void add_client(struct topic_and_node *input, char *id)
         // input->node->len++;
         struct client* client = input->node->sub_client;
         while (client->next) { 
-   // puts("2@@@@");
+    // puts("2@@@@");
             client = client->next;
         }
-    // puts(cli_add->id);
+    // puts("3@@@@");
         client->next = cli_add;
 		client->next->next = NULL;
     }

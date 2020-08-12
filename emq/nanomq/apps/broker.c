@@ -48,7 +48,6 @@ server_cb(void *arg)
 	uint32_t     when;
 	uint8_t      buf[2] = {1,2};
 	uint8_t      reason_code;
-	packet_subscribe sub_pkt;
 
 	switch (work->state) {
 	case INIT:
@@ -100,15 +99,15 @@ server_cb(void *arg)
 				printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
 			}
 		} else if(nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE){
-			if((reason_code = decode_sub_message(work->msg, &sub_pkt)) != SUCCESS){
+			*(&(work->sub_pkt)) = nng_alloc(sizeof(struct packet_subscribe));
+			if((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS){
 				debug_msg("ERROR in decode: %x.", reason_code);
 			}
 			// TODO handle the sub_ctx & ops to tree
-			debug_msg("In sub_pkt: pktid:%d, topicLen: %d", sub_pkt.packet_id, sub_pkt.node->it->topic_filter.len);
-			work->sub_pkt = &sub_pkt;
+			debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id, work->sub_pkt->node->it->topic_filter.len);
 			sub_ctx_handle(work);
 
-			if((reason_code = encode_suback_message(smsg, &sub_pkt)) != SUCCESS){
+			if((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS){
 				debug_msg("ERROR in encode: %x.", reason_code);
 			}
 			debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(smsg)), *((uint8_t *)nng_msg_header(smsg)+1), *((uint8_t *)nng_msg_body(smsg)), *((uint8_t *)nng_msg_body(smsg)+1));

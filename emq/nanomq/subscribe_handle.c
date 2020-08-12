@@ -5,6 +5,7 @@
 #include "include/subscribe_handle.h"
 #include "include/mqtt_db.h"
 
+/*
 uint8_t subscribe_handle(nng_msg * msg){
 	// handle subscribe fixed header
 	uint8_t *  header_ptr;
@@ -26,6 +27,7 @@ uint8_t subscribe_handle(nng_msg * msg){
 	debug_msg("END OF SUBSCRIBE Handle. ");
 	return SUCCESS;
 }
+*/
 
 uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
@@ -189,8 +191,8 @@ void sub_ctx_handle(emq_work * work){
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, topic_str);
 		search_node(work->db, topic_str, &tan);
-		debug_msg("EEEEEEERRSEARCH");
-		printf("tan: %s, %s\n", tan->topic, tan->node->topic);
+		debug_msg("finish SEARCH_NODE");
+		//printf("tan: %s, %s\n", tan->topic, tan->node->topic);
 		if(tan->topic){
 			add_node(tan, client);
 		}else{
@@ -201,7 +203,7 @@ void sub_ctx_handle(emq_work * work){
 			}
 		}
 		topic_node_t = topic_node_t->next;
-		debug_msg("EEEEEEERRADD");
+		debug_msg("finish ADD_CLIENT");
 		nng_free(tan, sizeof(struct topic_and_node));
 	}
 
