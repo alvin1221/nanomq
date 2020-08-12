@@ -71,17 +71,9 @@ static void Test_add_node(void)
     struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
     search_node(db, data, &res);
     add_node(res, &ID1);
+	print_db_tree(db);
 
 
-   //  char **topic_queue = topic_parse(data);
-   //  struct client* sub_client = NULL;
-   //  sub_client = search_client(db->root, topic_queue);
-   //  int i = 10;
-   //  while (sub_client && i > 0) {
-   //  	printf("RES: sub_client is:%s\n", sub_client->id);
-   //      sub_client = sub_client->next;
-   //  	i--;
-   //  }
 
     search_node(db, data, &res);
     add_client(res, ID1.id);
@@ -100,7 +92,16 @@ static void Test_del_node(void)
     struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
     search_node(db, data, &res);
     add_client(res, ID1.id);
-    puts(ID1.id);
+	char **topic_queue = topic_parse(data);
+   	struct clients* res_clients = NULL;
+   	res_clients = search_client(db->root, topic_queue);
+	struct client *sub_client = res_clients->sub_client;
+   	int i = 3;
+   	while (sub_client && i > 0) {
+   		printf("RES: sub_client is:%s\n", sub_client->id);
+   	    sub_client = sub_client->next;
+   		i--;
+   	}
 
     del_client(res, ID1.id);
     del_node(res->node);
@@ -108,7 +109,6 @@ static void Test_del_node(void)
     del_node(res->node);
     del_client(res, ID1.id);
     del_node(res->node);
-    // del_node(db->root->down->down->down);
 }
 
 static void Test_hash_table(void) 

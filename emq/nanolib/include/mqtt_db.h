@@ -6,9 +6,6 @@
 #include <stdbool.h>
 
 typedef enum {UNEQUAL = -1, EQUAL = 0 } node_state;
-// typedef enum {null = 0, hashtag = 1, plus = 2, both = 3} wildcard;
-    
-
 
 struct mqtt_ctxt {
     // TODO
@@ -20,6 +17,14 @@ struct client {
     struct client		*next;
 	size_t				len;
 };
+
+struct clients {
+	struct client*		sub_client;
+	struct clients*		down;
+	int					len;
+};
+
+
 
 struct db_node {
     char                *topic;
@@ -33,7 +38,6 @@ struct db_node {
     struct db_node      *down;
     struct db_node      *next;
     node_state			state;
-	// wildcard			wc;			
     // int					first;
 
     /* hash func will work if len > 3 */ 
@@ -58,7 +62,9 @@ struct db_tree{
 void create_db_tree(struct db_tree **db);
 
 /* Delete a db_tree */
-void delete_db_tree(struct db_tree *db);
+void destory_db_tree(struct db_tree *db);
+
+void print_db_tree(struct db_tree *db);
 
 /* Search node in db_tree*/
 // struct topic_and_node *search_node(struct db_tree *db, char *topic_data);
@@ -77,7 +83,7 @@ void free_node(struct db_node *node);
 /* Parsing topic from char* with '/' to char** */
 char **topic_parse(char *topic);
 
-struct client *search_client(struct db_node *root, char **topic_queue);
+struct clients *search_client(struct db_node *root, char **topic_queue);
 
 /* Delete client id. */
 void del_client(struct topic_and_node *input, char *id);
@@ -91,7 +97,6 @@ char* hash_check_topic(int alias);
 void hash_add_topic(int alias, char *topic_data);
 
 void hash_del_topic(int alias);
-
 
 
 

@@ -48,7 +48,8 @@ add_library(nanolib_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 
 
-#add_executable(test hash.cc mqtt_db.c test.c zmalloc.c)
+add_executable(test test.c)
+target_link_libraries(test libnanolib_shared)
 
 install(TARGETS ${PROJECT_NAME} EXPORT nanolibConfig
     ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
