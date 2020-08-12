@@ -451,7 +451,7 @@ tcptran_pipe_recv_cb(void *arg)
 		return;
 	} else if (len == 0 && n == 2) {
 		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
-		//BUG? PINGRESP (PUBACK SUBACK) here? BETTER NOT
+		//BUG? PINGRESP (PUBACK SUBACK) here
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
