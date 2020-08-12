@@ -77,6 +77,7 @@ struct topic_with_option {
 	uint8_t         retain_as_publish: 1;
 	uint8_t         retain_handling: 4; // !!!!!TODO actually 2 bits
 	mqtt_string     topic_filter;
+	uint8_t         reason_code;
 };
 typedef struct topic_with_option topic_with_option;
 
