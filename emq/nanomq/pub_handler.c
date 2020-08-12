@@ -28,8 +28,9 @@ uint64_t get_uint64(const uint8_t *buf);
 
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
-
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
+static void
+forward_msg(struct topic_and_node *res_node, char *topic, nng_msg *send_msg, struct pub_packet_struct *pub_packet);
 
 /**
  * pub handler
@@ -40,15 +41,14 @@ void pub_handler(void *arg)
 {
 	emq_work *work = arg;
 
-
-	//TODO remove
-	struct pub_packet_struct *pub_packet   = NULL; //TODO get from nng_msg context
+	struct pub_packet_struct *pub_packet   = work->pub_packet;
 
 	struct topic_and_node    *res_node;
-	struct pub_packet_struct *pub_response = NULL;
-	struct variable_string   *topic_name   = NULL;
+	struct pub_packet_struct *pub_response = NULL;;
+	struct variable_string *topic = NULL;
 
-	nng_msg *send_msg;
+	nng_msg *send_msg = NULL;
+
 
 	if (decode_pub_message(work->msg, work->pub_packet)) {
 
@@ -67,14 +67,14 @@ void pub_handler(void *arg)
 						return;
 					}
 
-					if (pub_packet->variable_header.publish.topic_name.str_len == 0) {
+					if (pub_packet->variable_header.publish.topic.str_len == 0) {
 						//TODO
 						// 1, query the entire Topic Name through Topic alias
 						// 2, if query failed, Send a DISCONNECT Packet with Reason Code "0x82" before close the connection and return (MQTT 5.0);
 						// 3, if query succeed, query node and data structure through Topic Name
 
 					} else {
-						topic_name = &pub_packet->variable_header.publish.topic_name;
+						topic = &pub_packet->variable_header.publish.topic;
 						//TODO
 						// 1, update Map value of Topic Alias
 						// 2, query node and data structure through Topic Name
@@ -83,11 +83,12 @@ void pub_handler(void *arg)
 				//TODO save some useful publish message info and properties to global mqtt context while decode succeed
 #endif
 
-
+				//TODO add some logic if support MQTT3.1.1 & MQTT5.0
+				topic = &pub_packet->variable_header.publish.topic_name;
 				//do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
 
 				res_node = (struct topic_and_node *) zmalloc(sizeof(struct topic_and_node));
-				search_node(work->db, topic_name->str_body, &res_node);
+				search_node(work->db, topic->str_body, &res_node);
 
 				if (pub_packet->fixed_header.retain == 1) {
 					//store this message to the topic node
@@ -118,30 +119,37 @@ void pub_handler(void *arg)
 						//publish only once
 						pub_packet->fixed_header.dup = 0;
 
-						encode_pub_message(send_msg, pub_packet);
+						forward_msg(res_node, topic->str_body, send_msg, pub_packet);
 
-						struct client *clients = search_client(res_node->node, &topic_name->str_body);
-
-						while (clients) {
-							emq_work *client_work = (emq_work *) clients->ctxt;
-
-							client_work->state = SEND;
-							client_work->msg   = send_msg;
-
-							debug_msg("send msg to client.id: %s, ctx.id: %d\n", clients->id, client_work->ctx.id);
-							print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
-							print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
-
-							nng_aio_set_msg(client_work->aio, send_msg);
-							nng_ctx_send(client_work->ctx, client_work->aio);
-
-							clients = clients->next;
-						}
-						//TODO need to free send_msg ?
 
 						break;
 
 					case 1:
+						pub_packet->fixed_header.dup = 0;
+
+						forward_msg(res_node, topic->str_body, send_msg, pub_packet);
+
+						pub_response = nng_alloc(sizeof(struct pub_packet_struct *));
+
+						pub_response->fixed_header.packet_type = PUBACK;
+						pub_response->fixed_header.dup         = 0;
+						pub_response->fixed_header.qos         = 0;
+						pub_response->fixed_header.retain      = 0;
+						pub_response->fixed_header.remain_len  = 2;
+
+						pub_response->variable_header.puback.packet_identifier =
+								pub_packet->variable_header.publish.packet_identifier;
+
+						encode_pub_message(send_msg, pub_response);
+
+						//response PUBACK to client
+						work->state = SEND;
+						work->msg   = send_msg;
+						nng_aio_set_msg(work->aio, work->msg);
+						nng_ctx_send(work->ctx, work->aio);
+
+						nng_free(pub_response, sizeof(struct pub_packet_struct *));
+
 						break;
 
 					case 2:
@@ -152,23 +160,52 @@ void pub_handler(void *arg)
 						break;
 				}
 
-				//TODO search clients' pipe from topic_name
+				break;
 
+			case PUBACK:
 				break;
 
 			case PUBREL:
-			case PUBACK:
+				break;
+
 			case PUBREC:
+				break;
 			case PUBCOMP:
 				break;
 
 			default:
 				break;
 		}
-
 	}
 }
 
+
+static void
+forward_msg(struct topic_and_node *res_node, char *topic, nng_msg *send_msg, struct pub_packet_struct *pub_packet)
+{
+	struct client *clients = search_client(res_node->node, &topic);
+
+	emq_work *client_work;
+
+	while (clients) {
+		encode_pub_message(send_msg, pub_packet);
+
+		client_work = (emq_work *) clients->ctxt;
+
+		client_work->state = SEND;
+		client_work->msg   = send_msg;
+
+		debug_msg("send msg to client.id: %s, ctx.id: %d\n", clients->id, client_work->ctx.id);
+		print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
+		print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
+
+		nng_aio_set_msg(client_work->aio, send_msg);
+		nng_ctx_send(client_work->ctx, client_work->aio);
+
+		clients = clients->next;
+	}
+//	while (clients && nng_aio_result(client_work->aio) == );
+}
 
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
 {
@@ -275,7 +312,6 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 			break;
 
 		case PUBREL:
-			pub_packet->fixed_header.qos = 1; //set bit1 = 1;
 		case PUBACK:
 		case PUBREC:
 		case PUBCOMP:
@@ -384,7 +420,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 			case PUBLISH:
 				//variable header
 				//topic length
-				len = get_utf8_str(pub_packet->variable_header.publish.topic_name.str_body, msg_body + pos, &pos);
+				len = get_utf8_str(&pub_packet->variable_header.publish.topic_name.str_body, msg_body + pos, &pos);
 
 
 				debug_msg("get topic: %-*.*s, len: %d \n", len, len,
@@ -562,6 +598,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				pub_packet->payload_body.payload_len             = msg_len - used_pos;
 				pub_packet->payload_body.payload                 = msg_body + pos;
 				print_hex("payload: ", pub_packet->payload_body.payload, pub_packet->payload_body.payload_len);
+				debug_msg("payload len: %d\n", pub_packet->payload_body.payload_len);
 				break;
 
 			case PUBACK:
