@@ -111,18 +111,18 @@ server_cb(void *arg)
 				break;
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
-			work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
-			if((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS){
-				debug_msg("ERROR in decode: %x.", reason_code);
-			}
-			// TODO handle the sub_ctx & ops to tree
-			debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id, work->sub_pkt->node->it->topic_filter.len);
-			sub_ctx_handle(work);
+				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
+				if((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS){
+					debug_msg("ERROR in decode: %x.", reason_code);
+				}
+				// TODO handle the sub_ctx & ops to tree
+				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id, work->sub_pkt->node->it->topic_filter.len);
+				sub_ctx_handle(work);
 
-			if((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS){
-				debug_msg("ERROR in encode: %x.", reason_code);
-			}
-			debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(smsg)), *((uint8_t *)nng_msg_header(smsg)+1), *((uint8_t *)nng_msg_body(smsg)), *((uint8_t *)nng_msg_body(smsg)+1));
+				if((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS){
+					debug_msg("ERROR in encode: %x.", reason_code);
+				}
+				debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(smsg)), *((uint8_t *)nng_msg_header(smsg)+1), *((uint8_t *)nng_msg_body(smsg)), *((uint8_t *)nng_msg_body(smsg)+1));
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				//pub_handler(work);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {

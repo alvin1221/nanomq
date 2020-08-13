@@ -204,6 +204,8 @@ void sub_ctx_handle(emq_work * work){
 		}
 		topic_node_t = topic_node_t->next;
 		debug_msg("finish ADD_CLIENT");
+		search_node(work->db, topic_str, &tan);
+		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
 	}
 
@@ -213,9 +215,12 @@ void sub_ctx_handle(emq_work * work){
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
 		for(struct db_node * snode = mnode; snode; snode = snode->next){
 			debug_msg("%d: %s ", count, snode->topic);
+			if(count > 0 && snode->sub_client){
+				debug_msg("clientid: %s", snode->sub_client->id);
+			}
 		}
 		debug_msg("----------");
-		if(++count > 1){
+		if(++count > 2){
 			break;
 		}
 	}
