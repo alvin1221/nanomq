@@ -220,6 +220,7 @@ void add_client(struct topic_and_node *input, char *id)
 /* Search node */
 void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **tan)
 {
+	debug("start searching db: %p, topic_data: %s\n", db, topic_data);
     assert(db && topic_data);
     int len = 0;
     struct db_node *node = NULL;
@@ -275,6 +276,7 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
 			return;
         }
     }
+	debug("searching completed\n");
 	return;
 }
 
