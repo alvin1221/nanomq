@@ -75,6 +75,7 @@ void add_node(struct topic_and_node *input, struct client *id)
         new_node->down->up = new_node;
         new_node = new_node->down;
     }
+	new_node->down = NULL;
     new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
     memcpy(new_node->sub_client, id, sizeof(struct client));
 	new_node->sub_client->next = NULL;
@@ -265,7 +266,7 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
         } else if (*(topic_queue+1) == NULL) {
             node->state = EQUAL;
 			(*tan)->topic = NULL;
- 			(*tan)->node = node; 
+ 			(*tan)->node = node;
             node->state = EQUAL;
 			return;
         } else {
