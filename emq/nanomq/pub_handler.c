@@ -148,21 +148,8 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						break;
 
 					case 1:
-						encode_pub_message(send_msg, pub_response);
 
-						//response PUBACK to client
-						work->state = SEND;
-						work->msg   = send_msg;
-						nng_aio_set_msg(work->aio, work->msg);
-						nng_ctx_send(work->ctx, work->aio);
-						work->pub_packet->fixed_header.dup = 0;
-
-						forward_msg(work->db->root, res_node,
-						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
-						            work->pub_packet);
-
-						pub_response = nng_alloc(sizeof(struct pub_packet_struct *));
-
+						pub_response = nng_alloc(sizeof(struct pub_packet_struct));
 						pub_response->fixed_header.packet_type = PUBACK;
 						pub_response->fixed_header.dup         = 0;
 						pub_response->fixed_header.qos         = 0;
@@ -172,8 +159,19 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						pub_response->variable_header.puback.packet_identifier =
 								work->pub_packet->variable_header.publish.packet_identifier;
 
+						encode_pub_message(send_msg, pub_response);
 
-						nng_free(pub_response, sizeof(struct pub_packet_struct *));
+						//response PUBACK to client
+						work->state = SEND;
+						work->msg   = send_msg;
+						nng_aio_set_msg(work->aio, work->msg);
+						nng_ctx_send(work->ctx, work->aio);
+						work->pub_packet->fixed_header.dup = 0;
+						nng_free(pub_response, sizeof(struct pub_packet_struct));
+
+						forward_msg(work->db->root, res_node,
+						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
+						            work->pub_packet);
 
 						break;
 
@@ -236,7 +234,7 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 		client_work->state = SEND;
 		client_work->msg   = send_msg;
 
-		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n",clients->id, client_work->ctx.id, client_work->aio);
+		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n", clients->id, client_work->ctx.id, client_work->aio);
 
 		print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
 		print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
@@ -288,7 +286,7 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 			/*variable header*/
 			//topic name
 			if (pub_packet->variable_header.publish.topic_name.str_len > 0) {
-				debug_msg("topic length append ---> [%d]\n",pub_packet->variable_header.publish.topic_name.str_len );
+				debug_msg("topic length append ---> [%d]\n", pub_packet->variable_header.publish.topic_name.str_len);
 				nng_msg_append_u16(msg, pub_packet->variable_header.publish.topic_name.str_len);
 				debug_msg("topic append ---> [%s]\n", pub_packet->variable_header.publish.topic_name.str_body);
 				nng_msg_append(msg, pub_packet->variable_header.publish.topic_name.str_body,
