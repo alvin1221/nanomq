@@ -158,6 +158,11 @@ extern void nni_aio_bump_count(nni_aio *, size_t);
 extern void nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
 extern void nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
 
+//naomq api
+extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
+extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
+
+
 // nni_aio_schedule indicates that the AIO has begun, and is scheduled for
 // asychronous completion. This also starts the expiration timer. Note that
 // prior to this, the aio is uncancellable.  If the operation has a zero
@@ -220,6 +225,9 @@ struct nng_aio {
 
 	// Expire node.
 	nni_list_node a_expire_node;
+
+	// NanoMQ PipeID
+	uint32_t	pipe_id;
 };
 
 #endif // CORE_AIO_H

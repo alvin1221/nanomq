@@ -107,6 +107,7 @@ nni_hash_find_index(nni_idhash *h, uint64_t id)
 	start = index;
 	for (;;) {
 		// The value of ihe_key is only valid if ihe_val is not NULL.
+		printf("gogogogogogo  %d %d!!\n", h->ih_entries[index].ihe_key, id);
 		if ((h->ih_entries[index].ihe_key == id) &&
 		    (h->ih_entries[index].ihe_val != NULL)) {
 			return (index);
@@ -224,6 +225,7 @@ nni_idhash_remove(nni_idhash *h, uint64_t id)
 	nni_idhash_entry *ent;
 
 	nni_mtx_lock(&h->ih_mtx);
+	printf("hash remove!!!!!!!!!!!!!!!!!!****************************************\n");
 	if ((index = nni_hash_find_index(h, id)) == (size_t) -1) {
 		nni_mtx_unlock(&h->ih_mtx);
 		return (NNG_ENOENT);

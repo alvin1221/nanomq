@@ -309,18 +309,46 @@ nng_ctx_send(nng_ctx cid, nng_aio *aio)
 
 	if (nni_aio_get_msg(aio) == NULL) {
 		if (nni_aio_begin(aio) == 0) {
-		  printf("deal with it 1 !!!!!!!!!!");
 			nni_aio_finish_error(aio, NNG_EINVAL);
 		}
 		return;
 	}
 	if ((rv = nni_ctx_find(&ctx, cid.id, false)) != 0) {
+		printf("error: canot find context");
 		if (nni_aio_begin(aio) == 0) {
-			printf("deal with it 2 !!!!!!!!!!");
 			nni_aio_finish_error(aio, rv);
 		}
 		return;
 	}
+	printf("context id %d rv: %d\n", cid.id, rv);
+	//TODO pipe_id
+	nni_ctx_send(ctx, aio);
+	nni_ctx_rele(ctx);
+}
+
+void
+nng_ctx_pub(nng_ctx cid, nng_aio *aio, uint32_t **list)
+{
+	int      rv;
+	nni_ctx *ctx;
+	nni_msg *msg;
+
+	msg = nni_aio_get_msg(aio);
+	if (msg == NULL) {
+		if (nni_aio_begin(aio) == 0) {
+			nni_aio_finish_error(aio, NNG_EINVAL);
+		}
+		return;
+	}
+	if ((rv = nni_ctx_find(&ctx, cid.id, false)) != 0) {
+		printf("error: canot find context");
+		if (nni_aio_begin(aio) == 0) {
+			nni_aio_finish_error(aio, rv);
+		}
+		return;
+	}
+	printf("context id %d rv: %d\n", cid.id, rv);
+	//TODO pipe_id
 	nni_ctx_send(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -1475,6 +1503,12 @@ void
 nng_aio_set_msg(nng_aio *aio, nng_msg *msg)
 {
 	nni_aio_set_msg(aio, msg);
+}
+
+void
+nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
+{
+	nni_aio_set_pipeline(aio, id);
 }
 
 nng_msg *

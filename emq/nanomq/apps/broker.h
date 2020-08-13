@@ -12,6 +12,7 @@ struct work {
 	nng_aio *aio;
 	nng_msg *msg;
 	nng_ctx  ctx;
+	nng_pipe *pid;
 	struct db_tree *db;
 	conn_param *cparam;
 	struct pub_packet_struct *pub_packet;
