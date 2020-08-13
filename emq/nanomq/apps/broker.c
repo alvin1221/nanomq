@@ -123,20 +123,8 @@ server_cb(void *arg)
 				debug_msg("ERROR in encode: %x.", reason_code);
 			}
 			debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *)nng_msg_header(smsg)), *((uint8_t *)nng_msg_header(smsg)+1), *((uint8_t *)nng_msg_body(smsg)), *((uint8_t *)nng_msg_body(smsg)+1));
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
-				//pub_handler(work);
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
-				//pub_handler(work);
-			} else {
-				work->msg   = NULL;
-				work->state = RECV;
-				nng_ctx_recv(work->ctx, work->aio);
-				break;
-			}
-
 			debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
 			debug_msg("header: %x %x, body: %x %x %x", *((uint8_t *)nng_msg_header(smsg)), *((uint8_t *)nng_msg_header(smsg)+1), *((uint8_t *)nng_msg_body(smsg)), *((uint8_t *)nng_msg_body(smsg)+1), *((uint8_t *)nng_msg_body(smsg)+2));
-
 			work->msg   = smsg;
 			// We could add more data to the message here.
 			// nng_aio_set_msg(work->aio, work->msg);
@@ -148,10 +136,19 @@ server_cb(void *arg)
 			nng_ctx_send(work->ctx, work->aio);
 			//nng_ctx_recv(work->ctx, work->aio);
 			printf("after send aio\n");
-			//work->state = RECV;
-			//nng_recv_aio(work->sock, work->aio);          //tcp message -> internel IO pipe -> nng_recv_aio here
-			//printf("WAIT ********************* msg: %s ******************************************\n", (char *)nng_msg_body(work->msg));
-
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
+				debug_msg("handle CMD_PUBLISH\n");
+				pub_handler(work);
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
+				debug_msg("handle CMD_PUBACK\n");
+				pub_handler(work);
+			} else {
+				debug_msg("broker has nothing to do");
+				work->msg   = NULL;
+				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
+				break;
+			}
 			break;
 		case SEND:
 			printf("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
@@ -197,7 +194,7 @@ server(const char *url)
 	int            rv;
 	int            i;
 	// init tree
-	struct db_tree *db;
+	struct db_tree *db=NULL;
 	create_db_tree(&db);
 
 	/*  Create the socket. */

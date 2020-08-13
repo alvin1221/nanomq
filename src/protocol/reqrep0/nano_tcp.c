@@ -199,7 +199,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		len     = nni_msg_len(msg);
 		l = nni_msg_header_len(msg);
 		header = nng_msg_header(msg);
-		debug_msg("%s %x %x %d", nng_msg_body(msg),*header,*(header+1),len);
+		debug_msg("msg :%s header[0]:%x header[1]:%x msg_len:%d", nng_msg_body(msg),*header,*(header+1),len);
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&s->lk);

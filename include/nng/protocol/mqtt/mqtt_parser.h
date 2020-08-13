@@ -10,7 +10,7 @@
 //uint32_t htoi(char *str);
 
 //MQTT CONNECT
-int32_t conn_handler(u_int8_t *packet, conn_param *conn_param);
+int32_t conn_handler(uint8_t *packet, conn_param *conn_param);
 int fixed_header_adaptor(uint8_t *packet, nng_msg *dst);
 
 //parser 
