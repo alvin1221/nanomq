@@ -3,7 +3,6 @@
 #define MQTT_VER 5
 
 #include <nng/nng.h>
-#include <nng/protocol/mqtt/emq_tcp.h>
 #include <nng/supplemental/util/platform.h>
 #include <nng/protocol/mqtt/mqtt.h>
 

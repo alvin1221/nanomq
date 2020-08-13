@@ -187,6 +187,7 @@ void sub_ctx_handle(emq_work * work){
 		struct client * client = nng_alloc(sizeof(struct client));
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
+		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n",client->id, work->ctx.id, work->aio);
 
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
@@ -198,7 +199,8 @@ void sub_ctx_handle(emq_work * work){
 		if(tan->topic){
 			add_node(tan, client);
 		}else{
-			if(strcmp(tan->node->sub_client->id, client->id)){
+			// TODO contain but not strcmp
+			if(tan->node->sub_client==NULL || strcmp(tan->node->sub_client->id, client->id)){
 				add_client(tan, client->id);
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
@@ -206,6 +208,8 @@ void sub_ctx_handle(emq_work * work){
 		}
 		topic_node_t = topic_node_t->next;
 		debug_msg("finish ADD_CLIENT");
+		search_node(work->db, topic_str, &tan);
+		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
 	}
 
@@ -215,9 +219,12 @@ void sub_ctx_handle(emq_work * work){
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
 		for(struct db_node * snode = mnode; snode; snode = snode->next){
 			debug_msg("%d: %s ", count, snode->topic);
+			if(count > 0 && snode->sub_client){
+				debug_msg("clientid: %s", snode->sub_client->id);
+			}
 		}
 		debug_msg("----------");
-		if(++count > 1){
+		if(++count > 2){
 			break;
 		}
 	}

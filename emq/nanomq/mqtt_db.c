@@ -26,6 +26,7 @@ struct db_node *new_db_node(char *topic)
 		struct db_node *node = NULL;
 		node = (struct db_node*)zmalloc(sizeof(struct db_node));
         node->len = 0;
+		node->sub_client = NULL;
         node->topic = (char*)zmalloc(strlen(topic)+1);
         memcpy(&node->topic, &topic, strlen(topic)+1);
         node->next = NULL;
@@ -74,6 +75,7 @@ void add_node(struct topic_and_node *input, struct client *id)
         new_node->down->up = new_node;
         new_node = new_node->down;
     }
+	new_node->down = NULL;
     new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
     memcpy(new_node->sub_client, id, sizeof(struct client));
 	new_node->sub_client->next = NULL;
@@ -220,6 +222,7 @@ void add_client(struct topic_and_node *input, char *id)
 /* Search node */
 void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **tan)
 {
+	debug("start searching db: %p, topic_data: %s\n", db, topic_data);
     assert(db && topic_data);
     int len = 0;
     struct db_node *node = NULL;
@@ -263,7 +266,7 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
         } else if (*(topic_queue+1) == NULL) {
             node->state = EQUAL;
 			(*tan)->topic = NULL;
- 			(*tan)->node = node; 
+ 			(*tan)->node = node;
             node->state = EQUAL;
 			return;
         } else {
@@ -275,6 +278,7 @@ void search_node(struct db_tree *db, char *topic_data, struct topic_and_node **t
 			return;
         }
     }
+	debug("searching completed\n");
 	return;
 }
 

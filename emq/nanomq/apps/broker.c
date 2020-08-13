@@ -119,22 +119,30 @@ server_cb(void *arg)
 				*(work->pid) = pipe;
 				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid->id);
 				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
-				if((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS){
+				if ((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in decode: %x.", reason_code);
 				}
 				// TODO handle the sub_ctx & ops to tree
-				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id, work->sub_pkt->node->it->topic_filter.len);
+				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id,
+				          work->sub_pkt->node->it->topic_filter.len);
 				sub_ctx_handle(work);
 
-				if((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS){
+				if ((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in encode: %x.", reason_code);
 				}
-				work->msg   = smsg;
+				debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
+				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
+				          *((uint8_t *) nng_msg_body(smsg) + 1));
+				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
+				debug_msg("header: %x %x, body: %x %x %x", *((uint8_t *) nng_msg_header(smsg)),
+				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
+				          *((uint8_t *) nng_msg_body(smsg) + 1), *((uint8_t *) nng_msg_body(smsg) + 2));
+				work->msg = smsg;
 				// We could add more data to the message here.
 				// nng_aio_set_msg(work->aio, work->msg);
 				nng_aio_set_msg(work->aio, work->msg);
-				debug_msg("aio->msg == NULL???: %s", nng_aio_get_msg(work->aio) == NULL ? "true":"false");
-				printf("before send aio msg %s\n",(char *)nng_msg_body( work->msg));
+				debug_msg("aio->msg == NULL???: %s", nng_aio_get_msg(work->aio) == NULL ? "true" : "false");
+				printf("before send aio msg %s\n", (char *) nng_msg_body(work->msg));
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
@@ -142,26 +150,13 @@ server_cb(void *arg)
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
-				buf[0] = CMD_PINGRESP;
-				buf[1] = 0x00;
 				debug_msg("testttttttttttttttttttttttttttttttttttttttttttt!!!! %d\n", work->pid->id);
-
-				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
-					printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
-				}
-				work->msg = smsg;
-				// We could add more data to the message here.
-				ctx2.id =1;
-				nng_aio_set_msg(work->aio, work->msg);
-				work->msg   = NULL;
-				work->state = SEND;
-				//nng_send_aio(nng_pipe_socket(*work->pid),work->aio);
 				nng_aio_set_pipeline(work->aio, work->pid->id);
-				nng_ctx_send(work->ctx, work->aio);
-				//pub_handler(work);
+				//nng_ctx_send(work->ctx, work->aio);
+				pub_handler(work, smsg);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
-				pub_handler(work);
+				pub_handler(work, smsg);
 			} else {
 				debug_msg("broker has nothing to do");
 				work->msg   = NULL;
@@ -215,7 +210,7 @@ server(const char *url)
 	int            rv;
 	int            i;
 	// init tree
-	struct db_tree *db=NULL;
+	struct db_tree *db = NULL;
 	create_db_tree(&db);
 
 	/*  Create the socket. */
