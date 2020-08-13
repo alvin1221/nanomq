@@ -196,7 +196,8 @@ void sub_ctx_handle(emq_work * work){
 		if(tan->topic){
 			add_node(tan, client);
 		}else{
-			if(strcmp(tan->node->sub_client->id, client->id)){
+			// TODO contain but not strcmp
+			if(tan->node->sub_client==NULL || strcmp(tan->node->sub_client->id, client->id)){
 				add_client(tan, client->id);
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
