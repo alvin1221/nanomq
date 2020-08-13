@@ -45,7 +45,7 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	topic_node * topic_node_t, * _topic_node;
 
 	// handle variable header
-	variable_ptr = nng_msg_variable_ptr(msg);
+variable_ptr = nng_msg_variable_ptr(msg);
 
 	NNI_GET16(variable_ptr + vpos, sub_pkt->packet_id);
 	vpos += 2;
@@ -180,13 +180,16 @@ void sub_ctx_handle(emq_work * work){
 
 	topic_node * topic_node_t = work->sub_pkt->node;
 	char * topic_str;
+	uint32_t * client_id = nng_alloc(sizeof(uint32_t));
+
+	*client_id = work->pid->id;
 
 	// insert ctx_sub into treeDB
 	while(topic_node_t){
 		struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
 		struct client * client = nng_alloc(sizeof(struct client));
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
-		client->ctxt = work;
+		client->ctxt = client_id; // CHANGE TO PIPEID
 		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n",client->id, work->ctx.id, work->aio);
 
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
@@ -220,7 +223,7 @@ void sub_ctx_handle(emq_work * work){
 		for(struct db_node * snode = mnode; snode; snode = snode->next){
 			debug_msg("%d: %s ", count, snode->topic);
 			if(count > 0 && snode->sub_client){
-				debug_msg("clientid: %s", snode->sub_client->id);
+				debug_msg("clientid: %s pipeid: %d", snode->sub_client->id, *((int *)snode->sub_client->ctxt));
 			}
 		}
 		debug_msg("----------");
