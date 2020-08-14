@@ -31,7 +31,7 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
 static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
-            struct pub_packet_struct *pub_packet);
+            struct pub_packet_struct *pub_packet, emq_work *work);
 
 /**
  * pub handler
@@ -141,14 +141,15 @@ void pub_handler(void *arg, nng_msg *send_msg)
 
 						debug_msg("preparing for publish message to clients who subscribed topic [%s]\n",
 						          work->pub_packet->variable_header.publish.topic_name.str_body);
+						nng_aio_set_pipeline(work->aio, work->pid->id);
+
 						forward_msg(work->db->root, res_node,
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
-						            work->pub_packet);
+						            work->pub_packet, work);
 
 						break;
 
 					case 1:
-
 						pub_response = nng_alloc(sizeof(struct pub_packet_struct));
 						pub_response->fixed_header.packet_type = PUBACK;
 						pub_response->fixed_header.dup         = 0;
@@ -162,16 +163,19 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						encode_pub_message(send_msg, pub_response);
 
 						//response PUBACK to client
+//						nng_aio_set_pipeline(work->aio, work->pid->id);
 						work->state = SEND;
 						work->msg   = send_msg;
 						nng_aio_set_msg(work->aio, work->msg);
+						work->msg   = NULL;
 						nng_ctx_send(work->ctx, work->aio);
 						work->pub_packet->fixed_header.dup = 0;
 						nng_free(pub_response, sizeof(struct pub_packet_struct));
 
+						nng_aio_set_pipeline(work->aio, work->pid->id);
 						forward_msg(work->db->root, res_node,
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
-						            work->pub_packet);
+						            work->pub_packet, work);
 
 						break;
 
@@ -212,7 +216,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 
 static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
-            struct pub_packet_struct *pub_packet)
+            struct pub_packet_struct *pub_packet, emq_work *work)
 {
 
 	if (res_node->topic != NULL) {
@@ -229,18 +233,28 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 		          clients->next);
 		encode_pub_message(send_msg, pub_packet);
 
-		client_work = (emq_work *) clients->ctxt;
+//		client_work = (emq_work *) clients->ctxt;
 
+//		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%p]\n", clients->id, client_work->ctx.id,
+//		          client_work->aio, client_work->pid);
+//
+
+//		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n", clients->id, client_work->ctx.id, client_work->aio);
+
+//
 //		client_work->state = SEND;
 //		client_work->msg   = send_msg;
-
-//		debug_msg("client id: [%s], ctxt: [%p], aio: [%p]\n", clients->id, client_work->ctx, client_work->aio);
-//
 //		print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
 //		print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
-
+//
 //		nng_aio_set_msg(client_work->aio, send_msg);
 //		nng_ctx_send(client_work->ctx, client_work->aio);
+
+		work->state = SEND;
+		work->msg   = send_msg;
+		nng_aio_set_msg(work->aio, send_msg);
+		work->msg   = NULL;
+		nng_ctx_send(work->ctx, work->aio);
 
 		clients = clients->next;
 	}
