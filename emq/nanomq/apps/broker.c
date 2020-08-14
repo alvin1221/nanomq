@@ -150,10 +150,23 @@ server_cb(void *arg)
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
+				buf[0] = CMD_PINGRESP;
+				buf[1] = 0x00;
 				debug_msg("testttttttttttttttttttttttttttttttttttttttttttt!!!! %d\n", work->pid->id);
+
+				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
+					printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
+				}
+				work->msg = smsg;
+				// We could add more data to the message here.
+				ctx2.id =1;
+				nng_aio_set_msg(work->aio, work->msg);
+				work->msg   = NULL;
+				work->state = SEND;
+				//nng_send_aio(nng_pipe_socket(*work->pid),work->aio);
 				nng_aio_set_pipeline(work->aio, work->pid->id);
-				//nng_ctx_send(work->ctx, work->aio);
-				pub_handler(work, smsg);
+				nng_ctx_send(work->ctx, work->aio);
+				//pub_handler(work);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
 				pub_handler(work, smsg);
