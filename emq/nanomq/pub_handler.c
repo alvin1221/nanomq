@@ -145,9 +145,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
 						            work->pub_packet, work);
 
-//						work->msg   = NULL;
-//						work->state = RECV;
-//						nng_ctx_recv(work->ctx, work->aio);
+
 						break;
 
 					case 1:
@@ -221,7 +219,7 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 		debug_msg("can not find topic [%s] info", topic);
 		return;
 	}
-	debug_msg("[1] work aio: [%p], result: [%d]",work->aio, nng_aio_result(work->aio));
+	debug_msg("[1] work aio: [%p], result: [%d]", work->aio, nng_aio_result(work->aio));
 //	struct client *clients = search_client(root, &topic);
 	struct client *clients = res_node->node->sub_client;
 	emq_work      *client_work;
@@ -233,10 +231,12 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 
 		client_work = (emq_work *) clients->ctxt;
 
-		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]", clients->id, client_work->ctx.id,
+		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
+		          clients->id,
+		          client_work->ctx.id,
 		          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
 
-		work->state= SEND;
+		work->state = SEND;
 		work->msg   = send_msg;
 
 		nng_aio_set_msg(work->aio, send_msg);
@@ -247,7 +247,14 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 
 		clients = clients->next;
 	}
-	debug_msg("[2] work aio: [%p], result: [%d]",work->aio, nng_aio_result(work->aio));
+
+	debug_msg("[2] work aio: [%p], result: [%d]", work->aio, nng_aio_result(work->aio));
+
+	if (work->state != SEND) {
+		work->msg   = NULL;
+		work->state = RECV;
+		nng_ctx_recv(work->ctx, work->aio);
+	}
 }
 
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
