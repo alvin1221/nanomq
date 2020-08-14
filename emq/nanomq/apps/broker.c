@@ -85,7 +85,7 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
-			       conn_param_get_clentid(work->cparam), work->ctx.id, work->pid->id);
+			       conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -116,8 +116,8 @@ server_cb(void *arg)
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				pipe = nng_msg_get_pipe(work->msg);
-				*(work->pid) = pipe;
-				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid->id);
+				work->pid = pipe;
+				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
 				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
 				if ((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in decode: %x.", reason_code);
@@ -150,8 +150,8 @@ server_cb(void *arg)
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
-				debug_msg("testttttttttttttttttttttttttttttttttttttttttttt!!!! %d\n", work->pid->id);
-				nng_aio_set_pipeline(work->aio, work->pid->id);
+				debug_msg("testttttttttttttttttttttttttttttttttttttttttttt!!!! %d\n", work->pid.id);
+				nng_aio_set_pipeline(work->aio, work->pid.id);
 				//nng_ctx_send(work->ctx, work->aio);
 				pub_handler(work, smsg);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
@@ -223,7 +223,7 @@ server(const char *url)
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
 		works[i]->db = db;
-		works[i]->pid = &pipe_id;
+//		works[i]->pid = pipe_id;
 	}
 
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
