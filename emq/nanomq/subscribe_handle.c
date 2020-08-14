@@ -187,7 +187,7 @@ void sub_ctx_handle(emq_work * work){
 		struct client * client = nng_alloc(sizeof(struct client));
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
-		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n",client->id, work->ctx.id, work->aio);
+		debug_msg("client id: [%s], ctxt: [%d], aio: [%p], pipe_id: [%d]\n",client->id, work->ctx.id, work->aio, work->pid.id);
 
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);

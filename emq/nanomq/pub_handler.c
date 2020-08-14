@@ -138,19 +138,19 @@ void pub_handler(void *arg, nng_msg *send_msg)
 					case 0:
 						//publish only once
 						work->pub_packet->fixed_header.dup = 0;
-
 						debug_msg("preparing for publish message to clients who subscribed topic [%s]\n",
 						          work->pub_packet->variable_header.publish.topic_name.str_body);
-						nng_aio_set_pipeline(work->aio, work->pid->id);
 
 						forward_msg(work->db->root, res_node,
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
 						            work->pub_packet, work);
 
+						work->msg   = NULL;
+						work->state = RECV;
+						nng_ctx_recv(work->ctx, work->aio);
 						break;
 
 					case 1:
-
 						pub_response = nng_alloc(sizeof(struct pub_packet_struct));
 						pub_response->fixed_header.packet_type = PUBACK;
 						pub_response->fixed_header.dup         = 0;
@@ -168,12 +168,11 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						work->state = SEND;
 						work->msg   = send_msg;
 						nng_aio_set_msg(work->aio, work->msg);
-						work->msg   = NULL;
+						work->msg = NULL;
 						nng_ctx_send(work->ctx, work->aio);
 						work->pub_packet->fixed_header.dup = 0;
 						nng_free(pub_response, sizeof(struct pub_packet_struct));
 
-						nng_aio_set_pipeline(work->aio, work->pid->id);
 						forward_msg(work->db->root, res_node,
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
 						            work->pub_packet, work);
@@ -208,9 +207,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 			zfree(res_node);
 			res_node = NULL;
 		}
-		work->msg   = NULL;
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
+
 	}
 }
 
@@ -234,28 +231,19 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 		          clients->next);
 		encode_pub_message(send_msg, pub_packet);
 
-//		client_work = (emq_work *) clients->ctxt;
+		client_work = (emq_work *) clients->ctxt;
 
-//		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%p]\n", clients->id, client_work->ctx.id,
-//		          client_work->aio, client_work->pid);
-//
+		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d]\n", clients->id, client_work->ctx.id,
+		          client_work->aio, client_work->pid.id);
 
-//		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n", clients->id, client_work->ctx.id, client_work->aio);
+		nng_aio_set_pipeline(client_work->aio, client_work->pid.id);
 
-//
-//		client_work->state = SEND;
-//		client_work->msg   = send_msg;
-//		print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
-//		print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
-//
-//		nng_aio_set_msg(client_work->aio, send_msg);
-//		nng_ctx_send(client_work->ctx, client_work->aio);
+		client_work->state = SEND;
+		client_work->msg   = send_msg;
 
-		work->state = SEND;
-		work->msg   = send_msg;
-		nng_aio_set_msg(work->aio, send_msg);
-		work->msg   = NULL;
-		nng_ctx_send(work->ctx, work->aio);
+		nng_aio_set_msg(client_work->aio, send_msg);
+		client_work->msg = NULL;
+		nng_ctx_send(client_work->ctx, client_work->aio);
 
 		clients = clients->next;
 	}
@@ -463,7 +451,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	uint8_t *msg_body   = nng_msg_body(msg);
 	size_t  msg_len     = nng_msg_len(msg);
 
-	print_hex("nng_msg body: ", msg_body, msg_len);
+//	print_hex("nng_msg body: ", msg_body, msg_len);
 
 	debug_msg("nng_msg len: %zu\n", msg_len);
 
@@ -491,7 +479,10 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				//topic length
 				pub_packet->variable_header.publish.topic_name.str_len  = NNI_GET16(msg_body + pos, temp_u16);
 				pub_packet->variable_header.publish.topic_name.str_body = (char *) nng_alloc(
-						pub_packet->variable_header.publish.topic_name.str_len);
+						pub_packet->variable_header.publish.topic_name.str_len + 1);
+
+				memset((char *) pub_packet->variable_header.publish.topic_name.str_body, '\0',
+				       pub_packet->variable_header.publish.topic_name.str_len + 1);
 
 				len = copy_utf8_str((uint8_t *) pub_packet->variable_header.publish.topic_name.str_body,
 				                    msg_body + pos,
