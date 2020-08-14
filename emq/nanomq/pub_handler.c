@@ -150,6 +150,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						break;
 
 					case 1:
+
 						pub_response = nng_alloc(sizeof(struct pub_packet_struct));
 						pub_response->fixed_header.packet_type = PUBACK;
 						pub_response->fixed_header.dup         = 0;
