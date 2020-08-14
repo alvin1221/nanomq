@@ -188,7 +188,7 @@ void del_client(struct topic_and_node *input, char *id)
 
 
 /* Add client id. */
-void add_client(struct topic_and_node *input, char *id)
+void add_client(struct topic_and_node *input, char *id, void * ctxt)
 {    
     assert(input && id);
     // puts(id);
@@ -198,6 +198,7 @@ void add_client(struct topic_and_node *input, char *id)
     cli_add->id = (char*)zmalloc(strlen(id)+1);
     memcpy(cli_add->id, id, strlen(id));
 	cli_add->id[strlen(id)] = '\0';
+	cli_add->ctxt = ctxt;
     puts(cli_add->id);
 
     if (input->node->sub_client == NULL) {
