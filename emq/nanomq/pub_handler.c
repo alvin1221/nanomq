@@ -231,16 +231,16 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 
 		client_work = (emq_work *) clients->ctxt;
 
-		client_work->state = SEND;
-		client_work->msg   = send_msg;
+//		client_work->state = SEND;
+//		client_work->msg   = send_msg;
 
-		debug_msg("client id: [%s], ctxt: [%d], aio: [%p]\n", clients->id, client_work->ctx.id, client_work->aio);
+//		debug_msg("client id: [%s], ctxt: [%p], aio: [%p]\n", clients->id, client_work->ctx, client_work->aio);
+//
+//		print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
+//		print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
 
-		print_hex("msg header: ", nng_msg_header(send_msg), nng_msg_header_len(send_msg));
-		print_hex("msg body  : ", nng_msg_body(send_msg), nng_msg_len(send_msg));
-
-		nng_aio_set_msg(client_work->aio, send_msg);
-		nng_ctx_send(client_work->ctx, client_work->aio);
+//		nng_aio_set_msg(client_work->aio, send_msg);
+//		nng_ctx_send(client_work->ctx, client_work->aio);
 
 		clients = clients->next;
 	}
