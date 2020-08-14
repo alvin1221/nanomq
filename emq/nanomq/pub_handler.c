@@ -53,7 +53,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
-				debug_msg("handing cmd[%d] msg\n", work->pub_packet->fixed_header.packet_type);
+				debug_msg("handing cmd[%d] msg", work->pub_packet->fixed_header.packet_type);
 #if SUPPORT_MQTT5_0
 				//process topic alias (For MQTT 5.0)
 				//TODO get "TOPIC Alias Maximum" from CONNECT Packet Properties ,
@@ -92,13 +92,13 @@ void pub_handler(void *arg, nng_msg *send_msg)
 				//do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
 
 				res_node = (struct topic_and_node *) zmalloc(sizeof(struct topic_and_node));
-				debug_msg("res_node: [%p]\n", res_node);
+				debug_msg("res_node: [%p]", res_node);
 //				res_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node ));
 //				if (res_node == NULL) {
 //					debug_msg("res_node zmalloc failed!");
 //					break;
 //				}
-				debug_msg("start search node! target topic: [%s]\n",
+				debug_msg("start search node! target topic: [%s]",
 				          work->pub_packet->variable_header.publish.topic_name.str_body);
 				search_node(work->db, work->pub_packet->variable_header.publish.topic_name.str_body, &res_node);
 //				debug_msg(
@@ -138,16 +138,16 @@ void pub_handler(void *arg, nng_msg *send_msg)
 					case 0:
 						//publish only once
 						work->pub_packet->fixed_header.dup = 0;
-						debug_msg("preparing for publish message to clients who subscribed topic [%s]\n",
+						debug_msg("preparing for publish message to clients who subscribed topic [%s]",
 						          work->pub_packet->variable_header.publish.topic_name.str_body);
 
 						forward_msg(work->db->root, res_node,
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
 						            work->pub_packet, work);
 
-						work->msg   = NULL;
-						work->state = RECV;
-						nng_ctx_recv(work->ctx, work->aio);
+//						work->msg   = NULL;
+//						work->state = RECV;
+//						nng_ctx_recv(work->ctx, work->aio);
 						break;
 
 					case 1:
@@ -218,35 +218,36 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 {
 
 	if (res_node->topic != NULL) {
-		debug_msg("can not find topic [%s] info\n", topic);
+		debug_msg("can not find topic [%s] info", topic);
 		return;
 	}
-
+	debug_msg("[1] work aio: [%p], result: [%d]",work->aio, nng_aio_result(work->aio));
 //	struct client *clients = search_client(root, &topic);
 	struct client *clients = res_node->node->sub_client;
 	emq_work      *client_work;
 
 	while (clients) {
-		debug_msg("current client pointer: [%p],id: %s, next: %p\n", clients, clients->id,
+		debug_msg("current client pointer: [%p],id: %s, next: %p", clients, clients->id,
 		          clients->next);
 		encode_pub_message(send_msg, pub_packet);
 
 		client_work = (emq_work *) clients->ctxt;
 
-		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d]\n", clients->id, client_work->ctx.id,
-		          client_work->aio, client_work->pid.id);
+		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]", clients->id, client_work->ctx.id,
+		          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
 
-		nng_aio_set_pipeline(client_work->aio, client_work->pid.id);
+		work->state= SEND;
+		work->msg   = send_msg;
 
-		client_work->state = SEND;
-		client_work->msg   = send_msg;
+		nng_aio_set_msg(work->aio, send_msg);
+		work->msg = NULL;
 
-		nng_aio_set_msg(client_work->aio, send_msg);
-		client_work->msg = NULL;
-		nng_ctx_send(client_work->ctx, client_work->aio);
+		nng_aio_set_pipeline(work->aio, client_work->pid.id);
+		nng_ctx_send(work->ctx, work->aio);
 
 		clients = clients->next;
 	}
+	debug_msg("[2] work aio: [%p], result: [%d]",work->aio, nng_aio_result(work->aio));
 }
 
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len)
@@ -270,28 +271,28 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 	properties_type prop_type;
 
-	debug_msg("start encode message\n");
+	debug_msg("start encode message");
 
 	//TODO nng_msg_set_cmd_type ?
 	switch (pub_packet->fixed_header.packet_type) {
 		case PUBLISH:
 			/*fixed header*/
-			debug_msg("header append --> cmd: [%d], qos: [%d], retain: [%d], dup: [%d]\n",
+			debug_msg("header append --> cmd: [%d], qos: [%d], retain: [%d], dup: [%d]",
 			          pub_packet->fixed_header.packet_type, pub_packet->fixed_header.qos,
 			          pub_packet->fixed_header.retain, pub_packet->fixed_header.dup);
 
 			nng_msg_header_append(msg, (uint8_t *) &pub_packet->fixed_header, 1);
 
-			debug_msg("header append --> remaining length: [%d]\n", pub_packet->fixed_header.remain_len);
+			debug_msg("header append --> remaining length: [%d]", pub_packet->fixed_header.remain_len);
 
 			arr_len = put_var_integer(tmp, pub_packet->fixed_header.remain_len);
 			nng_msg_header_append(msg, tmp, arr_len);
 			/*variable header*/
 			//topic name
 			if (pub_packet->variable_header.publish.topic_name.str_len > 0) {
-				debug_msg("topic length append ---> [%d]\n", pub_packet->variable_header.publish.topic_name.str_len);
+				debug_msg("topic length append ---> [%d]", pub_packet->variable_header.publish.topic_name.str_len);
 				nng_msg_append_u16(msg, pub_packet->variable_header.publish.topic_name.str_len);
-				debug_msg("topic append ---> [%s]\n", pub_packet->variable_header.publish.topic_name.str_body);
+				debug_msg("topic append ---> [%s]", pub_packet->variable_header.publish.topic_name.str_body);
 				nng_msg_append(msg, pub_packet->variable_header.publish.topic_name.str_body,
 				               pub_packet->variable_header.publish.topic_name.str_len);
 			}
@@ -432,7 +433,7 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 //			break;
 	}
 
-	debug_msg("end encode message\n");
+	debug_msg("end encode message");
 	return true;
 
 }
@@ -453,14 +454,14 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 //	print_hex("nng_msg body: ", msg_body, msg_len);
 
-	debug_msg("nng_msg len: %zu\n", msg_len);
+	debug_msg("nng_msg len: %zu", msg_len);
 
 //	memcpy((uint8_t *) &pub_packet->fixed_header, nng_msg_header(msg), 1);
 
 	pub_packet->fixed_header = *(struct fixed_header *) nng_msg_header(msg);
 
 	debug_msg("fixed header----------> ");
-	debug_msg("cmd: %d, retain: %d, qos: %d, dup: %d\n",
+	debug_msg("cmd: %d, retain: %d, qos: %d, dup: %d",
 	          pub_packet->fixed_header.packet_type,
 	          pub_packet->fixed_header.retain,
 	          pub_packet->fixed_header.qos,
@@ -468,7 +469,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
 
-	debug_msg("remaining length-------> %d\n", pub_packet->fixed_header.remain_len);
+	debug_msg("remaining length-------> %d", pub_packet->fixed_header.remain_len);
 
 	if (pub_packet->fixed_header.remain_len <= msg_len) {
 
@@ -488,7 +489,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				                    msg_body + pos,
 				                    &pos);
 
-				debug_msg("get topic: %s, len: %d ,strlen(topic): %lu\n",
+				debug_msg("get topic: %s, len: %d ,strlen(topic): %lu",
 				          pub_packet->variable_header.publish.topic_name.str_body, len,
 				          strlen(pub_packet->variable_header.publish.topic_name.str_body));
 
@@ -508,7 +509,7 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
-					debug_msg("packet identifier: %d\n", pub_packet->variable_header.publish.packet_identifier);
+					debug_msg("packet identifier: %d", pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
 
@@ -674,8 +675,8 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 				memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
 				       pub_packet->payload_body.payload_len);
-				debug_msg("payload len: %u\n", pub_packet->payload_body.payload_len);
-				debug_msg("payload: %s\n", pub_packet->payload_body.payload);
+				debug_msg("payload len: %u", pub_packet->payload_body.payload_len);
+				debug_msg("payload: %s", pub_packet->payload_body.payload);
 
 				break;
 
@@ -764,7 +765,7 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 		}
 		dest = bytes_to_str(src, dest, src_len);
 
-		debug_msg("%s%s\n", prefix, dest);
+		debug_msg("%s%s", prefix, dest);
 
 		nng_free(dest, src_len * 2);
 	}
