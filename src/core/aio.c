@@ -350,7 +350,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
 		return (NNG_ECLOSED);
 	}
 
-	NNI_ASSERT(aio->a_cancel_fn == NULL);
+	NNI_ASSERT(aio->a_cancel_fn == NULL);			//BUG?????? delet it or not?
 	aio->a_cancel_fn  = cancelfn;
 	aio->a_cancel_arg = data;
 

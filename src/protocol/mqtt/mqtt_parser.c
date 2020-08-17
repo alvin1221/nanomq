@@ -260,9 +260,6 @@ int fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 	len = get_var_integer(packet, &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
-	//cmd = *((char *)nng_msg_body(m));
-	debug_msg("fixed_header_adaptor %d %d %x", pos, rv);
-	//if()
 	return rv;
 }
 

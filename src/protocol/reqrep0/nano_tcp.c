@@ -151,7 +151,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 	debug_msg("nanomq start sending with ctx");
 	nni_mtx_lock(&s->lk);
-	len  = ctx->btrace_len;
+	//len  = ctx->btrace_len;
 	if (nni_aio_get_pipeline(aio) != 0){
 		p_id = nni_aio_get_pipeline(aio);
 		nni_aio_set_pipeline(aio, 0);
@@ -162,8 +162,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 	// Assert "completion" of the previous req request.  This ensures
 	// exactly one send for one receive ordering.
-	ctx->btrace_len = 0;
-	ctx->pipe_id    = 0;
+	//ctx->btrace_len = 0;
+	//ctx->pipe_id    = 0;
 
 	if (ctx == &s->ctx) {
 		// No matter how this goes, we will no longer be able
@@ -579,19 +579,17 @@ nano_pipe_recv_cb(void *arg)
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
 			break;
-
 		case CMD_PUBLISH:
 			break;
 
 	}
-
-
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		nni_mtx_unlock(&s->lk);
 		nni_msg_free(msg);
+		debug_msg("pipe is closed!!");
 		return;
 	}
 
@@ -600,6 +598,7 @@ nano_pipe_recv_cb(void *arg)
 		nni_list_append(&s->recvpipes, p);
 		nni_pollable_raise(&s->readable);
 		nni_mtx_unlock(&s->lk);
+		debug_msg("no ctx found!!");
 		return;
 	}
 

@@ -351,8 +351,8 @@ tcptran_pipe_send_cb(void *arg)
 	if (aio == NULL) {
 		//nni_pipe_bump_tx(p->npipe, n);
 		// be aware null aio BUG
-		nni_mtx_unlock(&p->mtx);
-		return;
+		//nni_mtx_unlock(&p->mtx);
+		//return;
 	}
 	if ((rv = nni_aio_result(txaio)) != 0) {
 		nni_pipe_bump_error(p->npipe, rv);
@@ -563,7 +563,7 @@ tcptran_pipe_recv_cb(void *arg)
 	nni_aio_set_msg(aio, msg);
 	// finish IO expose msg to EMQ_NANO protocl level
 	nni_aio_finish_synch(aio, 0, n);
-	debug_msg("tcptran_pipe_recv_cb: synch!\n");
+	debug_msg("end of tcptran_pipe_recv_cb: synch!\n");
 	return;
 
 recv_error:

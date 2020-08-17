@@ -182,6 +182,9 @@ void pub_handler(void *arg, nng_msg *send_msg)
 
 					default:
 						//Error Qos
+						work->msg   = NULL;
+						work->state = RECV;
+						nng_ctx_recv(work->ctx, work->aio);
 						break;
 				}
 
@@ -217,6 +220,9 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 
 	if (res_node->topic != NULL) {
 		debug_msg("can not find topic [%s] info", topic);
+		work->msg   = NULL;
+		work->state = RECV;
+		nng_ctx_recv(work->ctx, work->aio);
 		return;
 	}
 	debug_msg("[1] work aio: [%p], result: [%d]", work->aio, nng_aio_result(work->aio));

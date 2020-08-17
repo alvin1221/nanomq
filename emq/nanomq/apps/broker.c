@@ -21,7 +21,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 2
+#define PARALLEL 50
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -59,13 +59,14 @@ server_cb(void *arg)
 			printf("INIT!!\n");
 			break;
 		case RECV:
-			printf("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
+			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
+			  break;
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe = nng_msg_get_pipe(msg);
-			printf("pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d\n", pipe.id);
+			debug_msg("pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d\n", pipe.id);
 /*
                 if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
                         // bad message, just ignore it.
@@ -77,14 +78,14 @@ server_cb(void *arg)
 */
 			work->msg   = msg;
 			work->state = WAIT;
-			printf("RECV ********************* msg: %s ******************************************\n",
+			debug_msg("RECV ********************* msg: %s ******************************************\n",
 			       (char *) nng_msg_body(work->msg));
 			nng_sleep_aio(200, work->aio);
 			break;
 		case WAIT:
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
-			printf("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
+			debug_msg("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
 			       conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
@@ -94,7 +95,7 @@ server_cb(void *arg)
 			//reply to client if needed. nng_send_aio vs nng_sendmsg? async or sync? BETTER sync due to realtime requirement
 			//TODO
 			if ((rv = nng_msg_alloc(&smsg, 0)) != 0) {
-				printf("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
+				debug_msg("error nng_msg_alloc^^^^^^^^^^^^^^^^^^^^^");
 			}
 			if (nng_msg_cmd_type(work->msg) == CMD_PINGREQ) {
 				buf[0] = CMD_PINGRESP;
@@ -102,7 +103,7 @@ server_cb(void *arg)
 				debug_msg("reply PINGRESP\n");
 
 				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
-					printf("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
+					debug_msg("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
 				}
 				work->msg = smsg;
 				// We could add more data to the message here.
@@ -163,7 +164,7 @@ server_cb(void *arg)
 			}
 			break;
 		case SEND:
-			printf("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
+			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				nng_msg_free(work->msg);
 				fatal("nng_ctx_send", rv);
