@@ -217,44 +217,35 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work)
 {
+	if (res_node->topic == NULL) {
+//TODO 	struct client *clients = search_client(root, &topic);
+		struct client *clients = res_node->node->sub_client;
+		emq_work      *client_work;
+		while (clients) {
+			debug_msg("current client pointer: [%p], id: %s, next: %p", clients, clients->id,
+			          clients->next);
+			encode_pub_message(send_msg, pub_packet);
+			client_work = (emq_work *) clients->ctxt;
 
-	if (res_node->topic != NULL) {
+			debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
+			          clients->id,
+			          client_work->ctx.id,
+			          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
+
+			work->state = SEND;
+			work->msg   = send_msg;
+
+			nng_aio_set_msg(work->aio, send_msg);
+			work->msg = NULL;
+
+			nng_aio_set_pipeline(work->aio, client_work->pid.id);
+			nng_ctx_send(work->ctx, work->aio);
+
+			clients = clients->next;
+		}
+	} else {
 		debug_msg("can not find topic [%s] info", topic);
-		work->msg   = NULL;
-		work->state = RECV;
-		nng_ctx_recv(work->ctx, work->aio);
-		return;
 	}
-	debug_msg("[1] work aio: [%p], result: [%d]", work->aio, nng_aio_result(work->aio));
-//	struct client *clients = search_client(root, &topic);
-	struct client *clients = res_node->node->sub_client;
-	emq_work      *client_work;
-
-	while (clients) {
-		debug_msg("current client pointer: [%p],id: %s, next: %p", clients, clients->id,
-		          clients->next);
-		encode_pub_message(send_msg, pub_packet);
-
-		client_work = (emq_work *) clients->ctxt;
-
-		debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
-		          clients->id,
-		          client_work->ctx.id,
-		          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
-
-		work->state = SEND;
-		work->msg   = send_msg;
-
-		nng_aio_set_msg(work->aio, send_msg);
-		work->msg = NULL;
-
-		nng_aio_set_pipeline(work->aio, client_work->pid.id);
-		nng_ctx_send(work->ctx, work->aio);
-
-		clients = clients->next;
-	}
-
-	debug_msg("[2] work aio: [%p], result: [%d]", work->aio, nng_aio_result(work->aio));
 
 	if (work->state != SEND) {
 		work->msg   = NULL;
@@ -284,6 +275,7 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 	properties_type prop_type;
 
+	nng_msg_clear(msg);
 	debug_msg("start encode message");
 
 	//TODO nng_msg_set_cmd_type ?
