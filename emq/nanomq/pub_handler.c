@@ -273,8 +273,6 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	uint8_t  tmp[4]  = {0};
 	uint32_t arr_len = 0;
 
-	properties_type prop_type;
-
 	nng_msg_clear(msg);
 	debug_msg("start encode message");
 
