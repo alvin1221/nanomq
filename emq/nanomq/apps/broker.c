@@ -5,6 +5,7 @@
 
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
+#include <include/zmalloc.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -41,15 +42,18 @@ fatal(const char *func, int rv)
 void
 server_cb(void *arg)
 {
-	struct work *work = arg;
-	nng_ctx      ctx2;
-	nng_msg *    msg;
-	nng_msg *    smsg;
-	nng_pipe     pipe;
-	int          rv;
-	uint32_t     when;
-	uint8_t      buf[2] = {1,2};
-	uint8_t      reason_code;
+	struct work *work  = arg;
+	nng_ctx     ctx2;
+	nng_msg     *msg;
+	nng_msg     *smsg;
+	nng_pipe    pipe;
+	int         rv;
+	uint32_t    when;
+	uint8_t     buf[2] = {1, 2};
+	uint8_t     reason_code;
+
+	struct topic_and_node    *tp_node      = NULL;
+	struct pub_packet_struct *pub_response = NULL;
 
 	switch (work->state) {
 		case INIT:
@@ -61,11 +65,11 @@ server_cb(void *arg)
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-			  break;
+				break;
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
-			pipe = nng_msg_get_pipe(msg);
+			pipe    = nng_msg_get_pipe(msg);
 			debug_msg("pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d\n", pipe.id);
 /*
                 if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
@@ -79,14 +83,14 @@ server_cb(void *arg)
 			work->msg   = msg;
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %s ******************************************\n",
-			       (char *) nng_msg_body(work->msg));
+			          (char *) nng_msg_body(work->msg));
 			nng_sleep_aio(200, work->aio);
 			break;
 		case WAIT:
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			debug_msg("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
-			       conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
+			          conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -149,12 +153,98 @@ server_cb(void *arg)
 				nng_ctx_send(work->ctx, work->aio);
 				//nng_ctx_recv(work->ctx, work->aio);
 				printf("after send aio\n");
+
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
-				pub_handler(work, smsg);
+//				pub_handler(work, smsg);
+				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
+
+				if (handle_pub(work, smsg, tp_node)) {
+					if (work->pub_packet->fixed_header.qos == 0) {
+						work->pub_packet->fixed_header.dup = 0;
+
+					} else if (work->pub_packet->fixed_header.qos == 1 || work->pub_packet->fixed_header.qos == 2) {
+						pub_response = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+						pub_response->fixed_header.packet_type =
+								work->pub_packet->fixed_header.qos == 1 ? PUBACK : PUBREC;
+						pub_response->fixed_header.dup        = 0;
+						pub_response->fixed_header.qos        = 0;
+						pub_response->fixed_header.retain     = 0;
+						pub_response->fixed_header.remain_len = 2;
+
+						pub_response->variable_header.puback.packet_identifier =
+								work->pub_packet->variable_header.publish.packet_identifier;
+
+						encode_pub_message(smsg, pub_response);
+
+						//response PUBACK/PUBREC to client
+
+						work->state = SEND;
+						work->msg   = smsg;
+						nng_aio_set_msg(work->aio, work->msg);
+						work->msg = NULL;
+//						nng_aio_set_pipeline(work->aio, work->pid.id);
+						nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
+
+						nng_free(pub_response, sizeof(struct pub_packet_struct));
+						work->pub_packet->fixed_header.dup = 0;//if publish first time
+
+					}
+
+					if (tp_node != NULL && tp_node->topic == NULL) {
+						//TODO 	struct client *clients = search_client(root, &topic);
+						struct client *clients = tp_node->node->sub_client;
+						emq_work      *client_work;
+
+						while (clients) { //FIXME
+							debug_msg("current client pointer: [%p], id: %s, next: %p", clients, clients->id,
+							          clients->next);
+							encode_pub_message(smsg, work->pub_packet);
+							client_work = (emq_work *) clients->ctxt;
+
+							debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
+							          clients->id,
+							          client_work->ctx.id,
+							          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
+
+							work->state = SEND;
+							work->msg   = smsg;
+							nng_aio_set_msg(work->aio, smsg);
+							work->msg = NULL;
+
+							nng_aio_set_pipeline(work->aio, client_work->pid.id);
+							nng_ctx_send(work->ctx, work->aio);
+
+							clients = clients->next;
+						}
+					} else {
+						debug_msg("can not find topic [%s] info",
+						          work->pub_packet->variable_header.publish.topic_name.str_body);
+					}
+
+				}
+
+				if(tp_node != NULL) {
+					nng_free(tp_node, sizeof(struct topic_and_node));
+					tp_node = NULL;
+				}
+
+				if(work->pub_packet != NULL){
+					nng_free(work->pub_packet, sizeof(struct topic_and_node));
+					work->pub_packet = NULL;
+				}
+
+				if (work->state != SEND) {
+					work->msg   = NULL;
+					work->state = RECV;
+					nng_ctx_recv(work->ctx, work->aio);
+				}
+
+
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
-				pub_handler(work, smsg);
+//				pub_handler(work, smsg);
 			} else {
 				debug_msg("broker has nothing to do");
 				work->msg   = NULL;
@@ -163,6 +253,7 @@ server_cb(void *arg)
 				break;
 			}
 			break;
+
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
 			if ((rv = nng_aio_result(work->aio)) != 0) {

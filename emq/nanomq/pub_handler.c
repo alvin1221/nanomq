@@ -33,6 +33,36 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work);
 
+bool handle_pub(emq_work *work, nng_msg *send_msg, struct topic_and_node *tp_node)
+{
+
+	if (decode_pub_message(work->msg, work->pub_packet)) {
+
+		switch (work->pub_packet->fixed_header.packet_type) {
+			case PUBLISH:
+				search_node(work->db, work->pub_packet->variable_header.publish.topic_name.str_body, &tp_node);
+				break;
+
+			case PUBACK:
+				break;
+
+			case PUBREL:
+				break;
+
+			case PUBREC:
+				break;
+			case PUBCOMP:
+				break;
+
+			default:
+				break;
+		}
+
+		return true;
+	}
+	return false;
+}
+
 /**
  * pub handler
  *
@@ -139,7 +169,6 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						forward_msg(work->db->root, res_node,
 						            work->pub_packet->variable_header.publish.topic_name.str_body, send_msg,
 						            work->pub_packet, work);
-
 
 						break;
 
@@ -452,12 +481,12 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
-	int      pos       = 0;
-	int      used_pos  = 0;
-	int      len;
+	int pos      = 0;
+	int used_pos = 0;
+	int len;
 
-	uint8_t *msg_body   = nng_msg_body(msg);
-	size_t  msg_len     = nng_msg_len(msg);
+	uint8_t *msg_body = nng_msg_body(msg);
+	size_t  msg_len   = nng_msg_len(msg);
 
 	debug_msg("nng_msg len: %zu", msg_len);
 
