@@ -26,7 +26,7 @@ include_directories(./include)
 #add_subdirectory(./packet_parser)
 
 # Call this from your own project's makefile.
-find_package(nng CONFIG REQUIRED)
+# find_package(nng CONFIG REQUIRED)
 
 # list of source files
 set(libsrc hash.cc mqtt_db.c zmalloc.c)
@@ -44,17 +44,19 @@ set_property(TARGET nanolib PROPERTY POSITION_INDEPENDENT_CODE 1)
 #set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION 1)
 
 # shared and static libraries built from the same object files
-add_library(nanolib_shared SHARED $<TARGET_OBJECTS:nanolib>)
+add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 
 
 add_executable(test test.c)
-target_link_libraries(test libnanolib_shared)
+target_link_libraries(test nano_shared)
 
-install(TARGETS ${PROJECT_NAME} EXPORT nanolibConfig
+
+install(TARGETS nano_shared EXPORT nanolibConfig
     ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
 install(EXPORT nanolibConfig DESTINATION share/nanolib/cmake)

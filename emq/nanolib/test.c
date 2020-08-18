@@ -46,16 +46,17 @@ static void Test_search_node(void)
 	char *data = "lee/hom/jian";
 
 	create_db_tree(&db);
-    printf("INPUT: %d\n", db->root->len);
-    printf("INPUT: %s\n", db->root->topic);
-    struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
-    search_node(db, data, &res);
+	print_db_tree(db);
+    struct topic_and_node *res = NULL;
+	res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+    char **topic_queue = topic_parse(data);
+    search_node(db, topic_queue, res);
 
     if (res->topic) {
         printf("RES_TOPIC: %s\n", *(res)->topic);
     }
 	if (res->node) {
-		printf("RES_NODE_STATE: %d\n", res->node->state);
+		printf("RES_NODE_STATE: %d\n", res->t_state);
 	}
 	if (res->node->sub_client) {
 		printf("RES_NODE_UP_ID: %s\n", res->node->sub_client->id);
@@ -66,44 +67,93 @@ static void Test_search_node(void)
 static void Test_add_node(void)
 {
     puts(">>>>>>>>>>> TEST_ADD_NODE <<<<<<<<<");
-    char *data = "lee/hom/jian";
+    char *data = "lee/hom/#";
+    char *data1 = "lee/#";
+    char *data2 = "lee/+/#";
+    char *data3 = "lee/hom/jian";
+	struct client ID3 = {"150410", NULL, NULL};
+	struct client ID4 = {"150422", NULL, NULL};
+	struct client ID5 = {"150418", NULL, NULL};
 
-    struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
-    search_node(db, data, &res);
+	create_db_tree(&db);
+
+    struct topic_and_node *res = NULL;
+	res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+    char **topic_queue = topic_parse(data);
+
+    search_node(db, topic_queue, res);
     add_node(res, &ID1);
 	print_db_tree(db);
 
-
-
-    search_node(db, data, &res);
-    add_client(res, ID1.id);
+    search_node(db, topic_queue, res);
+    add_client(res, &ID1);
     printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    printf("RES_NODE_STATE: %d\n", res->node->state);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
 	if (res->topic) {
 		printf("RES_TOPIC: %s\n", *(res->topic));
 	}
-    printf("NODE_NEW_ID: %s\n", db->root->down->down->down->sub_client->id);
+
+    topic_queue = topic_parse(data1);
+    search_node(db, topic_queue, res);
+    add_node(res, &ID3);
+	print_db_tree(db);
+    search_node(db, topic_queue, res);
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
+
+    topic_queue = topic_parse(data2);
+    search_node(db, topic_queue, res);
+    add_node(res, &ID4);
+	print_db_tree(db);
+    search_node(db, topic_queue, res);
+
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
+
+    topic_queue = topic_parse(data3);
+    search_node(db, topic_queue, res);
+    add_node(res, &ID5);
+	print_db_tree(db);
+    search_node(db, topic_queue, res);
+
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
 }
 
 static void Test_del_node(void)
 {
     puts(">>>>>>>>>> TEST_DEL_NODE <<<<<<<<");
-    char *data = "lee/hom/jian";
-    struct topic_and_node *res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
-    search_node(db, data, &res);
-    add_client(res, ID1.id);
+    char *data = "lee/hom/jian/lihai";
+    struct topic_and_node *res = NULL;
 	char **topic_queue = topic_parse(data);
+	res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+    search_node(db, topic_queue, res);
+
+	struct client ID2 = {"150410", NULL, NULL};
+    add_node(res, &ID2);
+	print_db_tree(db);
    	struct clients* res_clients = NULL;
    	res_clients = search_client(db->root, topic_queue);
-	struct client *sub_client = res_clients->sub_client;
-   	int i = 3;
-   	while (sub_client && i > 0) {
-   		printf("RES: sub_client is:%s\n", sub_client->id);
-   	    sub_client = sub_client->next;
-   		i--;
-   	}
 
-    del_client(res, ID1.id);
+	while (res_clients) {
+		struct client *sub_client = res_clients->sub_client;
+		while (sub_client) {
+   			printf("RES: sub_client is:%s\n", sub_client->id);
+   		    sub_client = sub_client->next;
+   		}
+		res_clients = res_clients->down;
+	}
+    search_node(db, topic_queue, res); 
+    del_client(res, ID2.id);
     del_node(res->node);
     del_client(res, ID1.id);
     del_node(res->node);
@@ -161,11 +211,11 @@ static void Test_hash_table(void)
 void test() 
 {
     puts("\n----------------TEST START------------------");
-    Test_topic_parse();
-    Test_search_node();
+    // Test_topic_parse();
+    // Test_search_node();
     Test_add_node();
     Test_del_node();
-	Test_hash_table();
+	// Test_hash_table();
     puts("---------------TEST FINISHED----------------\n");
 }
 

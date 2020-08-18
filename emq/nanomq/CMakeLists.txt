@@ -4,11 +4,9 @@
 # file was obtained (LICENSE.txt).  A copy of the license may also be
 # found online at https://opensource.org/licenses/MIT.
 
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required (VERSION 2.8.8)
 
 project(nanomq)
-SET(CMAKE_C_FLAGS "-std=c99")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 aux_source_directory(. DIRSRCS)
 
@@ -20,13 +18,17 @@ set(PARALLEL 128 CACHE STRING "Parallelism (min 4, max 1000)")
 
 # Call this from your own project's makefile.
 find_package(nng CONFIG REQUIRED)
-# find_package(nanolib REQUIRED)
+find_package(nanolib REQUIRED)
+#if (NANOLIB_FOUND)
+#	INCLUDE_DIRECTORIES(${NANOLIB_INCLUDE_DIR})
+#	TARGET_LINK_LIBRARIES(nanomq ${NANOLIB_LIBRARY})
+#else (NANOLIB_FOUND)
+#	MESSAGE(FATAL_ERROR "nanolib library not found")
 
-include_directories(../../emq/nanolib/include)
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c hash.cc mqtt_db.c zmalloc.c pub_handler.c subscribe_handle.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c)
 
-target_link_libraries(nanomq apps)
+target_link_libraries(nanomq apps nano_shared)
 
 target_link_libraries(nanomq nng::nng)
 target_compile_definitions(nanomq PRIVATE -DPARALLEL=${PARALLEL})
