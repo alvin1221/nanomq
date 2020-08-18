@@ -83,7 +83,7 @@ struct client *search_client(struct db_node *root, char **topic_queue);
 void del_client(struct topic_and_node *input, char *id);
 
 /* Add client id. */
-void add_client(struct topic_and_node *input, char *id);
+void add_client(struct topic_and_node *input, char *id, void * ctxt);
 
 /* A hash table, clientId or alias as key, topic as value */ 
 char* hash_check_topic(int alias);

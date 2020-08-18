@@ -126,6 +126,12 @@ nano_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 }
 
 static void
+nano_ctx_pub(void *arg, nni_aio *aio)
+{
+	return;
+}
+
+static void
 nano_ctx_send(void *arg, nni_aio *aio)
 {
 	nano_ctx * ctx = arg;
@@ -145,13 +151,19 @@ nano_ctx_send(void *arg, nni_aio *aio)
 
 	debug_msg("nanomq start sending with ctx");
 	nni_mtx_lock(&s->lk);
-	len  = ctx->btrace_len;
-	p_id = ctx->pipe_id;
+	//len  = ctx->btrace_len;
+	if (nni_aio_get_pipeline(aio) != 0){
+		p_id = nni_aio_get_pipeline(aio);
+		nni_aio_set_pipeline(aio, 0);
+	}
+	else {
+		p_id = ctx->pipe_id;
+	}
 
 	// Assert "completion" of the previous req request.  This ensures
 	// exactly one send for one receive ordering.
-	ctx->btrace_len = 0;
-	ctx->pipe_id    = 0;
+	//ctx->btrace_len = 0;
+	//ctx->pipe_id    = 0;
 
 	if (ctx == &s->ctx) {
 		// No matter how this goes, we will no longer be able
@@ -181,7 +193,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 	*/
-
+	debug_msg("pipe id: %d ***************************", p_id);
 	if (nni_idhash_find(s->pipes, p_id, (void **) &p) != 0) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
@@ -199,7 +211,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		len     = nni_msg_len(msg);
 		l = nni_msg_header_len(msg);
 		header = nng_msg_header(msg);
-		debug_msg("%s %x %x %d", nng_msg_body(msg),*header,*(header+1),len);
+		debug_msg("msg :%s header[0]:%x header[1]:%x msg_len:%d", nng_msg_body(msg),*header,*(header+1),len);
 		nni_aio_set_msg(&p->aio_send, msg);
 		nni_pipe_send(p->pipe, &p->aio_send);
 		nni_mtx_unlock(&s->lk);
@@ -319,6 +331,7 @@ nano_pipe_start(void *arg)
 	nano_sock *s = p->rep;
 	int        rv;
 	//TODO check MQTT protocol version here
+	debug_msg("##########nano_pipe_start################");
 	/*
 	if (nni_pipe_peer(p->pipe) != NNG_REP0_PEER) {
 		// Peer protocol mismatch.
@@ -385,7 +398,8 @@ nano_pipe_send_cb(void *arg)
 	nni_msg *  msg;
 	size_t     len;
 
-	debug_msg("nano_pipe_send_cb");
+	debug_msg("##########nano_pipe_send_cb################");
+	//retry here
 	if (nni_aio_result(&p->aio_send) != 0) {
 		nni_msg_free(nni_aio_get_msg(&p->aio_send));
 		nni_aio_set_msg(&p->aio_send, NULL);
@@ -486,7 +500,7 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 	//memcpy(ctx->btrace, nni_msg_header(msg), len);
 	//ctx->btrace_len = len;
 	ctx->pipe_id    = nni_pipe_id(p->pipe);
-	debug_msg("nano_ctx_recv ends %p pipe: %p", ctx, p);
+	debug_msg("nano_ctx_recv ends %p pipe: %p pipe_id: %d", ctx, p, ctx->pipe_id);
 	nni_mtx_unlock(&s->lk);
 
 	//nni_msg_header_clear(msg);
@@ -565,19 +579,17 @@ nano_pipe_recv_cb(void *arg)
 	switch (nng_msg_cmd_type(msg)) {
 		case CMD_SUBSCRIBE:
 			break;
-
 		case CMD_PUBLISH:
 			break;
 
 	}
-
-
 
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);
 		nni_mtx_unlock(&s->lk);
 		nni_msg_free(msg);
+		debug_msg("pipe is closed!!");
 		return;
 	}
 
@@ -586,6 +598,7 @@ nano_pipe_recv_cb(void *arg)
 		nni_list_append(&s->recvpipes, p);
 		nni_pollable_raise(&s->readable);
 		nni_mtx_unlock(&s->lk);
+		debug_msg("no ctx found!!");
 		return;
 	}
 

@@ -5,6 +5,7 @@
 #include "include/subscribe_handle.h"
 #include "include/mqtt_db.h"
 
+/*
 uint8_t subscribe_handle(nng_msg * msg){
 	// handle subscribe fixed header
 	uint8_t *  header_ptr;
@@ -26,6 +27,7 @@ uint8_t subscribe_handle(nng_msg * msg){
 	debug_msg("END OF SUBSCRIBE Handle. ");
 	return SUCCESS;
 }
+*/
 
 uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
@@ -147,7 +149,11 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	while(node){
 		if(version_v5){
 		}else{
-			reason_code = node->it->qos; //if no error happened
+			if(sub_pkt->node->it->reason_code == 0x80){
+				reason_code = 0x80;
+			}else{
+				reason_code = node->it->qos;
+			}
 			// MQTT_v3: 0x00-qos0  0x01-qos1  0x02-qos2  0x80-fail
 			nng_msg_append(msg, (uint8_t *) &reason_code, 1);
 		}
@@ -168,9 +174,12 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 
 void sub_ctx_handle(emq_work * work){
 	// generate ctx for each topic
-	debug_msg("Generate ctx for each topic");
+	int count = 0;
 	bool version_v5 = false;
+	debug_msg("Generate ctx for each topic");
+
 	topic_node * topic_node_t = work->sub_pkt->node;
+	char * topic_str;
 
 	// insert ctx_sub into treeDB
 	while(topic_node_t){
@@ -178,22 +187,46 @@ void sub_ctx_handle(emq_work * work){
 		struct client * client = nng_alloc(sizeof(struct client));
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
+		debug_msg("client id: [%s], ctxt: [%d], aio: [%p], pipe_id: [%d]\n",client->id, work->ctx.id, work->aio, work->pid.id);
 
-		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, (char *)topic_node_t->it->topic_filter.str_body);
-		search_node(work->db, topic_node_t->it->topic_filter.str_body, &tan);
-		add_node(tan, client);
+		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
+		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
+		topic_str[topic_node_t->it->topic_filter.len] = '\0';
+		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, topic_str);
+		search_node(work->db, topic_str, &tan);
+		debug_msg("finish SEARCH_NODE");
+		//printf("tan: %s, %s\n", tan->topic, tan->node->topic);
+		if(tan->topic){
+			add_node(tan, client);
+		}else{
+			// TODO contain but not strcmp
+			if(tan->node->sub_client==NULL || strcmp(tan->node->sub_client->id, client->id)){
+				add_client(tan, client->id, client->ctxt);
+			}else{
+				work->sub_pkt->node->it->reason_code = 0x80;
+			}
+		}
 		topic_node_t = topic_node_t->next;
+		debug_msg("finish ADD_CLIENT");
+		search_node(work->db, topic_str, &tan);
+		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
+		nng_free(tan, sizeof(struct topic_and_node));
 	}
 
 	// check treeDB
 	debug_msg("---check dbtree---");
-	int count = 0;
+
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
 		for(struct db_node * snode = mnode; snode; snode = snode->next){
 			debug_msg("%d: %s ", count, snode->topic);
+			if(count > 0 && snode->sub_client){
+				debug_msg("clientid: %s", snode->sub_client->id);
+				emq_work * t = (emq_work*)(snode->sub_client->ctxt);
+				debug_msg("pipeid: %d", t->pid.id);
+			}
 		}
 		debug_msg("----------");
-		if(++count > 1){
+		if(++count > 2){
 			break;
 		}
 	}

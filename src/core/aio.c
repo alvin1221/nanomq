@@ -71,6 +71,7 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	nni_task_init(&aio->a_task, NULL, cb, arg);			//create async thread??
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
+	aio->pipe_id = 0;
 }
 
 void
@@ -349,7 +350,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancelfn cancelfn, void *data)
 		return (NNG_ECLOSED);
 	}
 
-	NNI_ASSERT(aio->a_cancel_fn == NULL);
+	NNI_ASSERT(aio->a_cancel_fn == NULL);			//BUG?????? delet it or not?
 	aio->a_cancel_fn  = cancelfn;
 	aio->a_cancel_arg = data;
 
@@ -719,4 +720,16 @@ void
 nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *sa)
 {
 	memcpy(sa, &aio->a_sockaddr, sizeof(*sa));
+}
+
+void
+nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
+{
+	aio->pipe_id = id;
+}
+
+uint32_t
+nni_aio_get_pipeline(nni_aio *aio)
+{
+	return aio->pipe_id;
 }

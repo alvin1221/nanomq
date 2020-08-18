@@ -260,9 +260,6 @@ int fixed_header_adaptor(uint8_t *packet, nng_msg *dst)
 	len = get_var_integer(packet, &pos);
 
 	rv = nni_msg_header_append(m, packet, pos);
-	//cmd = *((char *)nng_msg_body(m));
-	debug_msg("fixed_header_adaptor %d %d %x", pos, rv);
-	//if()
 	return rv;
 }
 
@@ -287,7 +284,7 @@ static char *client_id_gen(int *idlen, const char *auto_id_prefix, int auto_id_p
  * TODO length limitation
  * 
  */
-int32_t conn_handler(u_int8_t *packet, conn_param *cparam)
+int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 {
 
 	uint32_t	len, tmp, pos = 0;

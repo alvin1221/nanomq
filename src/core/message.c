@@ -31,7 +31,8 @@ struct nng_msg {
 	//uint8_t	m_variable_header_buf[];		//TODO independent variable header?
 	size_t         m_header_len;
 	nni_chunk      m_body;	//variable header + payload
-	uint32_t       m_pipe; // set on receive
+	uint32_t       m_pipe; // set on receive unique pipe id to identify which tcp to send
+	nni_list       pipeline;	//TODO for broadcast msg
 	nni_atomic_int m_refcnt;
 //FOR EMQ MQTT
 	size_t		 remaining_len;
