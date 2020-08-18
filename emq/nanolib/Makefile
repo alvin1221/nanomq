@@ -5,6 +5,7 @@ OBJ = mqtt_db.o zmalloc.o hash.o
 DLIBS = -lnano
 LDFLAGS = -L.
 RPATH = -Wl,-rpath=.
+DESTDIR = /usr/local/include/
 
 
 
