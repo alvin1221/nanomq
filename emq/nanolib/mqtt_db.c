@@ -127,8 +127,9 @@ struct db_node *new_db_node(char *topic)
 		struct db_node *node = NULL;
 		node = (struct db_node*)zmalloc(sizeof(struct db_node));
         node->topic = (char*)zmalloc(strlen(topic)+1);
-        memcpy(&node->topic, &topic, strlen(topic)+1);
-        node->next = NULL;
+ //       memcpy(&node->topic, &topic, strlen(topic)+1);
+        memcpy(node->topic, topic, strlen(topic)+1);
+		node->next = NULL;
 		node->down = NULL;
 		node->sub_client = NULL;
 		return node;
@@ -220,19 +221,19 @@ void add_node(struct topic_and_node *input, struct client *id)
 		new_node = new_db_node(*topic_queue);
         new_node->up =  input->node;
 		if (check_plus(*topic_queue)) {
-			debug("unequal, plus is true");
+			log("unequal, plus is true");
 			input->node->plus = true;
 			tmp_node = input->node->down;
 			input->node->down = new_node;
 			new_node->next = tmp_node;
 		} else {
-			debug("unequal, plus is not true");
-			if (input->node->next) {
-        	    tmp_node = input->node->next;
-        	    input->node->next = new_node;
+			log("unequal, plus is not true");
+			if (input->node->down->next) {
+        	    tmp_node = input->node->down->next;
+        	    input->node->down->next = new_node;
         	    new_node->next = tmp_node; 
         	} else {
-        	    input->node->next = new_node;
+        	    input->node->down->next = new_node;
         	}
 		}
     }
@@ -439,9 +440,10 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
     struct db_node *node = db->root;
 
     while (*topic_queue && node){
-		debug("topic is: %s", *topic_queue);
+//		debug("topic is: %s", *topic_queue);
+		printf("topic is: %s topic_queue: %s \n", node->topic, *topic_queue);
         if (strcmp(node->topic, *topic_queue)) {
-			bool equal;
+			bool equal = false;
             while (node->next) {
 				equal = false;
                 node = node->next;

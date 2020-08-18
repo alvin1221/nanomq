@@ -5,30 +5,6 @@
 #include "include/subscribe_handle.h"
 #include <nanolib/mqtt_db.h>
 
-/*
-uint8_t subscribe_handle(nng_msg * msg){
-	// handle subscribe fixed header
-	uint8_t *  header_ptr;
-	uint8_t reason_code;
-	header_ptr = nng_msg_header_ptr(msg);
-	if((header_ptr[0] & 0xF0) != CMD_SUBSCRIBE){
-		return SUCCESS;
-	}
-
-	struct packet_subscribe sub_pkt;
-
-	if((reason_code = decode_sub_message(msg, &sub_pkt)) != SUCCESS){
-		return reason_code;
-	}
-	if((reason_code = encode_suback_message(msg, &sub_pkt)) != SUCCESS){
-		return reason_code;
-	}
-//	sub_ctx_handle(msg, &sub_pkt);
-	debug_msg("END OF SUBSCRIBE Handle. ");
-	return SUCCESS;
-}
-*/
-
 uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;
 	uint8_t *  payload_ptr;
@@ -73,7 +49,7 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 
 						// value
 						len_of_str = get_utf8_str(&(sub_pkt->user_property.strpair.str_value), variable_ptr, &vpos);
-						sub_pkt->user_property.strpair.str_value = len_of_str;
+						sub_pkt->user_property.strpair.len_value = len_of_str;
 						// vpos += len_of_str;
 						break;
 					default:
@@ -88,7 +64,7 @@ uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 
 	debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
 
-    // handle payload
+	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
 	debug_msg("PAYLOAD:  %x %x %x %x. ", payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
@@ -185,6 +161,8 @@ void sub_ctx_handle(emq_work * work){
 	while(topic_node_t){
 		struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
 		struct client * client = nng_alloc(sizeof(struct client));
+
+		//setting client
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
 		debug_msg("client id: [%s], ctxt: [%d], aio: [%p], pipe_id: [%d]\n",client->id, work->ctx.id, work->aio, work->pid.id);
@@ -192,28 +170,32 @@ void sub_ctx_handle(emq_work * work){
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
-		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, topic_str);
-		search_node(work->db, topic_str, &tan);
-		debug_msg("finish SEARCH_NODE");
-		//printf("tan: %s, %s\n", tan->topic, tan->node->topic);
+		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, (char *)topic_str);
+
+		char ** topic_queue = topic_parse(topic_str);
+//		debug_msg("topic_queue: -%s -%s -%s -%s", *topic_queue, *(topic_queue+1), *(topic_queue+2), *(topic_queue+3));
+		search_node(work->db, topic_queue, tan);
+		debug_msg("finish SEARCH_NODE; tan->node->topic: %s, tan->topic: %s \n", tan->node->topic, (char *)(*tan->topic));
 		if(tan->topic){
 			add_node(tan, client);
 		}else{
 			// TODO contain but not strcmp
 			if(tan->node->sub_client==NULL || strcmp(tan->node->sub_client->id, client->id)){
-				add_client(tan, client->id, client->ctxt);
+				add_client(tan, client);
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
 		topic_node_t = topic_node_t->next;
 		debug_msg("finish ADD_CLIENT");
-		search_node(work->db, topic_str, &tan);
-		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
+//		search_node(work->db, topic_parse(topic_str), tan);
+//		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
 	}
 
 	// check treeDB
+	print_db_tree(work->db);
+/*
 	debug_msg("---check dbtree---");
 
 	for(struct db_node * mnode = work->db->root ;mnode ;mnode = mnode->down){
@@ -230,6 +212,7 @@ void sub_ctx_handle(emq_work * work){
 			break;
 		}
 	}
+*/
 
 	debug_msg("End of sub ctx handle. \n");
 }
