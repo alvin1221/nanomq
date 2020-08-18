@@ -8,7 +8,6 @@
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
-#include <nanolib/mqtt_db.h>
 #include "include/subscribe_handle.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
@@ -120,17 +119,17 @@ server_cb(void *arg)
 				work->pid = pipe;
 				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
 				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
-				if ((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in decode: %x.", reason_code);
-				}
+				//if ((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
+				//	debug_msg("ERROR in decode: %x.", reason_code);
+				//}
 				// TODO handle the sub_ctx & ops to tree
 				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id,
 				          work->sub_pkt->node->it->topic_filter.len);
-				sub_ctx_handle(work);
+				//sub_ctx_handle(work);
 
-				if ((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in encode: %x.", reason_code);
-				}
+				//if ((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
+					//debug_msg("ERROR in encode: %x.", reason_code);
+				//}
 				debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
 				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 				          *((uint8_t *) nng_msg_body(smsg) + 1));
@@ -151,10 +150,10 @@ server_cb(void *arg)
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
-				pub_handler(work, smsg);
+				//pub_handler(work, smsg);
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
-				pub_handler(work, smsg);
+				//pub_handler(work, smsg);
 			} else {
 				debug_msg("broker has nothing to do");
 				work->msg   = NULL;

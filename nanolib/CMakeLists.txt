@@ -62,3 +62,4 @@ install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAM
 install(EXPORT nanolibConfig DESTINATION share/nanolib/cmake)
 
 export(TARGETS ${PROJECT_NAME} FILE nanolibConfig.cmake)
+add_custom_target(nanodist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)

@@ -28,7 +28,7 @@ find_package(nanolib REQUIRED)
 #	MESSAGE(FATAL_ERROR "nanolib library not found")
 
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c pub_handler.c subscribe_handle.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c)
 
 target_link_libraries(nanomq apps nano_shared)
 
