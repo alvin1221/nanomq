@@ -127,7 +127,8 @@ struct db_node *new_db_node(char *topic)
 		struct db_node *node = NULL;
 		node = (struct db_node*)zmalloc(sizeof(struct db_node));
         node->topic = (char*)zmalloc(strlen(topic)+1);
-        memcpy(&node->topic, &topic, strlen(topic)+1);
+        memcpy(node->topic, topic, strlen(topic)+1);
+        // memcpy(&node->topic, &topic, strlen(topic)+1);
         node->next = NULL;
 		node->down = NULL;
 		node->sub_client = NULL;
@@ -158,37 +159,50 @@ void set_db_node(struct db_node *node, char **topic_queue)
 	}
 }
 
+void insert_db_node(struct db_node *new_node, struct db_node *old_node)
+{
+	if (old_node->next == new_node) {
+		struct db_node *tmp_node = NULL;
+		tmp_node = old_node->next; 
+		old_node->next = new_node;
+		new_node->next = tmp_node->next;
+	}
+	new_node->up = old_node->up ? old_node->up : NULL;
+	return;
+}
 
-	
 
-/* Add node when sub do not find a node on the tree */
+/* 
+** Add node when sub do not find a node on the tree 
+*/
 void add_node(struct topic_and_node *input, struct client *id)
 {
-	/* add node + and # */
-	/* fixed add NULL at pointer end */
+	/* 
+	** add node with topic wildcard + and # 
+	*/
 	log_info("ADD_NODE_START");
     assert(input && id);
     struct db_node *tmp_node = NULL;
     struct db_node *new_node = NULL;
     char **topic_queue = input->topic;
+
 	if (topic_queue == NULL) {
-		log("return because topic_queue is NULL");
+		log("Topic_queue is NULL, no topic is needed add!");
 		return;
 	}
 
     if (input->t_state == EQUAL) {
-		log("add node");
-		if (input->hashtag) {/* # is the last one */
+		if (input->hashtag) {/* # is the last data in topic */
 			input->node->hashtag = true;
 			if (input->node->next) {
 				debug("next");
-				/* Head insertion */
 				new_node = new_db_node(*(++topic_queue));
-				tmp_node = input->node->next; 
-				input->node->next = new_node;
-				new_node->next = tmp_node->next;
-				new_node->up = input->node->up ? input->node->up : NULL;
-				new_node = new_node->up->down;
+				// insert_db_node(new_node, input->node);
+				// tmp_node = input->node->next; 
+				// input->node->next = new_node;
+				// new_node->next = tmp_node->next;
+				// new_node->up = input->node->up ? input->node->up : NULL;
+				// new_node = new_node->up->down;
 				log_info("Head insertion for hashtag add");
 
 			} else {
@@ -196,6 +210,7 @@ void add_node(struct topic_and_node *input, struct client *id)
 				debug("input->node is %s", input->node->topic);
 				input->node->next = new_db_node(*(++topic_queue));
 				debug("input->node next is %s", input->node->next->topic);
+				// insert_db_node(input->node->next, input->node);
 				input->node->next->up = input->node->up ? input->node->up : NULL;
 				input->node->next->next = NULL;
 				input->node->next->down = NULL;
@@ -203,17 +218,13 @@ void add_node(struct topic_and_node *input, struct client *id)
 			}
 
 		} else {
-			if (check_plus(*(++topic_queue)))
-			{
+
+			set_db_node(input->node, ++topic_queue);
+			if (check_plus(*(topic_queue))) {
 				debug("equal, plus is true");
-				set_db_node(input->node, topic_queue);
 				input->node->plus = true;
-        		new_node = input->node->down;
-			} else {
-				debug("equal, plus is not true");
-				set_db_node(input->node, topic_queue);
-        		new_node = input->node->down;
 			}
+        	new_node = input->node->down;
 		}
 
     } else {
@@ -227,12 +238,12 @@ void add_node(struct topic_and_node *input, struct client *id)
 			new_node->next = tmp_node;
 		} else {
 			debug("unequal, plus is not true");
-			if (input->node->next) {
-        	    tmp_node = input->node->next;
-        	    input->node->next = new_node;
+			if (input->node->down->next) {
+        	    tmp_node = input->node->down->next;
+        	    input->node->down->next = new_node;
         	    new_node->next = tmp_node; 
         	} else {
-        	    input->node->next = new_node;
+        	    input->node->down->next = new_node;
         	}
 		}
     }
@@ -257,6 +268,9 @@ void add_node(struct topic_and_node *input, struct client *id)
 			new_node = new_node->next;
         	// new_node = new_node->up->down;
 		} else {
+			if (check_plus(*topic_queue)) {
+				new_node->plus = true;
+			}
 			set_db_node(new_node, topic_queue);
         	new_node = new_node->down;
 		}
@@ -428,10 +442,10 @@ void set_topic_and_node(char **topic_queue, bool hashtag, state t_state,
 	return;
 }
 
+/* 
+** Return the last node equal topic
+*/
 
-
-/* Search node */
-/* Return the last node equal topic */
 void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *tan)
 {
 	log_info("SEARCH_NODE_START");
@@ -468,7 +482,6 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 			break;
 		}
 
-
 		log("searching no hashtag");
         if (node->down && *(topic_queue+1)) {
             topic_queue++;
@@ -481,7 +494,6 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 			break;
         }
     }
-	log_info("SEARCH_NODE_END\n");
 	return;
 }
 
