@@ -321,7 +321,6 @@ tcptran_pipe_nego_cb(void *arg)
 	return;
 
 error:
-	debug_msg("connect nego error!");
 	nng_stream_close(p->conn);
 
 	if ((uaio = ep->useraio) != NULL) {
@@ -330,7 +329,7 @@ error:
 	}
 	nni_mtx_unlock(&ep->mtx);
 	tcptran_pipe_reap(p);
-	debug_msg("connect nego error!");
+	debug_msg("connect nego error rv: %d!", rv);
 	return;
 }
 
@@ -347,15 +346,17 @@ tcptran_pipe_send_cb(void *arg)
 	nni_mtx_lock(&p->mtx);
 	aio = nni_list_first(&p->sendq);
 
-	debug_msg("###############tcptran_pipe_send_cb################ %s", aio);
+	debug_msg("###############tcptran_pipe_send_cb################");
+	/*
 	if (aio == NULL) {
 		//nni_pipe_bump_tx(p->npipe, n);
 		// be aware null aio BUG
 		//nni_mtx_unlock(&p->mtx);
 		//return;
 	}
+	*/
 	if ((rv = nni_aio_result(txaio)) != 0) {
-		nni_pipe_bump_error(p->npipe, rv);
+		//nni_pipe_bump_error(p->npipe, rv);
 		// Intentionally we do not queue up another transfer.
 		// There's an excellent chance that the pipe is no longer
 		// usable, with a partial transfer.
@@ -380,7 +381,7 @@ tcptran_pipe_send_cb(void *arg)
 	tcptran_pipe_send_start(p);
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
-	nni_pipe_bump_tx(p->npipe, n);
+	//nni_pipe_bump_tx(p->npipe, n);
 	nni_mtx_unlock(&p->mtx);
 
 	nni_aio_set_msg(aio, NULL);
@@ -466,6 +467,7 @@ tcptran_pipe_recv_cb(void *arg)
 		*/
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
+			debug_msg("disconnect");
 			return;
 		}
 	}
@@ -555,7 +557,7 @@ tcptran_pipe_recv_cb(void *arg)
 
 
 	//keep connection & Schedule next receive
-	nni_pipe_bump_rx(p->npipe, n);
+	//nni_pipe_bump_rx(p->npipe, n);
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
 
@@ -570,14 +572,14 @@ recv_error:
 	nni_aio_list_remove(aio);
 	msg      = p->rxmsg;
 	p->rxmsg = NULL;
-	nni_pipe_bump_error(p->npipe, rv);
+	//nni_pipe_bump_error(p->npipe, rv);
 	// Intentionally, we do not queue up another receive.
 	// The protocol should notice this error and close the pipe.
 	nni_mtx_unlock(&p->mtx);
 
 	nni_msg_free(msg);
 	nni_aio_finish_error(aio, rv);
-	printf("tcptran_pipe_recv_cb: error\n");
+	debug_msg("tcptran_pipe_recv_cb: recv error rv: %d\n", rv);
 	return;
 quit:
 	nni_aio_list_remove(aio);

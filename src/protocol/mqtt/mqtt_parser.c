@@ -322,27 +322,30 @@ int32_t conn_handler(uint8_t *packet, conn_param *cparam)
 		debug_msg("MQTT 5 Properties");
 	}
 	//payload client_id
-	rv =rv&copy_utf8_str(cparam->clientid, packet, &pos);
-	debug_msg("clientid: %s", cparam->clientid);
+	rv =rv|copy_utf8_str(cparam->clientid, packet, &pos);
+	debug_msg("clientid: %s %d", cparam->clientid, rv);
 	//will properties
 	if (cparam->pro_ver == 5) {
 		debug_msg("MQTT 5 Will Properties");
 	}
 	//will topic
 	if(cparam->will_flag != 0) {
-		rv =rv&copy_utf8_str(cparam->will_topic, packet, &pos);
+		rv =rv|copy_utf8_str(cparam->will_topic, packet, &pos);
+		debug_msg("will_topic: %s %d", cparam->will_topic, rv);
 		//will msg
-		rv =rv&copy_utf8_str(cparam->will_msg, packet, &pos);
+		rv =rv|copy_utf8_str(cparam->will_msg, packet, &pos);
+		debug_msg("will_msg: %s %d", cparam->will_msg, rv);
 	}
 	//username
 	if ((cparam->con_flag & 0x80) > 0) {
-		rv =rv&copy_utf8_str(cparam->username, packet, &pos);
-		debug_msg("username: %s", cparam->username);
+		rv =rv|copy_utf8_str(cparam->username, packet, &pos);
+		debug_msg("username: %s %d %d", cparam->username, rv, 3 & 4);
 	}
 	//password
 	if ((cparam->con_flag & 0x40) > 0) {
-		rv =rv&copy_utf8_str(cparam->password, packet, &pos);
-		debug_msg("password: %s", cparam->password);
+		rv =rv|copy_utf8_str(cparam->password, packet, &pos);
+		debug_msg("password: %s %d", cparam->password, rv);
 	}
+	//what if rv = 0?
 	return rv;
 }
