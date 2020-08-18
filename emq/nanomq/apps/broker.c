@@ -8,7 +8,7 @@
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
-#include "include/mqtt_db.h"
+#include <nanolib/mqtt_db.h>
 #include "include/subscribe_handle.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.

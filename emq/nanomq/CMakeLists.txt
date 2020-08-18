@@ -7,6 +7,8 @@
 cmake_minimum_required (VERSION 2.8.8)
 
 project(nanomq)
+SET(CMAKE_C_FLAGS "-std=c99")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 aux_source_directory(. DIRSRCS)
 
@@ -26,7 +28,7 @@ find_package(nanolib REQUIRED)
 #	MESSAGE(FATAL_ERROR "nanolib library not found")
 
 
-add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c)
+add_executable(nanomq nanomq.c cmd.c file.c process.c apps.c pub_handler.c subscribe_handle.c)
 
 target_link_libraries(nanomq apps nano_shared)
 

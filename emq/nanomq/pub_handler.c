@@ -9,8 +9,8 @@
 #include <nng/nng.h>
 #include <nng/protocol/mqtt/mqtt.h>
 #include <nng/protocol/mqtt/mqtt_parser.h>
-#include <include/zmalloc.h>
-#include <include/mqtt_db.h>
+#include <nanolib/zmalloc.h>
+#include <nanolib/mqtt_db.h>
 #include <apps/broker.h>
 #include "include/pub_handler.h"
 
