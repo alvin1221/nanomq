@@ -542,13 +542,12 @@ tcptran_pipe_recv_cb(void *arg)
 		// mqtt_v3
 		payload_ptr = variable_ptr + 2;
 		debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
-//	}else if(type == CMD_SUBACK){
-//		len = get_var_integer(variable_ptr + 2, &len_of_varint);
-//		payload_ptr = variable_ptr + 2 + len + len_of_varint;
 	}else if(type == CMD_UNSUBSCRIBE){
-//	}else if(type == CMD_UNSUBACK){
-//		len = get_var_integer(variable_ptr + 2, &len_of_varint);
-//		payload_ptr = variable_ptr + 2 + len + len_of_varint;
+		// mqtt_v5
+		// len = get_var_integer(variable_ptr + 2, &len_of_varint);
+		// payload_ptr = variable_ptr + 2 + len + len_of_varint;
+		// mqtt_v3
+		payload_ptr = variable_ptr + 2;
 	}else if(type == CMD_PUBLISH){
 	}else{
 		payload_ptr = NULL;

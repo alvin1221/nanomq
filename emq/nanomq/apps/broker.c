@@ -6,10 +6,11 @@
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
 
-#include <nanolib/mqtt_db.h>
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
+#include <nanolib/mqtt_db.h>
 #include "include/subscribe_handle.h"
+#include "include/unsubscribe_handle.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
@@ -128,7 +129,7 @@ server_cb(void *arg)
 				if ((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in decode: %x.", reason_code);
 				}
-				// TODO handle the sub_ctx & ops to tree
+				// Handle the sub_ctx & ops to tree
 				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id,
 				          work->sub_pkt->node->it->topic_filter.len);
 				sub_ctx_handle(work);
@@ -136,25 +137,42 @@ server_cb(void *arg)
 				if ((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in encode: %x.", reason_code);
 				}
-				debug_msg("Finish encode ack. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
+				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
+				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
 				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 				          *((uint8_t *) nng_msg_body(smsg) + 1));
-				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
-				debug_msg("header: %x %x, body: %x %x %x", *((uint8_t *) nng_msg_header(smsg)),
-				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
-				          *((uint8_t *) nng_msg_body(smsg) + 1), *((uint8_t *) nng_msg_body(smsg) + 2));
 				work->msg = smsg;
 				// We could add more data to the message here.
-				// nng_aio_set_msg(work->aio, work->msg);
 				nng_aio_set_msg(work->aio, work->msg);
-				debug_msg("aio->msg == NULL???: %s", nng_aio_get_msg(work->aio) == NULL ? "true" : "false");
-				printf("before send aio msg %s\n", (char *) nng_msg_body(work->msg));
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
-				//nng_ctx_recv(work->ctx, work->aio);
 				printf("after send aio\n");
+			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
+				debug_msg("handle CMD_UNSUBSCRIBE\n");
+				work->unsub_pkt = nng_alloc(sizeof(struct packet_unsubscribe));
+				if ((reason_code = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in decode: %x.", reason_code);
+				}
+				debug_msg("In unsub_pktkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
+				          work->unsub_pkt->node->it->topic_filter.len);
+				// Handle the sub_ctx & ops to tree
+				unsub_ctx_handle(work);
 
+				if ((reason_code = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in encode: %x.", reason_code);
+				}
+				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
+				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
+				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
+				          *((uint8_t *) nng_msg_body(smsg) + 1));
+				work->msg = smsg;
+				// We could add more data to the message here.
+				nng_aio_set_msg(work->aio, work->msg);
+				work->msg   = NULL;
+				work->state = SEND;
+				nng_ctx_send(work->ctx, work->aio);
+				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
 //				pub_handler(work, smsg);
@@ -195,9 +213,10 @@ server_cb(void *arg)
 					}
 
 					if (tp_node != NULL && tp_node->topic == NULL) {
-						struct clients *client_list = search_client(work->db->root, topic_queue);
-						struct client  *sub_clients = client_list->sub_client;
-						emq_work       *client_work;
+//						struct clients *client_list = search_client(work->db->root, topic_queue);
+//						struct client  *sub_clients = client_list->sub_client;
+						struct client *sub_clients = tp_node->node->sub_client;
+						emq_work      *client_work;
 
 						while (sub_clients) { //FIXME
 							debug_msg("current client pointer: [%p], id: %s, next: %p", sub_clients, sub_clients->id,
@@ -246,7 +265,28 @@ server_cb(void *arg)
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
-//				pub_handler(work, smsg);
+				if(handle_pub(work, NULL, NULL)){
+
+				}
+
+			}  else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
+				debug_msg("handle CMD_PUBREC\n");
+				if(handle_pub(work, NULL, NULL)){
+
+				}
+
+			}  else if (nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
+				debug_msg("handle CMD_PUBREL\n");
+				if(handle_pub(work, NULL, NULL)){
+
+				}
+
+			}  else if (nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
+				debug_msg("handle CMD_PUBCOMP\n");
+				if(handle_pub(work, NULL, NULL)){
+
+				}
+
 			} else {
 				debug_msg("broker has nothing to do");
 				work->msg   = NULL;

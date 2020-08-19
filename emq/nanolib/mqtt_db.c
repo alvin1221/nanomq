@@ -331,7 +331,6 @@ void delete_client(struct client *client)
 		// 	zfree(client->id);
 		// } 
 		// puts("ttt");
-		client->id = NULL;
 		client->next = NULL;
 		zfree(client);
 		client = NULL;

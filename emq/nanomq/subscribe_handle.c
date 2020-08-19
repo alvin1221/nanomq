@@ -120,12 +120,12 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	if(version_v5){ // add property in variable
 	}
 
-	// handle payload header
+	// handle payload
 	node = sub_pkt->node;
 	while(node){
 		if(version_v5){
 		}else{
-			if(sub_pkt->node->it->reason_code == 0x80){
+			if(node->it->reason_code == 0x80){
 				reason_code = 0x80;
 			}else{
 				reason_code = node->it->qos;
@@ -165,6 +165,7 @@ void sub_ctx_handle(emq_work * work){
 		//setting client
 		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
+		client->next = NULL;
 		debug_msg("client id: [%s], ctxt: [%d], aio: [%p], pipe_id: [%d]\n",client->id, work->ctx.id, work->aio, work->pid.id);
 
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
@@ -175,7 +176,10 @@ void sub_ctx_handle(emq_work * work){
 		char ** topic_queue = topic_parse(topic_str);
 //		debug_msg("topic_queue: -%s -%s -%s -%s", *topic_queue, *(topic_queue+1), *(topic_queue+2), *(topic_queue+3));
 		search_node(work->db, topic_queue, tan);
-		debug_msg("finish SEARCH_NODE; tan->node->topic: %s, tan->topic: %s \n", tan->node->topic, (char *)(*tan->topic));
+		debug_msg("finish SEARCH_NODE; tan->node->topic: %s", tan->node->topic);
+		if(tan->topic){
+			debug_msg("finish SEARCH_NODE; tan->topic: %s", (char *)(*tan->topic));
+		}
 		if(tan->topic){
 			add_node(tan, client);
 		}else{
