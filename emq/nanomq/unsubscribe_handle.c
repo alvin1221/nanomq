@@ -14,7 +14,6 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 	int        len_of_varint = 0, len_of_property = 0, len_of_properties = 0;
 	int        len_of_str, len_of_topic;
 	size_t     remaining_len = nng_msg_remaining_len(msg);
-	debug_msg("remainlen : %d", remaining_len);
 
 	bool version_v5 = false; // v3.1.1/v5
 	uint8_t property_id;
@@ -25,7 +24,6 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 	variable_ptr = nng_msg_variable_ptr(msg);
 	NNI_GET16(variable_ptr, unsub_pkt->packet_id);
 	vpos += 2;
-	debug_msg("packetid : %d", unsub_pkt->packet_id);
 
 	// Mqtt_v5 include property
 	if(version_v5){
@@ -53,12 +51,13 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 		}
 	}
 
-	debug_msg("VARIABLE: %x %x %x %x. ", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3]);
+	debug_msg("Remain_len: [%d] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
 
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
 
-	debug_msg("PAYLOAD:  %x %x %x %x. ", payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
+	debug_msg("V:[%x %x %x %x] P:[%x %x %x %x].", variable_ptr[0], variable_ptr[1], variable_ptr[2], variable_ptr[3],
+			payload_ptr[0], payload_ptr[1], payload_ptr[2], payload_ptr[3]);
 
 	topic_node_t = nng_alloc(sizeof(topic_node));
 	unsub_pkt->node = topic_node_t;
@@ -73,12 +72,11 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 		if(len_of_topic != -1){
 			topic_option->topic_filter.len = len_of_topic;
 		}else {
-			debug_msg("NOT utf-8 format string. ");
+			debug_msg("NOT utf-8 format string.");
 		}
 
-		debug_msg("Length of topic: %d topic_node: %x %x. ", len_of_topic, (uint8_t)(topic_option->topic_filter.str_body[0]), (uint8_t)(topic_option->topic_filter.str_body[1]));
-
-		debug_msg("bpos:%d remaining_len:%d vpos:%d. ", bpos, remaining_len, vpos);
+		debug_msg("Topiclen: [%d]", len_of_topic);
+		debug_msg("Bpos+Vpos: [%d] Remain_len:%d.", bpos+vpos, remaining_len);
 		if(bpos < remaining_len - vpos){
 			topic_node_t = nng_alloc(sizeof(topic_node));
 			topic_node_t->next = NULL;
@@ -91,7 +89,6 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 }
 
 uint8_t encode_unsuback_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
-	debug_msg("generate the unsuback.......");
 	bool version_v5 = false;
 	nng_msg_clear(msg);
 
@@ -104,7 +101,6 @@ uint8_t encode_unsuback_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 
 	// handle variable header first
 	NNI_PUT16(packet_id, unsub_pkt->packet_id);
-	debug_msg("packetid: %x %x", packet_id[0], packet_id[1]);
 	nng_msg_append(msg, packet_id, 2);
 	if(version_v5){ // add property in variable
 	}
@@ -114,30 +110,28 @@ uint8_t encode_unsuback_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 	if(version_v5){
 		node = unsub_pkt->node;
 		while(node){
-			reason_code = unsub_pkt->node->it->reason_code;
+			reason_code = node->it->reason_code;
 			nng_msg_append(msg, (uint8_t *) &reason_code, 1);
+			node = node->next;
+			debug_msg("reason_code: [%x]", reason_code);
 		}
-		node = node->next;
-		debug_msg("loading reason_code...\"%x\"", reason_code);
 	}
 
 	// handle fixed header
-	debug_msg("handling the fixed header.....");
 	cmd = CMD_UNSUBACK;
 	nng_msg_header_append(msg, (uint8_t *) &cmd, 1);
 
 	remaining_len = (uint32_t)nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
 	nng_msg_header_append(msg, varint, len_of_varint);
-	debug_msg("remain:%d varint:%d %d %d %d len:%d", remaining_len, varint[0], varint[1], varint[2], varint[3], len_of_varint);
+
+	debug_msg("remain: [%d] varint: [%d %d %d %d] len: [%d] packet_id: [%x %x]", remaining_len, varint[0], varint[1], varint[2], varint[3], len_of_varint, packet_id[0], packet_id[1]);
 
 	return SUCCESS;
 }
 
 void unsub_ctx_handle(emq_work * work){
-	// generate ctx for each topic
 	bool version_v5 = false;
-	debug_msg("Generate ctx for each topic");
 
 	topic_node * topic_node_t = work->unsub_pkt->node;
 	char * topic_str;
@@ -153,11 +147,14 @@ void unsub_ctx_handle(emq_work * work){
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 
+		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
+
 		char ** topic_queue = topic_parse(topic_str);
 		search_node(work->db, topic_queue, tan);
 
 		if(tan->topic == NULL){ // find the topic
 			del_client(tan, clientid);
+//			del_node(tan->);
 			topic_node_t->it->reason_code = 0x00;
 		}else{ // not find the topic
 			topic_node_t->it->reason_code = 0x11;
@@ -172,12 +169,12 @@ void unsub_ctx_handle(emq_work * work){
 		// nng_free();
 
 		topic_node_t = topic_node_t->next;
-		debug_msg("finish ADD_CLIENT");
+		debug_msg("finish delete client.");
 	}
 
 	// check treeDB
 	print_db_tree(work->db);
 
-	debug_msg("End of sub ctx handle. \n");
+	debug_msg("End of unsub ctx handle.\n");
 }
 
