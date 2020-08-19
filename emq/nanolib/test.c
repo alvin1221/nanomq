@@ -67,8 +67,8 @@ static void Test_search_node(void)
 static void Test_add_node(void)
 {
     puts(">>>>>>>>>>> TEST_ADD_NODE <<<<<<<<<");
-    char *data = "lee/hom/#";
-    char *data1 = "lee/#";
+    char *data = "a/bv/cv";
+    char *data1 = "a/b/c";
     char *data2 = "lee/+/#";
     char *data3 = "lee/hom/jian";
 	struct client ID3 = {"150410", NULL, NULL};
@@ -86,12 +86,13 @@ static void Test_add_node(void)
 	print_db_tree(db);
 
     search_node(db, topic_queue, res);
-    add_client(res, &ID1);
-    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    printf("RES_NODE_STATE: %d\n", res->t_state);
-	if (res->topic) {
-		printf("RES_TOPIC: %s\n", *(res->topic));
-	}
+    add_node(res, &ID1);
+    // add_client(res, &ID1);
+    // printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    // printf("RES_NODE_STATE: %d\n", res->t_state);
+	// if (res->topic) {
+	// 	printf("RES_TOPIC: %s\n", *(res->topic));
+	// }
 
     topic_queue = topic_parse(data1);
     search_node(db, topic_queue, res);
@@ -110,23 +111,23 @@ static void Test_add_node(void)
 	print_db_tree(db);
     search_node(db, topic_queue, res);
 
-    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    printf("RES_NODE_STATE: %d\n", res->t_state);
-	if (res->topic) {
-		printf("RES_TOPIC: %s\n", *(res->topic));
-	}
+    // printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    // printf("RES_NODE_STATE: %d\n", res->t_state);
+	// if (res->topic) {
+	// 	printf("RES_TOPIC: %s\n", *(res->topic));
+	// }
 
-    topic_queue = topic_parse(data3);
-    search_node(db, topic_queue, res);
-    add_node(res, &ID5);
-	print_db_tree(db);
-    search_node(db, topic_queue, res);
+    // topic_queue = topic_parse(data3);
+    // search_node(db, topic_queue, res);
+    // add_node(res, &ID5);
+	// print_db_tree(db);
+    // search_node(db, topic_queue, res);
 
-    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    printf("RES_NODE_STATE: %d\n", res->t_state);
-	if (res->topic) {
-		printf("RES_TOPIC: %s\n", *(res->topic));
-	}
+    // printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    // printf("RES_NODE_STATE: %d\n", res->t_state);
+	// if (res->topic) {
+	// 	printf("RES_TOPIC: %s\n", *(res->topic));
+	// }
 }
 
 static void Test_del_node(void)
@@ -214,7 +215,7 @@ void test()
     // Test_topic_parse();
     // Test_search_node();
     Test_add_node();
-    Test_del_node();
+    // Test_del_node();
 	// Test_hash_table();
     puts("---------------TEST FINISHED----------------\n");
 }

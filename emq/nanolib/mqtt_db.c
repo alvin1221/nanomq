@@ -197,7 +197,7 @@ void add_node(struct topic_and_node *input, struct client *id)
 			if (input->node->next) {
 				debug("next");
 				new_node = new_db_node(*(++topic_queue));
-				// insert_db_node(new_node, input->node);
+				insert_db_node(new_node, input->node);
 				// tmp_node = input->node->next; 
 				// input->node->next = new_node;
 				// new_node->next = tmp_node->next;
@@ -210,10 +210,10 @@ void add_node(struct topic_and_node *input, struct client *id)
 				debug("input->node is %s", input->node->topic);
 				input->node->next = new_db_node(*(++topic_queue));
 				debug("input->node next is %s", input->node->next->topic);
-				// insert_db_node(input->node->next, input->node);
-				input->node->next->up = input->node->up ? input->node->up : NULL;
-				input->node->next->next = NULL;
-				input->node->next->down = NULL;
+				insert_db_node(input->node->next, input->node);
+				// input->node->next->up = input->node->up ? input->node->up : NULL;
+				// input->node->next->next = NULL;
+				// input->node->next->down = NULL;
 				new_node = input->node->next;
 			}
 
