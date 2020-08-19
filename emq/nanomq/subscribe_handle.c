@@ -194,7 +194,7 @@ void sub_ctx_handle(emq_work * work){
 	}
 
 	// check treeDB
-	print_db_tree(work->db);
+//	print_db_tree(work->db);
 /*
 	debug_msg("---check dbtree---");
 

@@ -32,7 +32,7 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work);
 
-bool handle_pub(emq_work *work, nng_msg *send_msg, struct topic_and_node *tp_node, char **topic_queue)
+bool handle_pub(emq_work *work, struct topic_and_node *tp_node, char **topic_queue)
 {
 
 	if (decode_pub_message(work->msg, work->pub_packet)) {

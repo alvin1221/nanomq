@@ -162,7 +162,7 @@ server_cb(void *arg)
 				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
 
 
-				if (handle_pub(work, smsg, tp_node, topic_queue)) {
+				if (handle_pub(work, tp_node, topic_queue)) {
 
 					if (work->pub_packet->fixed_header.qos == 0) {
 						work->pub_packet->fixed_header.dup = 0;
@@ -192,7 +192,6 @@ server_cb(void *arg)
 
 						nng_free(pub_response, sizeof(struct pub_packet_struct));
 						work->pub_packet->fixed_header.dup = 0;//if publish first time
-
 					}
 
 					if (tp_node != NULL && tp_node->topic == NULL) {
