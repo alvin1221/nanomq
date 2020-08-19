@@ -5,13 +5,12 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <include/nanomq.h>
+
 #include <nng/nng.h>
-#include <nng/protocol/mqtt/mqtt.h>
-#include <nng/protocol/mqtt/mqtt_parser.h>
-#include <nanolib/zmalloc.h>
 #include <nanolib/mqtt_db.h>
-#include <apps/broker.h>
+#include <include/nanomq.h>
+#include <nng/protocol/mqtt/mqtt_parser.h>
+
 #include "include/pub_handler.h"
 
 
@@ -33,14 +32,15 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work);
 
-bool handle_pub(emq_work *work, nng_msg *send_msg, struct topic_and_node *tp_node)
+bool handle_pub(emq_work *work, nng_msg *send_msg, struct topic_and_node *tp_node, char **topic_queue)
 {
 
 	if (decode_pub_message(work->msg, work->pub_packet)) {
 
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
-				search_node(work->db, work->pub_packet->variable_header.publish.topic_name.str_body, &tp_node);
+				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
+				search_node(work->db, topic_queue, tp_node);
 				break;
 
 			case PUBACK:
@@ -121,11 +121,11 @@ void pub_handler(void *arg, nng_msg *send_msg)
 
 				//do publish actions, eq: send payload to clients dependent on QoS ,topic alias if exists
 
-				res_node = (struct topic_and_node *) zmalloc(sizeof(struct topic_and_node));
+				res_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
 
 				debug_msg("start search node! target topic: [%s]",
 				          work->pub_packet->variable_header.publish.topic_name.str_body);
-				search_node(work->db, work->pub_packet->variable_header.publish.topic_name.str_body, &res_node);
+				search_node(work->db, &work->pub_packet->variable_header.publish.topic_name.str_body, res_node);
 //				debug_msg(
 //						"end search node! topic: [%s], node.topic: [%s], node.state: [%d], node.down: [%p], node.next: [%p]",
 //						*res_node->topic == NULL ? "NULL": *res_node->topic,
@@ -231,7 +231,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 				break;
 		}
 		if (res_node != NULL) {
-			zfree(res_node);
+			nng_free(res_node, sizeof(struct topic_and_node));
 			res_node = NULL;
 		}
 

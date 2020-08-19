@@ -5,11 +5,10 @@
 
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
-#include <include/zmalloc.h>
 
+#include <nanolib/mqtt_db.h>
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
-#include <nanolib/mqtt_db.h>
 #include "include/subscribe_handle.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
@@ -51,6 +50,8 @@ server_cb(void *arg)
 	uint32_t    when;
 	uint8_t     buf[2] = {1, 2};
 	uint8_t     reason_code;
+
+	char **topic_queue = NULL;
 
 	struct topic_and_node    *tp_node      = NULL;
 	struct pub_packet_struct *pub_response = NULL;
@@ -160,7 +161,9 @@ server_cb(void *arg)
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
 				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
 
-				if (handle_pub(work, smsg, tp_node)) {
+
+				if (handle_pub(work, smsg, tp_node, topic_queue)) {
+
 					if (work->pub_packet->fixed_header.qos == 0) {
 						work->pub_packet->fixed_header.dup = 0;
 
@@ -193,18 +196,18 @@ server_cb(void *arg)
 					}
 
 					if (tp_node != NULL && tp_node->topic == NULL) {
-						//TODO 	struct client *clients = search_client(root, &topic);
-						struct client *clients = tp_node->node->sub_client;
-						emq_work      *client_work;
+						struct clients *client_list = search_client(work->db->root, topic_queue);
+						struct client  *sub_clients = client_list->sub_client;
+						emq_work       *client_work;
 
-						while (clients) { //FIXME
-							debug_msg("current client pointer: [%p], id: %s, next: %p", clients, clients->id,
-							          clients->next);
+						while (sub_clients) { //FIXME
+							debug_msg("current client pointer: [%p], id: %s, next: %p", sub_clients, sub_clients->id,
+							          sub_clients->next);
 							encode_pub_message(smsg, work->pub_packet);
-							client_work = (emq_work *) clients->ctxt;
+							client_work = (emq_work *) sub_clients->ctxt;
 
 							debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
-							          clients->id,
+							          sub_clients->id,
 							          client_work->ctx.id,
 							          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
 
@@ -216,7 +219,7 @@ server_cb(void *arg)
 							nng_aio_set_pipeline(work->aio, client_work->pid.id);
 							nng_ctx_send(work->ctx, work->aio);
 
-							clients = clients->next;
+							sub_clients = sub_clients->next;
 						}
 					} else {
 						debug_msg("can not find topic [%s] info",
@@ -225,12 +228,12 @@ server_cb(void *arg)
 
 				}
 
-				if(tp_node != NULL) {
+				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
 				}
 
-				if(work->pub_packet != NULL){
+				if (work->pub_packet != NULL) {
 					nng_free(work->pub_packet, sizeof(struct topic_and_node));
 					work->pub_packet = NULL;
 				}

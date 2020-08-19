@@ -180,6 +180,7 @@ void sub_ctx_handle(emq_work * work){
 
 	topic_node * topic_node_t = work->sub_pkt->node;
 	char * topic_str;
+	char **topic_queue = NULL;
 
 	// insert ctx_sub into treeDB
 	while(topic_node_t){
@@ -193,7 +194,8 @@ void sub_ctx_handle(emq_work * work){
 		strncpy(topic_str, topic_node_t->it->topic_filter.str_body, topic_node_t->it->topic_filter.len);
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 		debug_msg("Ctx generating... Len:%d, Body:%s", topic_node_t->it->topic_filter.len, topic_str);
-		search_node(work->db, topic_str, &tan);
+		topic_queue = topic_parse(topic_str);
+		search_node(work->db, topic_queue, tan);
 		debug_msg("finish SEARCH_NODE");
 		//printf("tan: %s, %s\n", tan->topic, tan->node->topic);
 		if(tan->topic){
@@ -201,14 +203,15 @@ void sub_ctx_handle(emq_work * work){
 		}else{
 			// TODO contain but not strcmp
 			if(tan->node->sub_client==NULL || strcmp(tan->node->sub_client->id, client->id)){
-				add_client(tan, client->id, client->ctxt);
+				add_client(tan, client);
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
+//		print_db_tree(work->db);
 		topic_node_t = topic_node_t->next;
 		debug_msg("finish ADD_CLIENT");
-		search_node(work->db, topic_str, &tan);
+		search_node(work->db, topic_queue, tan);
 		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
 	}

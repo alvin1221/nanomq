@@ -103,7 +103,7 @@ struct pub_packet_struct {
 
 };
 
-bool handle_pub(emq_work *work, nng_msg *send_msg, struct topic_and_node *tp_node);
+bool handle_pub(emq_work *work, nng_msg *send_msg, struct topic_and_node *tp_node, char **topic_queue);
 void pub_handler(void *arg, nng_msg *send_msg);
 bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
 bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet);
