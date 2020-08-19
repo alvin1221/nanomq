@@ -15,7 +15,8 @@ struct work {
 	struct db_tree *db;
 	conn_param *cparam;
 	struct pub_packet_struct *pub_packet;
-	struct packet_subscribe *sub_pkt;
+	struct packet_subscribe * sub_pkt;
+	struct packet_unsubscribe * unsub_pkt;
 };
 
 
