@@ -95,6 +95,12 @@ struct packet_subscribe {
 };
 typedef struct packet_subscribe packet_subscribe;
 
+struct packet_unsubscribe {
+	uint16_t packet_id;
+	union Property_type user_property;
+	topic_node * node; // storage topic_with_option
+};
+typedef struct packet_unsubscribe packet_unsubscribe;
 
 // variable header in mqtt_packet_connect
 struct mqtt_packet_connect {
