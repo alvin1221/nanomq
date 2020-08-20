@@ -33,10 +33,11 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work);
 
-bool handle_pub(emq_work *work, struct topic_and_node *tp_node, char **topic_queue)
+reason_code handle_pub(emq_work *work, struct topic_and_node *tp_node, char **topic_queue)
 {
 
-	if (decode_pub_message(work->msg, work->pub_packet)) {
+	reason_code result = decode_pub_message(work->msg, work->pub_packet);
+	if (SUCCESS == result) {
 
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
@@ -59,9 +60,8 @@ bool handle_pub(emq_work *work, struct topic_and_node *tp_node, char **topic_que
 				break;
 		}
 
-		return true;
 	}
-	return false;
+	return result;
 }
 
 /**
@@ -480,7 +480,7 @@ bool encode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 }
 
 
-bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
+reason_code decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 {
 	int pos      = 0;
 	int used_pos = 0;
@@ -489,20 +489,15 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 	uint8_t *msg_body = nng_msg_body(msg);
 	size_t  msg_len   = nng_msg_len(msg);
 
-	debug_msg("nng_msg len: %zu", msg_len);
+	pub_packet->fixed_header            = *(struct fixed_header *) nng_msg_header(msg);
+	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
 
-	pub_packet->fixed_header = *(struct fixed_header *) nng_msg_header(msg);
-
-	debug_msg("fixed header----------> ");
-	debug_msg("cmd: %d, retain: %d, qos: %d, dup: %d",
+	debug_msg("fixed header----------> cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
 	          pub_packet->fixed_header.packet_type,
 	          pub_packet->fixed_header.retain,
 	          pub_packet->fixed_header.qos,
-	          pub_packet->fixed_header.dup);
-
-	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
-
-	debug_msg("remaining length-------> %d", pub_packet->fixed_header.remain_len);
+	          pub_packet->fixed_header.dup,
+	          pub_packet->fixed_header.remain_len);
 
 	if (pub_packet->fixed_header.remain_len <= msg_len) {
 
@@ -512,19 +507,6 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				//variable header
 				//topic length
 				NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.topic_name.str_len);
-				if (pub_packet->variable_header.publish.topic_name.str_len == 0
-/*Fixme 			||
-				    strchr(pub_packet->variable_header.publish.topic_name.str_body, '+') != NULL ||
-				    strchr(pub_packet->variable_header.publish.topic_name.str_body, '#') != NULL*/) {
-
-					//TODO search topic alias if mqtt version = 5.0
-
-					//protocol error
-					debug_msg("protocol error in topic len: [%d]",
-					          pub_packet->variable_header.publish.topic_name.str_len);
-					return false;
-				}
-
 				pub_packet->variable_header.publish.topic_name.str_body = (char *) nng_alloc(
 						pub_packet->variable_header.publish.topic_name.str_len + 1);
 
@@ -532,12 +514,26 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 				       pub_packet->variable_header.publish.topic_name.str_len + 1);
 
 				len = copy_utf8_str((uint8_t *) pub_packet->variable_header.publish.topic_name.str_body,
-				                    msg_body + pos,
-				                    &pos);
+				                    msg_body + pos, &pos);
 
-				debug_msg("get topic: %s, len: %d ,strlen(topic): %lu",
-				          pub_packet->variable_header.publish.topic_name.str_body, len,
-				          strlen(pub_packet->variable_header.publish.topic_name.str_body));
+				if (pub_packet->variable_header.publish.topic_name.str_len > 0) {
+					if (strchr(pub_packet->variable_header.publish.topic_name.str_body, '+') != NULL ||
+					    strchr(pub_packet->variable_header.publish.topic_name.str_body, '#') != NULL) {
+
+						//TODO search topic alias if mqtt version = 5.0
+
+						//protocol error
+						debug_msg("protocol error in topic:[%s], len: [%d]",
+						          pub_packet->variable_header.publish.topic_name.str_body,
+						          pub_packet->variable_header.publish.topic_name.str_len);
+
+						return PROTOCOL_ERROR;
+					}
+				}
+
+//				debug_msg("get topic: %s, len: %d ,strlen(topic): %lu",
+//				          pub_packet->variable_header.publish.topic_name.str_body, len,
+//				          strlen(pub_packet->variable_header.publish.topic_name.str_body));
 
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
@@ -698,21 +694,19 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 
 
 				//payload
-//				*pub_packet->payload_body.payload = NULL;
-//				*pub_packet->payload_body.payload = (uint8_t *) (msg_body + pos);
-
-
 				pub_packet->payload_body.payload_len             = (uint32_t) (msg_len - (size_t) used_pos);
 
 				if (pub_packet->payload_body.payload_len > 0) {
+					pub_packet->payload_body.payload = (msg_body + pos);
 					pub_packet->payload_body.payload = (uint8_t *) nng_alloc(pub_packet->payload_body.payload_len + 1);
 
 					memset(pub_packet->payload_body.payload, 0, pub_packet->payload_body.payload_len + 1);
 
 					memcpy(pub_packet->payload_body.payload, (uint8_t *) (msg_body + pos),
 					       pub_packet->payload_body.payload_len);
-					debug_msg("payload len: %u", pub_packet->payload_body.payload_len);
-					debug_msg("payload: %s", pub_packet->payload_body.payload);
+
+					debug_msg("payload: [%s], len = %u", pub_packet->payload_body.payload,
+					          pub_packet->payload_body.payload_len);
 				}
 				break;
 
@@ -763,11 +757,11 @@ bool decode_pub_message(nng_msg *msg, struct pub_packet_struct *pub_packet)
 			default:
 				break;
 		}
-		return true;
+		return SUCCESS;
 
 	}
 
-	return false;
+	return UNSPECIFIED_ERROR;
 }
 
 /**

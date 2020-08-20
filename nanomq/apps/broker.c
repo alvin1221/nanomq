@@ -50,7 +50,7 @@ server_cb(void *arg)
 	int         rv;
 	uint32_t    when;
 	uint8_t     buf[2] = {1, 2};
-	uint8_t     reason_code;
+	reason_code reason;
 
 	char **topic_queue = NULL;
 
@@ -126,16 +126,16 @@ server_cb(void *arg)
 				work->pid = pipe;
 				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
 				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
-				if ((reason_code = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in decode: %x.", reason_code);
+				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in decode: %x.", reason);
 				}
 				// Handle the sub_ctx & ops to tree
 				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id,
 				          work->sub_pkt->node->it->topic_filter.len);
 				sub_ctx_handle(work);
 
-				if ((reason_code = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in encode: %x.", reason_code);
+				if ((reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in encode: %x.", reason);
 				}
 				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
 				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
@@ -151,16 +151,16 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 				debug_msg("handle CMD_UNSUBSCRIBE\n");
 				work->unsub_pkt = nng_alloc(sizeof(struct packet_unsubscribe));
-				if ((reason_code = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in decode: %x.", reason_code);
+				if ((reason = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in decode: %x.", reason);
 				}
 				debug_msg("In unsub_pktkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
 				          work->unsub_pkt->node->it->topic_filter.len);
 				// Handle the sub_ctx & ops to tree
 				unsub_ctx_handle(work);
 
-				if ((reason_code = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in encode: %x.", reason_code);
+				if ((reason = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
+					debug_msg("ERROR in encode: %x.", reason);
 				}
 				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
 				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
@@ -175,12 +175,13 @@ server_cb(void *arg)
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
-//				pub_handler(work, smsg);
+
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
 				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
 
+				reason = handle_pub(work, tp_node, topic_queue);
 
-				if (handle_pub(work, tp_node, topic_queue)) {
+				if (SUCCESS == reason) {
 
 					if (work->pub_packet->fixed_header.qos == 0) {
 						work->pub_packet->fixed_header.dup = 0;
@@ -213,8 +214,9 @@ server_cb(void *arg)
 					}
 
 					if (tp_node != NULL && tp_node->topic == NULL) {
-//						struct clients *client_list = search_client(work->db->root, topic_queue);
+//TODO					struct clients *client_list = search_client(work->db->root, topic_queue);
 //						struct client  *sub_clients = client_list->sub_client;
+
 						struct client *sub_clients = tp_node->node->sub_client;
 						emq_work      *client_work;
 
@@ -225,9 +227,8 @@ server_cb(void *arg)
 							client_work = (emq_work *) sub_clients->ctxt;
 
 							debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
-							          sub_clients->id,
-							          client_work->ctx.id,
-							          client_work->aio, client_work->pid.id, nng_aio_result(client_work->aio));
+							          sub_clients->id, client_work->ctx.id, client_work->aio, client_work->pid.id,
+							          nng_aio_result(client_work->aio));
 
 							work->state = SEND;
 							work->msg   = smsg;
@@ -243,18 +244,36 @@ server_cb(void *arg)
 						debug_msg("can not find topic [%s] info",
 						          work->pub_packet->variable_header.publish.topic_name.str_body);
 					}
+				} else {
+					//TODO send DISCONNECT with reason_code if MQTT Version=5.0
+				}
 
+
+				if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {
+					nng_free(work->pub_packet->variable_header.publish.topic_name.str_body,
+					         work->pub_packet->variable_header.publish.topic_name.str_len + 1);
+					work->pub_packet->variable_header.publish.topic_name.str_body = NULL;
+					debug_msg("free memory topic");
+				}
+
+				if (work->pub_packet->payload_body.payload != NULL) {
+					nng_free(work->pub_packet->payload_body.payload, work->pub_packet->payload_body.payload_len + 1);
+					work->pub_packet->payload_body.payload = NULL;
+					debug_msg("free memory payload");
+				}
+
+				if (work->pub_packet != NULL) {
+					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
+					work->pub_packet = NULL;
+					debug_msg("free memory payload");
 				}
 
 				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
+					debug_msg("free memory topic_and_node");
 				}
 
-				if (work->pub_packet != NULL) {
-					nng_free(work->pub_packet, sizeof(struct topic_and_node));
-					work->pub_packet = NULL;
-				}
 
 				if (work->state != SEND) {
 					work->msg   = NULL;
@@ -265,26 +284,99 @@ server_cb(void *arg)
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
-				if(handle_pub(work, NULL, NULL)){
+				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+				reason = handle_pub(work, tp_node, topic_queue);
+				if (SUCCESS == reason) {
 
 				}
 
-			}  else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
+				if (work->pub_packet != NULL) {
+					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
+					work->pub_packet = NULL;
+					debug_msg("free memory payload");
+				}
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
 				debug_msg("handle CMD_PUBREC\n");
-				if(handle_pub(work, NULL, NULL)){
+				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+				reason = handle_pub(work, tp_node, topic_queue);
+				if (SUCCESS == reason) {
+					pub_response = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+					pub_response->fixed_header.packet_type = PUBREL;
+					pub_response->fixed_header.dup        = 0;
+					pub_response->fixed_header.qos        = 1; //bit1 = 1
+					pub_response->fixed_header.retain     = 0;
+					pub_response->fixed_header.remain_len = 2;
 
+					pub_response->variable_header.puback.packet_identifier =
+							work->pub_packet->variable_header.publish.packet_identifier;
+
+					encode_pub_message(smsg, pub_response);
+
+					//response PUBREL to client
+
+					work->state = SEND;
+					work->msg   = smsg;
+					nng_aio_set_msg(work->aio, work->msg);
+					work->msg = NULL;
+//						nng_aio_set_pipeline(work->aio, work->pid.id);
+					nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
+
+					nng_free(pub_response, sizeof(struct pub_packet_struct));
 				}
 
-			}  else if (nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
+				if (work->pub_packet != NULL) {
+					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
+					work->pub_packet = NULL;
+					debug_msg("free memory payload");
+				}
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
 				debug_msg("handle CMD_PUBREL\n");
-				if(handle_pub(work, NULL, NULL)){
+				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+				reason = handle_pub(work, tp_node, topic_queue);
+				if (SUCCESS == reason) {
+					pub_response = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+					pub_response->fixed_header.packet_type = PUBCOMP;
+					pub_response->fixed_header.dup        = 0;
+					pub_response->fixed_header.qos        = 1; //bit1 = 1
+					pub_response->fixed_header.retain     = 0;
+					pub_response->fixed_header.remain_len = 2;
+
+					pub_response->variable_header.puback.packet_identifier =
+							work->pub_packet->variable_header.publish.packet_identifier;
+
+					encode_pub_message(smsg, pub_response);
+
+					//response PUBREL to client
+
+					work->state = SEND;
+					work->msg   = smsg;
+					nng_aio_set_msg(work->aio, work->msg);
+					work->msg = NULL;
+//						nng_aio_set_pipeline(work->aio, work->pid.id);
+					nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
+
+					nng_free(pub_response, sizeof(struct pub_packet_struct));
+				}
+
+				if (work->pub_packet != NULL) {
+					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
+					work->pub_packet = NULL;
+					debug_msg("free memory payload");
+				}
+
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
+				debug_msg("handle CMD_PUBCOMP\n");
+				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+				reason = handle_pub(work, tp_node, topic_queue);
+
+				if (SUCCESS == reason) {
 
 				}
 
-			}  else if (nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
-				debug_msg("handle CMD_PUBCOMP\n");
-				if(handle_pub(work, NULL, NULL)){
-
+				if (work->pub_packet != NULL) {
+					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
+					work->pub_packet = NULL;
+					debug_msg("free memory payload");
 				}
 
 			} else {
