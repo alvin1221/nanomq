@@ -8,7 +8,6 @@
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
-#include <nanolib/mqtt_db.h>
 #include "include/subscribe_handle.h"
 #include "include/unsubscribe_handle.h"
 
