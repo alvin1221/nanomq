@@ -5,6 +5,7 @@
 
 #include <nng/protocol/mqtt/mqtt_parser.h>
 #include <nng/nng.h>
+#include <nanolib/mqtt_db.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
