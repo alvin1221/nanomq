@@ -10,9 +10,21 @@ cmake_minimum_required (VERSION 2.8.8)
 
 project(nanomq-nng)
 
+set(CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH}
+  "${CMAKE_CURRENT_LIST_DIR}/cmake"
+)
+
+
+#add_executable(nanomq-nng nanomq/nanomq.c)
+
+#add_dependencies(nanomq-nng nng_h)
+
+
 add_subdirectory(nng)
 add_subdirectory(nanolib)
 add_subdirectory(nanomq)
 
-add_dependencies(nanomq nng)
 
+add_dependencies(nanomq nng)
+add_dependencies(nanomq nanolib)

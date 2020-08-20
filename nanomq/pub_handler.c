@@ -6,10 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <nng/nng.h>
-#include <nanolib/mqtt_db.h>
+#include <nng.h>
+#include <mqtt_db.h>
+#include <protocol/mqtt/mqtt_parser.h>
 #include <include/nanomq.h>
-#include <nng/protocol/mqtt/mqtt_parser.h>
+
 
 #include "include/pub_handler.h"
 
