@@ -237,9 +237,9 @@ void add_node(struct topic_and_node *input, struct client *id)
         	new_node = input->node->down;
 		}
 
-    } else {
+	} else {
 		new_node = new_db_node(*topic_queue);
-        new_node->up =  input->node;
+		new_node->up =  input->node;
 		
 		if (check_plus(*topic_queue)) {
 			debug("unequal, plus is true");
@@ -257,8 +257,8 @@ void add_node(struct topic_and_node *input, struct client *id)
 
 				} else {
 					tmp_node = input->node->down->next;
-        	    	input->node->down->next = new_node;
-        	    	new_node->next = tmp_node; 
+        			input->node->down->next = new_node;
+        			new_node->next = tmp_node; 
 				}
         	} else {
         	    input->node->down->next = new_node;
@@ -269,7 +269,7 @@ void add_node(struct topic_and_node *input, struct client *id)
     while (*(++topic_queue)) {
 		if (check_hashtag(*topic_queue)) {
 			debug("set hashtag is true");
-            new_node->hashtag = true;
+        	new_node->hashtag = true;
 			/*
 			** TODO delete it or not
 			*/ 
@@ -290,7 +290,7 @@ void add_node(struct topic_and_node *input, struct client *id)
 				new_node->plus = true;
 			}
 			set_db_node(new_node, topic_queue);
-        	new_node = new_node->down;
+			new_node = new_node->down;
 		}
     }
     new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
@@ -302,7 +302,7 @@ void add_node(struct topic_and_node *input, struct client *id)
 	TODO*/
 void del_node(struct db_node *node) 
 {
-    assert(node);
+	assert(node);
 	log_info("DEL_NODE_START");
     if (node->sub_client || node->down || node->hashtag) {
 		log("Node can't be deleted!");
