@@ -143,10 +143,10 @@ struct db_node *new_db_node(char *topic)
 {
 	struct db_node *node = NULL;
 	node = (struct db_node*)zmalloc(sizeof(struct db_node));
-    node->topic = (char*)zmalloc(strlen(topic)+1);
-    memcpy(node->topic, topic, strlen(topic)+1);
+	node->topic = (char*)zmalloc(strlen(topic)+1);
+	memcpy(node->topic, topic, strlen(topic)+1);
 	log("new_db_node %s", node->topic);
-    node->next = NULL;
+	node->next = NULL;
 	node->down = NULL;
 	node->sub_client = NULL;
 	return node;
