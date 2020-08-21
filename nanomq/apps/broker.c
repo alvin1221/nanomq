@@ -52,10 +52,7 @@ server_cb(void *arg)
 	uint8_t     buf[2] = {1, 2};
 	reason_code reason;
 
-	char **topic_queue = NULL;
-
-	struct topic_and_node    *tp_node      = NULL;
-	struct pub_packet_struct *pub_response = NULL;
+	struct topic_and_node *tp_node = NULL;
 
 	switch (work->state) {
 		case INIT:
@@ -179,7 +176,7 @@ server_cb(void *arg)
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
 				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
 
-				reason = handle_pub(work, tp_node, topic_queue);
+				reason = handle_pub(work, tp_node);
 
 				if (SUCCESS == reason) {
 
@@ -187,21 +184,18 @@ server_cb(void *arg)
 						work->pub_packet->fixed_header.dup = 0;
 
 					} else if (work->pub_packet->fixed_header.qos == 1 || work->pub_packet->fixed_header.qos == 2) {
-						pub_response = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-						pub_response->fixed_header.packet_type =
-								work->pub_packet->fixed_header.qos == 1 ? PUBACK : PUBREC;
-						pub_response->fixed_header.dup        = 0;
-						pub_response->fixed_header.qos        = 0;
-						pub_response->fixed_header.retain     = 0;
-						pub_response->fixed_header.remain_len = 2;
+						struct pub_packet_struct pub_response = {
+								.fixed_header.packet_type =work->pub_packet->fixed_header.qos == 1 ? PUBACK : PUBREC,
+								.fixed_header.qos = 0,
+								.fixed_header.dup = 0,
+								.fixed_header.retain = 0,
+								.fixed_header.remain_len = 2,
+								.variable_header.pub_arrc.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
+						};
 
-						pub_response->variable_header.puback.packet_identifier =
-								work->pub_packet->variable_header.publish.packet_identifier;
-
-						encode_pub_message(smsg, pub_response);
+						encode_pub_message(smsg, &pub_response, work);
 
 						//response PUBACK/PUBREC to client
-
 						work->state = SEND;
 						work->msg   = smsg;
 						nng_aio_set_msg(work->aio, work->msg);
@@ -209,7 +203,6 @@ server_cb(void *arg)
 //						nng_aio_set_pipeline(work->aio, work->pid.id);
 						nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
 
-						nng_free(pub_response, sizeof(struct pub_packet_struct));
 						work->pub_packet->fixed_header.dup = 0;//if publish first time
 					}
 
@@ -223,7 +216,7 @@ server_cb(void *arg)
 						while (sub_clients) { //FIXME
 							debug_msg("current client pointer: [%p], id: %s, next: %p", sub_clients, sub_clients->id,
 							          sub_clients->next);
-							encode_pub_message(smsg, work->pub_packet);
+							encode_pub_message(smsg, work->pub_packet, work);
 							client_work = (emq_work *) sub_clients->ctxt;
 
 							debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
@@ -240,6 +233,7 @@ server_cb(void *arg)
 
 							sub_clients = sub_clients->next;
 						}
+
 					} else {
 						debug_msg("can not find topic [%s] info",
 						          work->pub_packet->variable_header.publish.topic_name.str_body);
@@ -247,7 +241,6 @@ server_cb(void *arg)
 				} else {
 					//TODO send DISCONNECT with reason_code if MQTT Version=5.0
 				}
-
 
 				if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {
 					nng_free(work->pub_packet->variable_header.publish.topic_name.str_body,
@@ -274,18 +267,16 @@ server_cb(void *arg)
 					debug_msg("free memory topic_and_node");
 				}
 
-
 				if (work->state != SEND) {
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
 
-
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node, topic_queue);
+				reason = handle_pub(work, tp_node);
 				if (SUCCESS == reason) {
 
 				}
@@ -298,19 +289,18 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
 				debug_msg("handle CMD_PUBREC\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node, topic_queue);
+				reason = handle_pub(work, tp_node);
 				if (SUCCESS == reason) {
-					pub_response = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-					pub_response->fixed_header.packet_type = PUBREL;
-					pub_response->fixed_header.dup        = 0;
-					pub_response->fixed_header.qos        = 1; //bit1 = 1
-					pub_response->fixed_header.retain     = 0;
-					pub_response->fixed_header.remain_len = 2;
+					struct pub_packet_struct pub_response = {
+							.fixed_header.packet_type = PUBREL,
+							.fixed_header.qos = 0,
+							.fixed_header.dup = 0,
+							.fixed_header.retain = 0,
+							.fixed_header.remain_len = 2,
+							.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
+					};
 
-					pub_response->variable_header.puback.packet_identifier =
-							work->pub_packet->variable_header.publish.packet_identifier;
-
-					encode_pub_message(smsg, pub_response);
+					encode_pub_message(smsg, &pub_response, work);
 
 					//response PUBREL to client
 
@@ -321,7 +311,6 @@ server_cb(void *arg)
 //						nng_aio_set_pipeline(work->aio, work->pid.id);
 					nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
 
-					nng_free(pub_response, sizeof(struct pub_packet_struct));
 				}
 
 				if (work->pub_packet != NULL) {
@@ -332,20 +321,18 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
 				debug_msg("handle CMD_PUBREL\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node, topic_queue);
+				reason = handle_pub(work, tp_node);
 				if (SUCCESS == reason) {
-					pub_response = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-					pub_response->fixed_header.packet_type = PUBCOMP;
-					pub_response->fixed_header.dup        = 0;
-					pub_response->fixed_header.qos        = 1; //bit1 = 1
-					pub_response->fixed_header.retain     = 0;
-					pub_response->fixed_header.remain_len = 2;
+					struct pub_packet_struct pub_response = {
+							.fixed_header.packet_type = PUBCOMP,
+							.fixed_header.dup = 0,
+							.fixed_header.qos = 1,//bit1 = 1
+							.fixed_header.retain = 0,
+							.fixed_header.remain_len = 2,
+							.variable_header.pubcomp.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
+					};
 
-					pub_response->variable_header.puback.packet_identifier =
-							work->pub_packet->variable_header.publish.packet_identifier;
-
-					encode_pub_message(smsg, pub_response);
-
+					encode_pub_message(smsg, &pub_response, work);
 					//response PUBREL to client
 
 					work->state = SEND;
@@ -354,8 +341,6 @@ server_cb(void *arg)
 					work->msg = NULL;
 //						nng_aio_set_pipeline(work->aio, work->pid.id);
 					nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
-
-					nng_free(pub_response, sizeof(struct pub_packet_struct));
 				}
 
 				if (work->pub_packet != NULL) {
@@ -367,7 +352,7 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 				debug_msg("handle CMD_PUBCOMP\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node, topic_queue);
+				reason = handle_pub(work, tp_node);
 
 				if (SUCCESS == reason) {
 
