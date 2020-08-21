@@ -1,7 +1,5 @@
 #include <string.h>
-#include "include/mqtt_db.h"
-#include "include/zmalloc.h"
-#include "include/hash.h"
+#include "include/nanolib.h"
 
 
 // struct clientId ID = {"150410"};
@@ -9,7 +7,6 @@
 // struct db_tree db = {&node};
 
 struct db_tree *db = NULL;
-// struct db_tree *db = (struct db_tree*)zmalloc(sizeof(struct db_tree));
 
 struct client ID1 = {"150429", NULL, NULL};
 
@@ -87,12 +84,18 @@ static void Test_add_node(void)
 
     search_node(db, topic_queue, res);
     add_node(res, &ID1);
-    // add_client(res, &ID1);
-    // printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    // printf("RES_NODE_STATE: %d\n", res->t_state);
-	// if (res->topic) {
-	// 	printf("RES_TOPIC: %s\n", *(res->topic));
-	// }
+    search_node(db, topic_queue, res);
+	if (check_client(res->node, ID1.id)) {
+		add_client(res, &ID1);
+	} else {
+		puts("2@@@@@@@@@@@@@@@@@@@@@@@@@@###@@@@@@@");
+	}
+	print_db_tree(db);
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
 
     topic_queue = topic_parse(data1);
     search_node(db, topic_queue, res);
@@ -109,31 +112,33 @@ static void Test_add_node(void)
     search_node(db, topic_queue, res);
     add_node(res, &ID4);
 	print_db_tree(db);
+
     search_node(db, topic_queue, res);
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
 
-    // printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    // printf("RES_NODE_STATE: %d\n", res->t_state);
-	// if (res->topic) {
-	// 	printf("RES_TOPIC: %s\n", *(res->topic));
-	// }
+    topic_queue = topic_parse(data3);
+    search_node(db, topic_queue, res);
+    add_node(res, &ID5);
+	print_db_tree(db);
 
-    // topic_queue = topic_parse(data3);
-    // search_node(db, topic_queue, res);
-    // add_node(res, &ID5);
-	// print_db_tree(db);
-    // search_node(db, topic_queue, res);
-
-    // printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
-    // printf("RES_NODE_STATE: %d\n", res->t_state);
-	// if (res->topic) {
-	// 	printf("RES_TOPIC: %s\n", *(res->topic));
-	// }
+    search_node(db, topic_queue, res);
+    printf("RES_NODE_ID: %s\n", res->node->sub_client->id);
+    printf("RES_NODE_STATE: %d\n", res->t_state);
+	if (res->topic) {
+		printf("RES_TOPIC: %s\n", *(res->topic));
+	}
 }
 
 static void Test_del_node(void)
 {
     puts(">>>>>>>>>> TEST_DEL_NODE <<<<<<<<");
     char *data = "lee/hom/jian/lihai";
+    char *data1 = "#";
+    char *data2 = "lee/#";
     struct topic_and_node *res = NULL;
 	char **topic_queue = topic_parse(data);
 	res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
@@ -142,9 +147,23 @@ static void Test_del_node(void)
 	struct client ID2 = {"150410", NULL, NULL};
     add_node(res, &ID2);
 	print_db_tree(db);
-   	struct clients* res_clients = NULL;
-   	res_clients = search_client(db->root, topic_queue);
 
+
+    topic_queue = topic_parse(data1);
+    search_node(db, topic_queue, res);
+    add_node(res, &ID2);
+	print_db_tree(db);
+
+    topic_queue = topic_parse(data2);
+    search_node(db, topic_queue, res);
+    add_node(res, &ID2);
+	print_db_tree(db);
+
+   	struct clients* res_clients = NULL;
+	topic_queue = topic_parse(data);
+   	res_clients = search_client(db->root, topic_queue);
+	iterate_client(res_clients);
+    puts("----------------------------------------------------\nall:");
 	while (res_clients) {
 		struct client *sub_client = res_clients->sub_client;
 		while (sub_client) {
@@ -153,13 +172,27 @@ static void Test_del_node(void)
    		}
 		res_clients = res_clients->down;
 	}
-    search_node(db, topic_queue, res); 
-    del_client(res, ID2.id);
-    del_node(res->node);
-    del_client(res, ID1.id);
-    del_node(res->node);
-    del_client(res, ID1.id);
-    del_node(res->node);
+
+    // search_node(db, topic_queue, res); 
+    // del_client(res, ID2.id);
+	// print_db_tree(db);
+
+    // del_node(res->node);
+	// print_db_tree(db);
+
+    // topic_queue = topic_parse(data1);
+    // search_node(db, topic_queue, res); 
+    // del_client(res, ID2.id);
+	// print_db_tree(db);
+    // del_node(res->node);
+	// print_db_tree(db);
+
+    // topic_queue = topic_parse(data2);
+    // search_node(db, topic_queue, res); 
+    // del_client(res, ID2.id);
+	// print_db_tree(db);
+    // del_node(res->node);
+	// print_db_tree(db);
 }
 
 static void Test_hash_table(void) 
@@ -215,7 +248,7 @@ void test()
     // Test_topic_parse();
     // Test_search_node();
     Test_add_node();
-    // Test_del_node();
+    Test_del_node();
 	// Test_hash_table();
     puts("---------------TEST FINISHED----------------\n");
 }

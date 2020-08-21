@@ -1,8 +1,6 @@
 #ifndef MQTT_DB_H
 #define MQTT_DB_H
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 typedef enum {UNEQUAL = 0, EQUAL = 1 } state;
@@ -19,8 +17,6 @@ struct clients {
 	struct clients*		down;
 	int					len;
 };
-
-
 
 struct db_node {
     char                *topic;
@@ -91,12 +87,15 @@ void free_node(struct db_node *node);
 /* Parsing topic from char* with '/' to char** */
 char **topic_parse(char *topic);
 
+struct db_node *find_next(struct db_node *node, bool *equal, char
+		**topic_queue);
+
 struct clients *search_client(struct db_node *root, char **topic_queue);
 
-void delete_client(struct client *client);
+bool check_client(struct db_node *node, char *id);
 
 /* Delete client id. */
-void del_client(struct topic_and_node *input, char *id);
+struct client *del_client(struct topic_and_node *input, char *id);
 
 struct client *set_client(const char *id, void *ctxt); 
 
