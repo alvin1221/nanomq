@@ -141,15 +141,15 @@ bool check_plus(char *topic_data)
 
 struct db_node *new_db_node(char *topic)
 {
-		struct db_node *node = NULL;
-		node = (struct db_node*)zmalloc(sizeof(struct db_node));
-        node->topic = (char*)zmalloc(strlen(topic)+1);
-        memcpy(node->topic, topic, strlen(topic)+1);
-		log("new_db_node %s", node->topic);
-        node->next = NULL;
-		node->down = NULL;
-		node->sub_client = NULL;
-		return node;
+	struct db_node *node = NULL;
+	node = (struct db_node*)zmalloc(sizeof(struct db_node));
+    node->topic = (char*)zmalloc(strlen(topic)+1);
+    memcpy(node->topic, topic, strlen(topic)+1);
+	log("new_db_node %s", node->topic);
+    node->next = NULL;
+	node->down = NULL;
+	node->sub_client = NULL;
+	return node;
 }
 
 void delete_db_node(struct db_node *node)
@@ -163,9 +163,9 @@ void delete_db_node(struct db_node *node)
 		node->up = NULL;
 		node->next = NULL;
 		node->down = NULL;
-    	zfree(node);
+		zfree(node);
 	}
-    node = NULL;
+	node = NULL;
 }
 
 void set_db_node(struct db_node *node, char **topic_queue)
@@ -203,18 +203,18 @@ void insert_db_node(struct db_node *new_node, struct db_node *old_node)
 void add_node(struct topic_and_node *input, struct client *id)
 {
 	log_info("ADD_NODE_START");
-    assert(input && id);
-    struct db_node *tmp_node = NULL;
-    struct db_node *new_node = NULL;
-    char **topic_queue = input->topic;
+	assert(input && id);
+	struct db_node *tmp_node = NULL;
+	struct db_node *new_node = NULL;
+	char **topic_queue = input->topic;
 
 	if (topic_queue == NULL) {
 		log("Topic_queue is NULL, no topic is needed add!");
 		return;
 	}
 
-    if (input->t_state == EQUAL) {
-        /* 
+	if (input->t_state == EQUAL) {
+		/* 
 		** # is the last string in topic 
 		*/ 
 		if (input->hashtag) {
