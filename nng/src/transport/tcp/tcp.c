@@ -370,7 +370,7 @@ tcptran_pipe_send_cb(void *arg)
 
 	n = nni_aio_count(txaio);
 	nni_aio_iov_advance(txaio, n);
-	debug_msg("sent %d iov %d", n, nni_aio_iov_count(txaio));
+	debug_msg("tcp socket sent %d iov %d", n, nni_aio_iov_count(txaio));
 
 	if (nni_aio_iov_count(txaio) > 0) {
 		nng_stream_send(p->conn, txaio);
@@ -378,7 +378,7 @@ tcptran_pipe_send_cb(void *arg)
 		return;
 	}
 	nni_aio_list_remove(aio);
-	tcptran_pipe_send_start(p);
+	tcptran_pipe_send_start(p);	//just for trigger next layer AIO;
 	msg = nni_aio_get_msg(aio);
 	n   = nni_msg_len(msg);
 	//nni_pipe_bump_tx(p->npipe, n);
@@ -633,6 +633,7 @@ tcptran_pipe_send_start(tcptran_pipe *p)
 	}
 
 	if ((aio = nni_list_first(&p->sendq)) == NULL) {
+		debug_msg("aio not functioning");
 		return;
 	}
 

@@ -159,8 +159,8 @@ extern void nni_aio_set_sockaddr(nni_aio *aio, const nng_sockaddr *);
 extern void nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
 
 //naomq api
-extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t id);
-extern uint32_t nni_aio_get_pipeline(nni_aio *aio);
+extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t *id);
+extern uint32_t* nni_aio_get_pipeline(nni_aio *aio);
 
 
 // nni_aio_schedule indicates that the AIO has begun, and is scheduled for
@@ -227,7 +227,8 @@ struct nng_aio {
 	nni_list_node a_expire_node;
 
 	// NanoMQ PipeID
-	uint32_t	pipe_id;
+	uint32_t 	*pipes;
+	//nni_list	pub_list;
 };
 
 #endif // CORE_AIO_H

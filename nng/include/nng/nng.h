@@ -661,7 +661,7 @@ NNG_DECL int nng_aio_set_iov(nng_aio *, unsigned, const nng_iov *);
 // further action on the aio.
 NNG_DECL bool nng_aio_begin(nng_aio *);
 
-NNG_DECL void nng_aio_set_pipeline(nng_aio *aio, uint32_t id);
+NNG_DECL void nng_aio_set_pipeline(nng_aio *aio, uint32_t *id);
 
 // nng_aio_finish is used to "finish" an asynchronous operation.
 // It should only be called by "providers" (such as HTTP server API users).
