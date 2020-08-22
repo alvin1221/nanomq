@@ -50,10 +50,10 @@ server_cb(void *arg)
 	int         rv;
 	uint32_t    when;
 
-	uint32_t              *pipes      = NULL;
-	volatile uint32_t     total_pipes = 0;
-	struct topic_and_node *tp_node    = NULL;
-	reason_code           reason;
+	uint32_t          *pipes      = NULL;
+	volatile uint32_t total_pipes = 0;
+//	struct topic_and_node *tp_node    = NULL;
+	reason_code       reason;
 
 	uint8_t buf[2] = {1, 2};
 
@@ -180,9 +180,9 @@ server_cb(void *arg)
 				debug_msg("handle CMD_PUBLISH\n");
 
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
-
-				reason = handle_pub(work, tp_node);
+//				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
+				struct clients *client_list = NULL;
+				reason = handle_pub(work, client_list);
 
 				if (SUCCESS == reason) {
 
@@ -212,13 +212,13 @@ server_cb(void *arg)
 						work->pub_packet->fixed_header.dup = 0;//if publish first time
 					}
 
-					if (tp_node != NULL && tp_node->topic == NULL) {
-//TODO					struct clients *client_list = search_client(work->db->root, topic_queue);
+					if (client_list->sub_client != NULL) {
+//					struct clients *client_list = search_client(work->db->root, topic_queue);
 //						struct client  *sub_clients = client_list->sub_client;
 
 						emq_work *client_work;
 						total_pipes = 0;
-						for (struct client *i = tp_node->node->sub_client; i != NULL; i = i->next) {
+						for (struct client *i = client_list->sub_client; i != NULL; i = i->next) {
 							++total_pipes;
 						}
 
@@ -227,7 +227,7 @@ server_cb(void *arg)
 						pipes = (uint32_t *) nng_alloc(sizeof(uint32_t) * (total_pipes + 1));
 						memset((uint32_t *) pipes, (uint32_t) 0, sizeof(uint32_t) * (total_pipes + 1));
 
-						struct client *sub_clients = tp_node->node->sub_client;
+						struct client *sub_clients = client_list->sub_client;
 
 						for (int j = 0; j < total_pipes && sub_clients != NULL; j++, sub_clients = sub_clients->next) {
 							client_work = (emq_work *) sub_clients->ctxt;
@@ -271,11 +271,11 @@ server_cb(void *arg)
 					debug_msg("free memory payload");
 				}
 
-				if (tp_node != NULL) {
+/*				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
 					debug_msg("free memory topic_and_node");
-				}
+				}*/
 
 				if (work->state != SEND) {
 					work->msg   = NULL;
@@ -286,7 +286,7 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node);
+				reason = handle_pub(work, NULL);
 				if (SUCCESS == reason) {
 
 				}
@@ -299,7 +299,7 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
 				debug_msg("handle CMD_PUBREC\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node);
+				reason = handle_pub(work, NULL);
 				if (SUCCESS == reason) {
 					struct pub_packet_struct pub_response = {
 							.fixed_header.packet_type = PUBREL,
@@ -331,7 +331,7 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
 				debug_msg("handle CMD_PUBREL\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node);
+				reason = handle_pub(work, NULL);
 				if (SUCCESS == reason) {
 					struct pub_packet_struct pub_response = {
 							.fixed_header.packet_type = PUBCOMP,
@@ -362,7 +362,7 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 				debug_msg("handle CMD_PUBCOMP\n");
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, tp_node);
+				reason = handle_pub(work, NULL);
 
 				if (SUCCESS == reason) {
 

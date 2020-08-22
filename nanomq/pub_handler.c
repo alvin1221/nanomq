@@ -25,21 +25,23 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work);
 
-reason_code handle_pub(emq_work *work, struct topic_and_node *tp_node)
+reason_code handle_pub(emq_work *work, struct clients *client_list)
 {
 
-	char **topic_queue_dup = NULL;
+	char **topic_queue = NULL;
 
 	reason_code result = decode_pub_message(work);
+	debug_msg("publish topic: [%s]", work->pub_packet->variable_header.publish.topic_name.str_body);
 
 	if (SUCCESS == result) {
 
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
-				topic_queue_dup = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
-				search_node(work->db, topic_queue_dup, tp_node);
-				zfree(*topic_queue_dup);
-				zfree(topic_queue_dup);
+				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
+//				search_node(work->db, topic_queue, tp_node);
+				client_list = search_client(work->db->root, topic_queue);
+				zfree(*topic_queue);
+				zfree(topic_queue);
 
 				break;
 
