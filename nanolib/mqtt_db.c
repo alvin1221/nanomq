@@ -7,11 +7,14 @@
 #include "include/dbg.h"
 
 
-/* Create a db_tree */
-/* TODO */
+/* 
+ ** Create a db_tree
+ ** Declare a global variable as func para 
+ ** struct db_tree *db;
+ */
 void create_db_tree(struct db_tree **db)
 {
-	log_info("CREATE_DB_TREE_START");
+	log_info("CREATE_DB_TREE");
 	*db = (struct db_tree *)zmalloc(sizeof(struct db_tree)); 
 	memset(*db, 0, sizeof(struct db_tree));
 
@@ -20,15 +23,22 @@ void create_db_tree(struct db_tree **db)
 	return;
 }
 
-
+/*
+ ** Destory db tree 
+ ** destory all node & db_tree
+ */
 void destory_db_tree(struct db_tree *db)
 {
-	log_info("DESTORY_DB_TREE_START");
+	log_info("DESTORY_DB_TREE");
 	/* TODO */
 
-	log_info("DESTORY_DB_TREE_SUCCESSFULLY\n");
 }
 
+/*
+ ** Print db_tree
+ ** For debugging, you can output all node 
+ ** & node info
+ */
 void print_db_tree(struct db_tree *db) 
 {
 	assert(db);
@@ -49,31 +59,31 @@ void print_db_tree(struct db_tree *db)
 		size = 0;
 		while (len-- && tmps) {
 			struct db_node *tmp = tmps->node;
-	 		while (tmp) {
-	 			printf("\"%s\" ", tmp->topic);
-	 			printf("%d", tmp->hashtag);
-	 			printf("%d ", tmp->plus);
-	 			if (tmp->sub_client) {
-	 				printf("%s ", tmp->sub_client->id);
+			while (tmp) {
+				printf("\"%s\" ", tmp->topic);
+				printf("%d", tmp->hashtag);
+				printf("%d ", tmp->plus);
+				if (tmp->sub_client) {
+					printf("%s ", tmp->sub_client->id);
 					if (tmp->sub_client->next) {
 						printf("and more ");
 					} else {
 						printf("no more ");
 					}
 
-	 			} else {
+				} else {
 					printf("-- ");
 				}
 				if (tmp->up) {
 					if (strcmp("#", tmp->topic)) {
-						printf("\"%s\"\t", tmp->up->topic);
+						printf("\"%s\"\t ", tmp->up->topic);
 					} else {
-						printf("<--\t");
+						printf("<-\t ");
 					}
 
+				} else {
+					printf("--\t");
 				}
-
-
 
 				if (tmp->down) {
 					// debug("sth new");
@@ -83,10 +93,10 @@ void print_db_tree(struct db_tree *db)
 					tmps_end->node = tmp->down;
 					tmps_end->next = NULL;
 				}
-	 			if (tmp) {
+				if (tmp) {
 					// debug("tmp next");
-	 				tmp = tmp->next;
-	 			}
+					tmp = tmp->next;
+				}
 			}
 			// debug("tmps next");
 			tmps = tmps->next;
@@ -97,7 +107,7 @@ void print_db_tree(struct db_tree *db)
 			break;
 		}
 		puts("----------------------------------------------");
-	
+
 		len = size;
 
 	}
@@ -105,15 +115,22 @@ void print_db_tree(struct db_tree *db)
 	puts("-------------------DB_TREE---------------------\n");
 }
 
+/*
+ ** Determine if the current topic data is "#"
+ ** or not.
+ */
 bool check_hashtag(char *topic_data) 
 {
 	if (topic_data == NULL) {
 		return false;
 	}
 	return !strcmp(topic_data, "#");
-
 }
 
+/*
+ ** Determine if the current topic data is "+"
+ ** or not.
+ */
 bool check_plus(char *topic_data) 
 {
 	if (topic_data == NULL) {
@@ -124,26 +141,31 @@ bool check_plus(char *topic_data)
 
 struct db_node *new_db_node(char *topic)
 {
-		struct db_node *node = NULL;
-		node = (struct db_node*)zmalloc(sizeof(struct db_node));
-        node->topic = (char*)zmalloc(strlen(topic)+1);
- //       memcpy(&node->topic, &topic, strlen(topic)+1);
-        memcpy(node->topic, topic, strlen(topic)+1);
-		node->next = NULL;
-		node->down = NULL;
-		node->sub_client = NULL;
-		return node;
+	struct db_node *node = NULL;
+	node = (struct db_node*)zmalloc(sizeof(struct db_node));
+	node->topic = (char*)zmalloc(strlen(topic)+1);
+	memcpy(node->topic, topic, strlen(topic)+1);
+	log("new_db_node %s", node->topic);
+	node->next = NULL;
+	node->down = NULL;
+	node->sub_client = NULL;
+	return node;
 }
 
 void delete_db_node(struct db_node *node)
 {
-    zfree(node->topic);
-	node->topic = NULL;
-	node->up = NULL;
-	node->next = NULL;
-	node->down = NULL;
-    zfree(node);
-    node = NULL;
+	if (node) {
+		log("delete_db_node %s", node->topic);
+		if (node->topic) {
+			zfree(node->topic);
+		}
+		node->topic = NULL;
+		node->up = NULL;
+		node->next = NULL;
+		node->down = NULL;
+		zfree(node);
+	}
+	node = NULL;
 }
 
 void set_db_node(struct db_node *node, char **topic_queue)
@@ -159,89 +181,98 @@ void set_db_node(struct db_node *node, char **topic_queue)
 	}
 }
 
+void insert_db_node(struct db_node *new_node, struct db_node *old_node)
+{
+	log("insert_db_node %s", new_node->topic);
+	if (old_node->next != new_node) {
+		struct db_node *tmp_node = NULL;
+		tmp_node = old_node->next; 
+		old_node->next = new_node;
+		new_node->next = tmp_node->next;
+	}
+	new_node->up = old_node->up ? old_node->up : old_node;
+	return;
+}
 
-	
-
-/* Add node when sub do not find a node on the tree */
+/* 
+ ** Add nodes when the sub node is not found in the tree. 
+ ** You need do serach_node and set client before add_node.
+ ** input is the result of search_node, id is the result 
+ ** of set_client.
+ */
 void add_node(struct topic_and_node *input, struct client *id)
 {
-	/* add node + and # */
-	/* fixed add NULL at pointer end */
 	log_info("ADD_NODE_START");
-    assert(input && id);
-    struct db_node *tmp_node = NULL;
-    struct db_node *new_node = NULL;
-    char **topic_queue = input->topic;
+	assert(input && id);
+	struct db_node *tmp_node = NULL;
+	struct db_node *new_node = NULL;
+	char **topic_queue = input->topic;
+
 	if (topic_queue == NULL) {
-		log("return because topic_queue is NULL");
+		log("Topic_queue is NULL, no topic is needed add!");
 		return;
 	}
 
-    if (input->t_state == EQUAL) {
-		log("add node");
-		if (input->hashtag) {/* # is the last one */
+	if (input->t_state == EQUAL) {
+		/* 
+		 ** # is the last string in topic 
+		 */ 
+		if (input->hashtag) {
 			input->node->hashtag = true;
 			if (input->node->next) {
-				debug("next");
-				/* Head insertion */
 				new_node = new_db_node(*(++topic_queue));
-				tmp_node = input->node->next; 
-				input->node->next = new_node;
-				new_node->next = tmp_node->next;
-				new_node->up = input->node->up ? input->node->up : NULL;
-				new_node = new_node->up->down;
-				log_info("Head insertion for hashtag add");
-
+				insert_db_node(new_node, input->node);
 			} else {
-				debug("no next");
-				debug("input->node is %s", input->node->topic);
 				input->node->next = new_db_node(*(++topic_queue));
-				debug("input->node next is %s", input->node->next->topic);
-				input->node->next->up = input->node->up ? input->node->up : NULL;
-				input->node->next->next = NULL;
-				input->node->next->down = NULL;
+				insert_db_node(input->node->next, input->node);
 				new_node = input->node->next;
 			}
 
 		} else {
-			if (check_plus(*(++topic_queue)))
-			{
+			set_db_node(input->node, ++topic_queue);
+			if (check_plus(*(topic_queue))) {
 				debug("equal, plus is true");
-				set_db_node(input->node, topic_queue);
 				input->node->plus = true;
-        		new_node = input->node->down;
-			} else {
-				debug("equal, plus is not true");
-				set_db_node(input->node, topic_queue);
-        		new_node = input->node->down;
 			}
+			new_node = input->node->down;
 		}
 
-    } else {
+	} else {
 		new_node = new_db_node(*topic_queue);
-        new_node->up =  input->node;
+		new_node->up =  input->node;
+
 		if (check_plus(*topic_queue)) {
-			log("unequal, plus is true");
+			debug("unequal, plus is true");
 			input->node->plus = true;
 			tmp_node = input->node->down;
 			input->node->down = new_node;
 			new_node->next = tmp_node;
 		} else {
-			log("unequal, plus is not true");
+			debug("unequal, plus is not true");
 			if (input->node->down->next) {
-        	    tmp_node = input->node->down->next;
-        	    input->node->down->next = new_node;
-        	    new_node->next = tmp_node; 
-        	} else {
-        	    input->node->down->next = new_node;
-        	}
-		}
-    }
+				if (input->node->down->hashtag) {
+					tmp_node = input->node->down->next->next;
+					input->node->down->next->next = new_node;
+					new_node->next = tmp_node; 
 
-    while (*(++topic_queue)) {
+				} else {
+					tmp_node = input->node->down->next;
+					input->node->down->next = new_node;
+					new_node->next = tmp_node; 
+				}
+			} else {
+				input->node->down->next = new_node;
+			}
+		}
+	}
+
+	while (*(++topic_queue)) {
 		if (check_hashtag(*topic_queue)) {
 			debug("set hashtag is true");
-            new_node->hashtag = true;
+			new_node->hashtag = true;
+			/*
+			 ** TODO delete it or not
+			 */ 
 			if (new_node->next) {
 				tmp_node = new_db_node(*topic_queue);
 				tmp_node->up = new_node->up ? new_node->up : NULL;
@@ -251,107 +282,116 @@ void add_node(struct topic_and_node *input, struct client *id)
 
 			} else {
 				new_node->next = new_db_node(*topic_queue);
-				new_node->next->up = new_node->up ? new_node->up : NULL;
-				new_node->next->down = NULL;
-				new_node->next->next = NULL;
+				insert_db_node(new_node->next, new_node);
 			}
 			new_node = new_node->next;
-        	// new_node = new_node->up->down;
 		} else {
+			if (check_plus(*topic_queue)) {
+				new_node->plus = true;
+			}
 			set_db_node(new_node, topic_queue);
-        	new_node = new_node->down;
+			new_node = new_node->down;
 		}
-    }
-    new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
-    memcpy(new_node->sub_client, id, sizeof(struct client));
-    new_node->sub_client->next = NULL;
-    return;
+	}
+	new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
+	memcpy(new_node->sub_client, id, sizeof(struct client));
+	new_node->sub_client->next = NULL;
+	return;
 }
 /*	For duplicate node 
 	TODO*/
 void del_node(struct db_node *node) 
 {
-    assert(node);
+	assert(node);
 	log_info("DEL_NODE_START");
-    if (node->sub_client || node->down || node->hashtag) {
-		puts("Node can't be deleted!");
-        return;
-    }
+	if (node->sub_client || node->down || node->hashtag) {
+		log("Node can't be deleted!");
+		return;
+	}
 
-    if (node->next) {
-		log("DELETE NODE NEXT!");
-		// if (strcmp
-        struct db_node *first = node->up->down;
-        if (first == node) {
-            node->up->down = node->next ? node->next : NULL;
-            // node->next->len = node->len-1;
-        } else {
-            while (first->next != node) {
-                first = first->next;
-            }
+	if (node->next) {
+		log("DELETE NODE AND NEXT!");
+		struct db_node *first = node->up->down;
+		if (first == node) {
+			node->up->plus = false;
+			node->up->down = node->next ? node->next : NULL;
+		} else {
+			while (first->next != node) {
+				first = first->next;
+			}
 			if (first->hashtag) {
 				first->hashtag = false;
+				first->next = first->next->next;
+				del_node(first);
+			} else {
+				first->next = first->next->next;
 			}
-            first->next = first->next->next;
-        }
-
-        /* delete node */
-        delete_db_node(node);
-    } else {
+		}
+		/* delete node */
+		delete_db_node(node);
+	} else {
+		log("DELETE NODE AND UP!");
 		if (node->up == NULL) {
 			return;
+		} else if (node->up->next == node) {
+			node->up->hashtag = false;
+			node->up->next = NULL;
+			delete_db_node(node);
+			return;
 		}
-		log("DELETE NODE UP!");
-        struct db_node *tmp_node = node->up;
+
+		struct db_node *tmp_node = node->up;
 		if (tmp_node->plus) {
 			tmp_node->plus = false;
+			tmp_node->down = NULL;
 		}
-        delete_db_node(node);
-        if (tmp_node->down == node) {
-            tmp_node->down = NULL;
-        }
-        /* delete node */
-        del_node(tmp_node);
-        
-        /* iter */
-        /*
-        while (1) {
-        // TODO 
 
-        }
-        */
-    }
-    return;
-}
-        
-void delete_client(struct client *client)
-{
-	if (client) {
-		// if (client->id) {
-		// 	zfree(client->id);
-		// } 
-		// puts("ttt");
-		client->next = NULL;
-		zfree(client);
-		client = NULL;
+		if (tmp_node->down == node) {
+			tmp_node->down = NULL;
+		} else {
+			tmp_node = tmp_node->down;
+			while (tmp_node->next != node) {
+				tmp_node = tmp_node->next;
+			}
+			if (tmp_node->hashtag) {
+				tmp_node->hashtag = false;
+				tmp_node->next = tmp_node->next->next;
+			} else {
+				tmp_node->next = tmp_node->next->next;
+			}
+		}
+		delete_db_node(node);
+		/* delete node */
+		del_node(tmp_node);
+
+		/* iter */
+		/*
+		   while (1) {
+		// TODO 
+
+		}
+		 */
 	}
+	return;
 }
 
-/* Delete client id. */
-void del_client(struct topic_and_node *input, char *id)
+/* 
+ ** Delete client. 
+ */
+struct client *del_client(struct topic_and_node *input, char *id)
 {
 	log_info("DEL_CLIENT_START");
-    assert(input && id);
-    struct client *client = input->node->sub_client; 
-    struct client *before_client = NULL; 
-    while (client) {
-		debug("delete id is %s, client id is %s", id, client->id);
-        if (!strcmp(client->id, id)) {
+	assert(input && id);
+	struct client *client = input->node->sub_client; 
+	struct client *before_client = NULL; 
+	while (client) {
+		// debug("delete id is %s, client id is %s", id, client->id);
+		if (!strcmp(client->id, id)) {
 			log("delete client %s", id);
-            if (before_client) {
-                before_client->next = before_client->next->next;
-				delete_client(client);
-            } else {
+			if (before_client) {
+				before_client->next = before_client->next->next;
+				return client;
+			} else {
 				before_client = input->node->sub_client; 
 				if (input->node->sub_client->next) {
 					input->node->sub_client = input->node->sub_client->next;
@@ -359,64 +399,81 @@ void del_client(struct topic_and_node *input, char *id)
 					input->node->sub_client = NULL;
 				}
 
-				delete_client(before_client);
-                break;
-            }
-        }
-        before_client = client;
-        client = client->next;
-    }
+				return client;
+			}
+		}
+		before_client = client;
+		client = client->next;
+	}
 	if (client == NULL) {
 		log("no client is deleted!");
 	}
-    return;
+	return NULL;
 }
+
+bool check_client(struct db_node *node, char *id) 
+{
+	assert(node && id);
+	struct client *sub = node->sub_client;
+	while (sub) {
+		if(!strcmp(sub->id, id)) {
+			log("clientID you find is in the tree node");
+			return false;
+		}
+
+		sub = sub->next;
+	}
+	return true;
+}
+
 
 struct client *set_client(const char *id, void *ctxt) 
 {
-    assert(id);
-    // assert(ctxt);
-    struct client *sub_client = NULL;
-    sub_client = (struct client*)zmalloc(sizeof(struct client));
-    sub_client->id = (char*)zmalloc(strlen(id)+1);
-    memcpy(sub_client->id, id, strlen(id)+1);
+	assert(id);
+	// assert(ctxt);
+	struct client *sub_client = NULL;
+	sub_client = (struct client*)zmalloc(sizeof(struct client));
+	sub_client->id = (char*)zmalloc(strlen(id)+1);
+	memcpy(sub_client->id, id, strlen(id)+1);
 	sub_client->ctxt = ctxt;
 	sub_client->next = NULL;
 	return sub_client;
 
 }
 
-/* Add client id. */
+/* 
+ ** Add client. 
+ ** Before add_client, you can call set_client to set the val of client
+ ** & search_node to get the val of res where you can add_client
+ */
 void add_client(struct topic_and_node *input, struct client *sub_client)
 {    
 	log_info("ADD_CLIENT_START");
-    assert(input && sub_client);
+	assert(input && sub_client);
 
-    // sub_client = (struct client*)zmalloc(sizeof(struct client));
-    // memcpy(new_node->sub_client, sub_client, sizeof(struct client));
-    // sub_client->next = NULL;
-
-    if (input->node->sub_client == NULL) {
-        input->node->sub_client = sub_client;
+	if (input->node->sub_client == NULL) {
+		input->node->sub_client = sub_client;
 		log("add first client in this node");
-    } else {
-        struct client* client = input->node->sub_client;
-        while (client->next) {/* TODO fixed clientID duplicated */ 
+	} else {
+		struct client *client = input->node->sub_client;
+		if (!strcmp(client->id, sub_client->id)) {
+			log("clientID you find is in the tree node");
+			return;
+		}
+
+		while (client->next) { 
 			if (strcmp(client->id, sub_client->id)) {
 				client = client->next;
 			} else {
 				log("clientID you find is in the tree node");
 				return;
 			}
-        }
+		}
 		log("add client %s", sub_client->id);
-        client->next = sub_client;
-    }
-	log_info("ADD_CLIENT_SUCCESSFULLY");
-    return;
-	/* fixed search client */
+		client->next = sub_client;
+	}
+	return;
 }
-
 
 void set_topic_and_node(char **topic_queue, bool hashtag, state t_state, 
 		struct db_node *node, struct topic_and_node *tan) 
@@ -428,36 +485,31 @@ void set_topic_and_node(char **topic_queue, bool hashtag, state t_state,
 	return;
 }
 
+/* 
+ ** search_node
+ ** Pass the parameters db_tree and topic_queue, you will get the 
+ ** last node equal topic, if topic_queue matches exactly, tan->topic
+ ** will be set NULL.
+ */
 
-
-/* Search node */
-/* Return the last node equal topic */
 void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *tan)
 {
 	log_info("SEARCH_NODE_START");
-    assert(db->root && topic_queue);
-    struct db_node *node = db->root;
+	assert(db->root && topic_queue);
+	struct db_node *node = db->root;
 
-    while (*topic_queue && node){
-//		debug("topic is: %s", *topic_queue);
-		printf("topic is: %s topic_queue: %s \n", node->topic, *topic_queue);
-        if (strcmp(node->topic, *topic_queue)) {
+	while (*topic_queue && node){
+		log("topic is: %s, node->topic is: %s", *topic_queue, node->topic);
+		if (strcmp(node->topic, *topic_queue)) {
 			bool equal = false;
-            while (node->next) {
-				equal = false;
-                node = node->next;
-                if (!strcmp(node->topic, *topic_queue)) {
-					equal = true;
-                    break;
-                }
-            }
-            if (equal == false) {
+			node = find_next(node, &equal, topic_queue);
+			if (equal == false) {
 				log("searching unqual");
 				set_topic_and_node(topic_queue, false, UNEQUAL, node->up, tan);
 				break;
-            }
-        }
-		
+			}
+		}
+
 		if (node->hashtag && check_hashtag(*(topic_queue+1))) {
 			log("searching # with hashtag");
 			set_topic_and_node(NULL, true, EQUAL, node->next, tan);
@@ -469,20 +521,21 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 			break;
 		}
 
-
 		log("searching no hashtag");
-        if (node->down && *(topic_queue+1)) {
-            topic_queue++;
-            node = node->down;
-        } else if (*(topic_queue+1) == NULL) {
+		if (node->down && *(topic_queue+1)) {
+			// debug("continue");
+			topic_queue++;
+			node = node->down;
+		} else if (*(topic_queue+1) == NULL) {
+			// debug("topic_queue is NULL");
 			set_topic_and_node(NULL, false, EQUAL, node, tan);
 			break;
-        } else {
+		} else {
+			// debug("node is NULL");
 			set_topic_and_node(topic_queue, false, EQUAL, node, tan);
 			break;
-        }
-    }
-	log_info("SEARCH_NODE_END\n");
+		}
+	}
 	return;
 }
 
@@ -495,10 +548,39 @@ void *get_client_info(struct db_node *node)
 
 void iterate_client(struct clients * sub_clients /*, void func*/) 
 {
-	/* TODO */
 	/* iterator and do */
 
 	/* func(client); */
+
+	int cols = 1;
+	char **id_queue = NULL; 
+
+	while (sub_clients) {
+		struct client *sub_client = sub_clients->sub_client;
+		while (sub_client) {
+			bool equal = false;
+			id_queue = (char**)zrealloc(id_queue, cols*sizeof(char*)); 
+			// printf("RES: sub_client is:%s\n", sub_client->id);
+
+			for (int i = 0; i < cols-1; i++) {
+				if (!strcmp(sub_client->id, id_queue[i])) {
+					equal = true;
+					break;
+				}
+			}
+
+			if (equal == false) {
+				id_queue[cols-1] = sub_client->id; 
+				printf("RES: sub_client is:%s\n", sub_client->id);
+				/* func */
+				cols++;
+			}
+			sub_client = sub_client->next;
+		}
+		sub_clients = sub_clients->down;
+	}
+	// TODO free memory
+
 }
 
 struct clients *new_clients(struct client *sub_client)
@@ -508,65 +590,76 @@ struct clients *new_clients(struct client *sub_client)
 		sub_clients = (struct clients*)zmalloc(sizeof(struct clients));
 		sub_clients->sub_client = sub_client;
 		sub_clients->down = NULL;
-		debug("%s", sub_clients->sub_client->id);
+		debug("first client is %s", sub_clients->sub_client->id);
 	}
 	return sub_clients;
 }
 
+struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue) 
+{
+	struct db_node  *t = node;
+
+	while (t->next) {
+		t = t->next;
+		// debug("t->topic %s, topic_queue %s", t->topic,
+		// 					*(topic_queue));
+		if (!strcmp(t->topic, *(topic_queue))) {
+			*equal = true;
+			break;
+		}
+	}
+	return t;
+}
 
 
+/*
+ ** search_client
+ ** When you use this func, the parameters you need to pass are the root 
+ ** node of the tree and the complete topic_queue. You will get all the 
+ ** subscribers to this topic.
+ */
 struct clients *search_client(struct db_node *root, char **topic_queue)
 {
-    assert(root && topic_queue);
 	log_info("SEARCH_CLIENT_START");
+	assert(root && topic_queue);
 	struct clients *res = NULL;
 	struct clients *tmp = NULL;
 	tmp = (struct clients*)zmalloc(sizeof(struct clients));
-
 	res = tmp;
+	struct db_node *node = root;
 
-	debug("%p, %p", res, tmp);
-    struct db_node *node = root;
+	log("entry search");
+	while (*topic_queue && node) {
+		if (strcmp(node->topic, *topic_queue)) {
+			debug("node->topic %s, topic_queue %s", node->topic, *topic_queue);
+			bool equal = false;
+			node = find_next(node, &equal, topic_queue);
 
-    debug("entry search");
-    while (*topic_queue && node) {
-
-        if (strcmp(node->topic, *topic_queue)) {
-			bool equal;
-            while (node->next) {
-				equal = false;
-                node = node->next;
-                if (!strcmp(node->topic, *topic_queue)) {
-					equal = true;
-                    break;
-                }
-            }
-            if (equal == false) {
+			if (equal == false) {
 				log("searching unqual");
 				return res;
-            }
-        }
+			}
+		}
 
 		if (node->hashtag) {
-			log("find hashtag");
+			log("Find the sign of #. Add it if sub_client of # is not NULL!");
 			tmp->down = new_clients(node->next->sub_client);
-			debug("%p, %p", res, tmp);
 			tmp = tmp->down;
 		}
 
+		if (*(topic_queue+1) == NULL) {
+			log("Current node is the last one if topic_queue+1 is NULL. Add it if sub_client of it is not NULL!");
+			tmp->down = new_clients(node->sub_client);
+			tmp = tmp->down;
+			return res;
+		}
+
 		if (node->plus) { 
-			log("find plus");
-        	if (*(topic_queue+1) == NULL) {
-				tmp->down = new_clients(node->sub_client);
-				tmp = tmp->down;
-				return res;
-        	}
-
-        	if (*(topic_queue+2) == NULL) {
+			log("Find the sign of +");
+			if (*(topic_queue+2) == NULL) {
 				debug("When plus is the last one");
-
 				if (node->down->hashtag) {
-					log("Find hashtag");
+					log("Find the sign of #. Add it if sub_client of # is not NULL!");
 					tmp->down = new_clients(node->down->next->sub_client);
 					tmp = tmp->down;
 				}
@@ -574,24 +667,17 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				tmp->down = new_clients(node->down->sub_client);
 				tmp = tmp->down;
 
-				bool equal;
-				struct db_node  *t = NULL;
-				t = node->down->next;
-				equal = false;
-            	while (t->next) {
-            	    t = t->next;
-            	    if (!strcmp(t->topic, *(++topic_queue))) {
-						equal = true;
-            	        break;
-            	    }
-            	}
-            	if (equal == false) {
+				bool equal = false;
+				struct db_node  *t = find_next(node->down->next, &equal,
+						++topic_queue);
+
+				if (equal == false) {
 					log("searching unqual");
 					return res;
-            	}
+				}
 
 				if (t->hashtag) {
-					log("Find hashtag");
+					log("Find the sign of #. Add it if sub_client of # is not NULL!");
 					tmp->down = new_clients(t->next->sub_client);
 					tmp = tmp->down;
 				}
@@ -601,33 +687,25 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				return res;
 
 			} else if (node->down->down == NULL) { 
-				/* fixed judge # */
-				debug("topic is longer than tree, check hashtag");
+				log("topic is longer than tree, check hashtag");
 
 				if (node->down->hashtag) {
-					log("Find hashtag");
+					log("Find the sign of #. Add it if sub_client of # is not NULL!");
 					tmp->down = new_clients(node->down->next->sub_client);
 					tmp = tmp->down;
 				}
 
-				bool equal;
-				struct db_node  *t = NULL;
-				t = node->down->next;
-				equal = false;
-            	while (t->next) {
-            	    t = t->next;
-            	    if (!strcmp(t->topic, *(++topic_queue))) {
-						equal = true;
-            	        break;
-            	    }
-            	}
-            	if (equal == false) {
+				bool equal = false;
+				struct db_node  *t = find_next(node->down->next, &equal,
+						++topic_queue);
+
+				if (equal == false) {
 					log("searching unqual");
 					return res;
-            	}
+				}
 
 				if (t->hashtag) {
-					log("Find hashtag");
+					log("Find the sign of #. Add it if sub_client of # is not NULL!");
 					tmp->down = new_clients(t->next->sub_client);
 					tmp = tmp->down;
 				}
@@ -648,83 +726,76 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 			}
 
 		} else {
-			log("Find no plus & hashtag");
+			log("Find node no sign of + & #");
 			if (node->down && *(topic_queue+1)) {
 				debug("continue");
-        	    topic_queue++;
-        	    node = node->down;
+				topic_queue++;
+				node = node->down;
 
-        	} else if (*(topic_queue+1) == NULL) {
-				tmp->down = new_clients(node->sub_client);
-				debug("%s", tmp->down->sub_client->id);
-				tmp = tmp->down;
+			} else {
 				return res;
-        	} else {
-				return res;
-        	}
+			}
 		}
 	}
 
-	log_info("SEARCH_CLIENT_FINISHED");
 	return res;
 }
 
 /* topic parsing */
 char **topic_parse(char *topic)
 {
-    assert(topic != NULL);
+	assert(topic != NULL);
 
-    int row = 1;
-    int len = 2;
-    char **topic_queue = NULL;
-    char *before_pos = topic;
-    char *pos = NULL;
+	int row = 1;
+	int len = 2;
+	char **topic_queue = NULL;
+	char *before_pos = topic;
+	char *pos = NULL;
 
 	if ((strncmp("$share", before_pos, 6) != 0 && strncmp("$SYS", before_pos, 4)
 				!= 0)) {
-        topic_queue = (char**)zmalloc(sizeof(char*)*row);
+		topic_queue = (char**)zmalloc(sizeof(char*)*row);
 		topic_queue[row-1] = (char*)zmalloc(sizeof(char)*len);
-        memcpy(topic_queue[row-1], "\0", (len));
-        // strcpy(topic_queue[row-1], "");
+		memcpy(topic_queue[row-1], "\0", (len));
+		// strcpy(topic_queue[row-1], "");
 		//	topic_queue[0][0] = '';
 		//	topic_queue[row-1][len-1] = '\0';
 
 	}
 
-    while ((pos = strchr(before_pos, '/')) != NULL) {
+	while ((pos = strchr(before_pos, '/')) != NULL) {
 
-        if (topic_queue != NULL) {
-            topic_queue = (char**)zrealloc(topic_queue, sizeof(char*)*(++row));
-        } else {
-            topic_queue = (char**)zmalloc(sizeof(char*)*row);
-        }
+		if (topic_queue != NULL) {
+			topic_queue = (char**)zrealloc(topic_queue, sizeof(char*)*(++row));
+		} else {
+			topic_queue = (char**)zmalloc(sizeof(char*)*row);
+		}
 
-		
-        len = pos-before_pos+1;
-        topic_queue[row-1] = (char*)zmalloc(sizeof(char)*len);
-        memcpy(topic_queue[row-1], before_pos, (len-1));
-        topic_queue[row-1][len-1] = '\0';
-        before_pos = pos+1;
-    }
 
-    len = strlen(before_pos);
-    
-    if (topic_queue != NULL) {
-        topic_queue = (char**)zrealloc(topic_queue, sizeof(char*)*(++row));
-    } else {
-        topic_queue = (char**)zmalloc(sizeof(char*)*row);
-    }
+		len = pos-before_pos+1;
+		topic_queue[row-1] = (char*)zmalloc(sizeof(char)*len);
+		memcpy(topic_queue[row-1], before_pos, (len-1));
+		topic_queue[row-1][len-1] = '\0';
+		before_pos = pos+1;
+	}
 
-    topic_queue[row-1] = (char*)zmalloc(sizeof(char)*(len+1));
-    // strcpy(topic_queue[row-1], before_pos);
-    memcpy(topic_queue[row-1], before_pos, (len));
-    topic_queue[row-1][len] = '\0';
-    topic_queue = (char**)zrealloc(topic_queue, sizeof(char*)*(++row));
+	len = strlen(before_pos);
+
+	if (topic_queue != NULL) {
+		topic_queue = (char**)zrealloc(topic_queue, sizeof(char*)*(++row));
+	} else {
+		topic_queue = (char**)zmalloc(sizeof(char*)*row);
+	}
+
+	topic_queue[row-1] = (char*)zmalloc(sizeof(char)*(len+1));
+	// strcpy(topic_queue[row-1], before_pos);
+	memcpy(topic_queue[row-1], before_pos, (len));
+	topic_queue[row-1][len] = '\0';
+	topic_queue = (char**)zrealloc(topic_queue, sizeof(char*)*(++row));
 	topic_queue[row-1] = NULL;
 
-    return topic_queue;
+	return topic_queue;
 }
-
 
 void hash_add_topic(int alias, char *topic_data) 
 {

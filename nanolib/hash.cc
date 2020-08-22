@@ -5,58 +5,58 @@
 #include <iostream>
 
 using namespace std;
- 
+
 template<typename K, typename V>
 class mqtt_hash {
-public:
-	typedef typename unordered_map<K, V>::iterator iterator;
+	public:
+		typedef typename unordered_map<K, V>::iterator iterator;
 
-	V &operator [](const K &_key)
-	{
-		lock_guard<mutex> lk(_mtx);
-		return hash_map[_key];
-	}
-
-	V get(const K &_key)
-	{
-		lock_guard<mutex> lk(_mtx);
-		return hash_map[_key];
-	}
-
-	void set(const K &_key, const V &_val) 
-	{
-		lock_guard<mutex> lk(_mtx);
-		hash_map[_key] = _val;
-	}
-
-	void del(const K &_key) 
-	{
-		lock_guard<mutex> lk(_mtx);
-		mqtt_hash<K, V>::iterator iter = hash_map.find(_key);
-
-		if (iter != hash_map.end()) {
-			hash_map.erase(iter);
+		V &operator [](const K &_key)
+		{
+			lock_guard<mutex> lk(_mtx);
+			return hash_map[_key];
 		}
-	}
 
-private:
-	unordered_map<K, V> hash_map;
-	mutex _mtx;
+		V get(const K &_key)
+		{
+			lock_guard<mutex> lk(_mtx);
+			return hash_map[_key];
+		}
+
+		void set(const K &_key, const V &_val) 
+		{
+			lock_guard<mutex> lk(_mtx);
+			hash_map[_key] = _val;
+		}
+
+		void del(const K &_key) 
+		{
+			lock_guard<mutex> lk(_mtx);
+			mqtt_hash<K, V>::iterator iter = hash_map.find(_key);
+
+			if (iter != hash_map.end()) {
+				hash_map.erase(iter);
+			}
+		}
+
+	private:
+		unordered_map<K, V> hash_map;
+		mutex _mtx;
 
 };
 
 
 
 mqtt_hash<int, char*> _mqtt_hash;
- 
- 
+
+
 void push_val(int key, char *val)
 {
-		_mqtt_hash[key] = val;
+	_mqtt_hash[key] = val;
 
 }
- 
- 
+
+
 char *get_val(int key)
 {
 	return _mqtt_hash.get(key);
