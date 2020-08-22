@@ -74,7 +74,6 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
-			debug_msg("pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d\n", pipe.id);
 /*
                 if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
                         // bad message, just ignore it.

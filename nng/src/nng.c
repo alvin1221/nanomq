@@ -10,6 +10,7 @@
 
 #include "nng/nng.h"
 #include "core/nng_impl.h"
+#include "include/nng_debug.h"
 
 // This file provides the "public" API.  This is a thin wrapper around
 // internal API functions.  We use the public prefix instead of internal,
@@ -296,6 +297,7 @@ nng_ctx_recv(nng_ctx cid, nng_aio *aio)
 		}
 		return;
 	}
+	debug_msg("recv context id %d rv: %d\n", cid.id, rv);
 	nni_ctx_recv(ctx, aio);
 	nni_ctx_rele(ctx);
 }
@@ -319,7 +321,7 @@ nng_ctx_send(nng_ctx cid, nng_aio *aio)
 		}
 		return;
 	}
-	printf("context id %d rv: %d\n", cid.id, rv);
+	debug_msg("send context id %d rv: %d\n", cid.id, rv);
 	//TODO pipe_id
 	nni_ctx_send(ctx, aio);
 	nni_ctx_rele(ctx);

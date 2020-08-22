@@ -22,9 +22,12 @@ static void nano_pipe_fini(void *);
 struct nano_ctx {
 	nano_sock *   sock;
 	uint32_t      pipe_id;
+	uint32_t      resend_count;
+	uint32_t      pipe_len;	//record total pipes_id length when resending
 	nano_pipe *   spipe; // send pipe
 	nni_aio *     saio;  // send aio
 	nni_aio *     raio;  // recv aio
+	uint32_t*     rspipes;// pub resend queue Qos 1/2
 	nni_list_node sqnode;
 	nni_list_node rqnode;
 	nni_msg *     rmsg;
@@ -187,7 +190,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 	*/
 	while (*(pipes+i) != 0) {
-		debug_msg("***************************working with pipe id : %d p_id %d***************************", *(pipes+i), p_id);
+		debug_msg("***************************working with pipe id : %d***************************", *(pipes+i));
 		if (nni_idhash_find(s->pipes, *(pipes+i), (void **) &p) != 0) {
 			// Pipe is gone.  Make this look like a good send to avoid
 			// disrupting the state machine.  We don't care if the peer
@@ -197,7 +200,9 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			fail_count++;
 			continue;
 		}
-		nni_msg_clone(msg);
+		if (i > 0) {
+			nni_msg_clone(msg);
+		}
 		if (!p->busy) {
 			uint8_t  *header;
 			p->busy = true;
@@ -211,7 +216,10 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			ctx->spipe = p;
 			ctx->rmsg  = msg;
 			//save ctx to start another round
-			nni_list_append(&p->sendq, ctx);		//TODO need to know whether to send PING /pub to self/other sock
+			debug_msg("pipe jamed!");
+			if (nni_list_first(&p->sendq) == NULL) {
+				//nni_list_append(&p->sendq, ctx);
+			}
 			need_resend++;
 		}
 		i++;
@@ -221,10 +229,12 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	}
 
 	//as long as one pipe sucess, aio is sucessd. TODO qos1/2 broker need to ensure all aio completed.
-	debug_msg("hahahahah total %d resend %d fail %d", i, need_resend, fail_count);
+	debug_msg("pub/reply total %d resend %d fail %d", i, need_resend, fail_count);
 	if (need_resend == 0) {
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, len);
+	} else {
+		nni_list_append(&p->sendq, ctx);
 	}
 	nni_mtx_unlock(&s->lk);
 	return;
@@ -428,20 +438,18 @@ nano_pipe_send_cb(void *arg)
 	}
 
 	nni_list_remove(&p->sendq, ctx);
-	//PING / PUB aio pipeline
+	debug_msg("resending!");
 	aio        = ctx->saio;
 	ctx->saio  = NULL;
 	p = ctx->spipe;
 	ctx->spipe = NULL;
 	p->busy    = true;
 	msg        = nni_aio_get_msg(aio);
-	debug_msg("##########nano_pipe_send_cb################");
 	if (aio == NULL)
 		debug_msg("aio aaaaaaaaaaa");
 	if (msg == NULL)
 		debug_msg("msg aaaaaaaaaaa");
 	len        = nni_msg_len(msg);
-	debug_msg("##########nano_pipe_send_cb################");
 	nni_aio_set_msg(aio, NULL);
 	nni_aio_set_msg(&p->aio_send, msg);
 	nni_pipe_send(p->pipe, &p->aio_send);
@@ -550,7 +558,7 @@ nano_pipe_recv_cb(void *arg)
 
 	header = nng_msg_header(msg);
 	debug_msg("start nano_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n",p ,nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
-	ttl = nni_atomic_get(&s->ttl);
+	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
 	nni_mtx_lock(&s->lk);
