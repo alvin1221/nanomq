@@ -8,6 +8,7 @@
 uint8_t decode_sub_message(nng_msg *, packet_subscribe *);
 uint8_t encode_suback_message(nng_msg *, packet_subscribe *);
 void sub_ctx_handle(emq_work *);
+void destroy_sub_ctx(packet_subscribe *);
 // uint8_t subscribe_handle(nng_msg *);
 
 #endif

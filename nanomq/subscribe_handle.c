@@ -186,15 +186,28 @@ void sub_ctx_handle(emq_work * work){
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
-		topic_node_t = topic_node_t->next;
-		debug_msg("finish ADD_CLIENT");
 //		search_node(work->db, topic_parse(topic_str), tan);
 //		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
+		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
+		topic_node_t = topic_node_t->next;
+		debug_msg("finish ADD_CLIENT");
 	}
 
 	// check treeDB
 //	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
+}
+
+void destroy_sub_ctx(packet_subscribe * sub_pkt){
+	topic_node * topic_node_t = sub_pkt->node;
+	topic_node * _topic_node;
+	while(topic_node_t){
+		nng_free(topic_node_t->it, sizeof(topic_with_option));
+
+		_topic_node = topic_node_t->next;
+		nng_free(topic_node_t, sizeof(topic_node));
+		topic_node_t = _topic_node;
+	}
 }
 
