@@ -88,6 +88,7 @@ typedef struct {
 #define NNI_FREE_STRUCT(s) nni_free((s), sizeof(*s))
 #define NNI_ALLOC_STRUCTS(s, n) nni_zalloc(sizeof(*s) * n)
 #define NNI_FREE_STRUCTS(s, n) nni_free(s, sizeof(*s) * n)
+#define NNI_ARRAY_SIZE(x) (sizeof(x)/sizeof(uint32_t))
 
 #define NNI_PUT16(ptr, u)                                    \
 	do {                                                 \
@@ -179,6 +180,8 @@ typedef nni_type nni_opt_type;
 //EMQ Tcp layer
 #define NNI_EMQ_MAX_PACKET_SIZE sizeof(uint16_t)*512
 #define NNI_EMQ_MAX_HEADER_SIZE sizeof(uint8_t)*5	//ONLY FIXED HEADER
+#define NNI_EMQ_MAX_PROPERTY_SIZE sizeof(uint8_t)*32
+#define NNI_NANO_MAX_PUB_CLIENT 256
 
 // NNI_MAX_HEADER_SIZE is our header size.
 #define NNI_MAX_HEADER_SIZE ((NNI_MAX_MAX_TTL + 1) * sizeof(uint32_t))

@@ -179,7 +179,6 @@ nng_sendmsg(nng_socket s, nng_msg *msg, int flags)
 	int      rv;
 	nng_aio *ap;
 
-	printf("#################nng_sendmsg###################\n");
 	if ((rv = nng_aio_alloc(&ap, NULL, NULL)) != 0) {
 		return (rv);
 	}
@@ -1506,7 +1505,7 @@ nng_aio_set_msg(nng_aio *aio, nng_msg *msg)
 }
 
 void
-nng_aio_set_pipeline(nng_aio *aio, uint32_t id)
+nng_aio_set_pipeline(nng_aio *aio, uint32_t *id)
 {
 	nni_aio_set_pipeline(aio, id);
 }

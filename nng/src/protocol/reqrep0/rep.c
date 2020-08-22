@@ -12,9 +12,10 @@
 
 #include "core/nng_impl.h"
 #include "nng/protocol/reqrep0/rep.h"
-#include "include/nng_debug.h"
 
-//TODO rewrite as emq_mq protocol with RPC support
+// Response protocol.  The REP protocol is the "reply" side of a
+// request-reply pair.  This is useful for building RPC servers, for
+// example.
 
 typedef struct rep0_pipe rep0_pipe;
 typedef struct rep0_sock rep0_sock;
@@ -24,7 +25,6 @@ static void rep0_pipe_send_cb(void *);
 static void rep0_pipe_recv_cb(void *);
 static void rep0_pipe_fini(void *);
 
-//huge context/ dynamic context?
 struct rep0_ctx {
 	rep0_sock *   sock;
 	uint32_t      pipe_id;
@@ -33,7 +33,7 @@ struct rep0_ctx {
 	nni_aio *     raio;  // recv aio
 	nni_list_node sqnode;
 	nni_list_node rqnode;
-	size_t        btrace_len;			//SP Header
+	size_t        btrace_len;
 	uint32_t      btrace[NNI_MAX_MAX_TTL + 1];
 };
 
@@ -69,7 +69,6 @@ rep0_ctx_close(void *arg)
 	rep0_sock *s   = ctx->sock;
 	nni_aio *  aio;
 
-	debug_msg("rep0_ctx_close");
 	nni_mtx_lock(&s->lk);
 	if ((aio = ctx->saio) != NULL) {
 		rep0_pipe *pipe = ctx->spipe;
@@ -124,7 +123,7 @@ rep0_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 	ctx->saio = NULL;
 	nni_mtx_unlock(&s->lk);
 
-	//nni_msg_header_clear(nni_aio_get_msg(aio)); // reset the headers
+	nni_msg_header_clear(nni_aio_get_msg(aio)); // reset the headers
 	nni_aio_finish_error(aio, rv);
 }
 
@@ -140,13 +139,12 @@ rep0_ctx_send(void *arg, nni_aio *aio)
 	uint32_t   p_id; // pipe id
 
 	msg = nni_aio_get_msg(aio);
-	//nni_msg_header_clear(msg);
+	nni_msg_header_clear(msg);
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
 
-	debug_msg("nanomq start sending with ctx");
 	nni_mtx_lock(&s->lk);
 	len  = ctx->btrace_len;
 	p_id = ctx->pipe_id;
@@ -169,27 +167,20 @@ rep0_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	//TODO MQTT rewrite part
-	/*
 	if (len == 0) {
 		nni_mtx_unlock(&s->lk);
-		debug_msg("length : %d!", len);
 		nni_aio_finish_error(aio, NNG_ESTATE);
 		return;
 	}
 	if ((rv = nni_msg_header_append(msg, ctx->btrace, len)) != 0) {
 		nni_mtx_unlock(&s->lk);
-		debug_msg("header rv : %d!", rv);
 		nni_aio_finish_error(aio, rv);
 		return;
 	}
-	*/
-
 	if (nni_idhash_find(s->pipes, p_id, (void **) &p) != 0) {
 		// Pipe is gone.  Make this look like a good send to avoid
 		// disrupting the state machine.  We don't care if the peer
 		// lost interest in our reply.
-		debug_msg("pipe is gone sth went wrong!");
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, nni_msg_len(msg));
@@ -210,7 +201,6 @@ rep0_ctx_send(void *arg, nni_aio *aio)
 
 	ctx->saio  = aio;
 	ctx->spipe = p;
-	//start another round
 	nni_list_append(&p->sendq, ctx);
 	nni_mtx_unlock(&s->lk);
 }
@@ -316,13 +306,11 @@ rep0_pipe_start(void *arg)
 	rep0_pipe *p = arg;
 	rep0_sock *s = p->rep;
 	int        rv;
-	//TODO check MQTT Header here
-	/*
+
 	if (nni_pipe_peer(p->pipe) != NNG_REP0_PEER) {
 		// Peer protocol mismatch.
 		return (NNG_EPROTO);
 	}
-	*/
 
 	if ((rv = nni_idhash_insert(s->pipes, nni_pipe_id(p->pipe), p)) != 0) {
 		return (rv);
@@ -340,7 +328,6 @@ rep0_pipe_close(void *arg)
 	rep0_sock *s = p->rep;
 	rep0_ctx * ctx;
 
-	debug_msg("rep0_pipe_close!!");
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
 
@@ -382,7 +369,6 @@ rep0_pipe_send_cb(void *arg)
 	nni_msg *  msg;
 	size_t     len;
 
-	debug_msg("rep0_pipe_send_cb");
 	if (nni_aio_result(&p->aio_send) != 0) {
 		nni_msg_free(nni_aio_get_msg(&p->aio_send));
 		nni_aio_set_msg(&p->aio_send, NULL);
@@ -414,7 +400,6 @@ rep0_pipe_send_cb(void *arg)
 
 	nni_mtx_unlock(&s->lk);
 
-	//trigger application level
 	nni_aio_finish_synch(aio, 0, len);
 }
 
@@ -445,7 +430,6 @@ rep0_ctx_recv(void *arg, nni_aio *aio)
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}
-	debug_msg("rep0_ctx_recv start");
 	nni_mtx_lock(&s->lk);
 	if ((p = nni_list_first(&s->recvpipes)) == NULL) {
 		int rv;
@@ -458,7 +442,6 @@ rep0_ctx_recv(void *arg, nni_aio *aio)
 			// Cannot have a second receive operation pending.
 			// This could be ESTATE, or we could cancel the first
 			// with ECANCELED.  We elect the former.
-			debug_msg("former aio not finish yet");
 			nni_mtx_unlock(&s->lk);
 			nni_aio_finish_error(aio, NNG_ESTATE);
 			return;
@@ -479,13 +462,13 @@ rep0_ctx_recv(void *arg, nni_aio *aio)
 		nni_pollable_raise(&s->writable);
 	}
 
-	//len = nni_msg_header_len(msg);			//use btrace as header, wait for nanomq mqtt adapter
-	//memcpy(ctx->btrace, nni_msg_header(msg), len);
-	//ctx->btrace_len = len;
+	len = nni_msg_header_len(msg);
+	memcpy(ctx->btrace, nni_msg_header(msg), len);
+	ctx->btrace_len = len;
 	ctx->pipe_id    = nni_pipe_id(p->pipe);
 	nni_mtx_unlock(&s->lk);
 
-	//nni_msg_header_clear(msg);
+	nni_msg_header_clear(msg);
 	nni_aio_set_msg(aio, msg);
 	nni_aio_finish(aio, 0, nni_msg_len(msg));
 }
@@ -507,14 +490,12 @@ rep0_pipe_recv_cb(void *arg)
 		nni_pipe_close(p->pipe);
 		return;
 	}
-	debug_msg("rep0_pipe_recv_cb??????????");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
 	ttl = nni_atomic_get(&s->ttl);
 
 	nni_msg_set_pipe(msg, p->id);
 
-	/*
 	// Move backtrace from body to header
 	hops = 1;
 	for (;;) {
@@ -548,7 +529,6 @@ rep0_pipe_recv_cb(void *arg)
 	}
 
 	len = nni_msg_header_len(msg);
-*/
 
 	nni_mtx_lock(&s->lk);
 
@@ -579,19 +559,15 @@ rep0_pipe_recv_cb(void *arg)
 	// schedule another receive
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 
-	len = 0;
-	ctx->btrace_len = len;		//TODO Rewrite mqtt header length
-	//memcpy(ctx->btrace, nni_msg_header(msg), len);
-	//nni_msg_header_clear(msg);
-	ctx->pipe_id = p->id;			//use pipe id to identify which client
-	debug_msg("pipe_id: %d", p->id);
+	ctx->btrace_len = len;
+	memcpy(ctx->btrace, nni_msg_header(msg), len);
+	nni_msg_header_clear(msg);
+	ctx->pipe_id = p->id;
 
 	nni_mtx_unlock(&s->lk);
 
 	nni_aio_set_msg(aio, msg);
-	//trigger application level
 	nni_aio_finish_synch(aio, 0, nni_msg_len(msg));
-	debug_msg("end of rep0_pipe_recv_cb");
 	return;
 
 drop:
@@ -618,7 +594,6 @@ rep0_sock_get_max_ttl(void *arg, void *buf, size_t *szp, nni_opt_type t)
 {
 	rep0_sock *s = arg;
 
-	debug_msg("rep0_sock_get_max_ttl: %d",nni_copyout_int(nni_atomic_get(&s->ttl), buf, szp, t) );
 	return (nni_copyout_int(nni_atomic_get(&s->ttl), buf, szp, t));
 }
 

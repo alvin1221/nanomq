@@ -49,6 +49,7 @@ server_cb(void *arg)
 	nng_pipe    pipe;
 	int         rv;
 	uint32_t    when;
+	uint32_t    *pipes;
 	uint8_t     buf[2] = {1, 2};
 	reason_code reason;
 
@@ -144,6 +145,7 @@ server_cb(void *arg)
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
+				//nng_send_aio
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 				debug_msg("handle CMD_UNSUBSCRIBE\n");
@@ -228,7 +230,15 @@ server_cb(void *arg)
 							nng_aio_set_msg(work->aio, smsg);
 							work->msg = NULL;
 
-							nng_aio_set_pipeline(work->aio, client_work->pid.id);
+							pipes = nng_alloc(sizeof(uint32_t)*3);
+							*pipes = client_work->pid.id;
+							*(pipes+1) = NULL;
+							*(pipes+2) = NULL;
+							uint32_t p[4] = {0,0,0};
+							p[0] = client_work->pid.id;
+							p[1] = client_work->pid.id;
+							printf("aaacaocao %p %ld %ld\n", pipes, *pipes, *(pipes+1));
+							nng_aio_set_pipeline(work->aio, p);
 							nng_ctx_send(work->ctx, work->aio);
 
 							sub_clients = sub_clients->next;

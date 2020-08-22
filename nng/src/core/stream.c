@@ -110,7 +110,6 @@ nng_stream_send(nng_stream *s, nng_aio *aio)
 void
 nng_stream_recv(nng_stream *s, nng_aio *aio)
 {
-	debug_msg("nng_stream_recv callback");
 	s->s_recv(s, aio);
 }
 

@@ -192,7 +192,7 @@ void pub_handler(void *arg, nng_msg *send_msg)
 						work->msg   = send_msg;
 						nng_aio_set_msg(work->aio, work->msg);
 						work->msg = NULL;
-						nng_aio_set_pipeline(work->aio, work->pid.id);
+						//nng_aio_set_pipeline(work->aio, work->pid.id);
 						nng_ctx_send(work->ctx, work->aio);
 
 						nng_free(pub_response, sizeof(struct pub_packet_struct));
@@ -244,6 +244,7 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
 			struct pub_packet_struct *pub_packet, emq_work *work)
 {
+	uint32_t pipes[3] = {'\0'};
 	if (res_node != NULL && res_node->topic == NULL) {
 //TODO 	struct client *clients = search_client(root, &topic);
 		struct client *clients = res_node->node->sub_client;
@@ -265,7 +266,8 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 			nng_aio_set_msg(work->aio, send_msg);
 			work->msg = NULL;
 
-			nng_aio_set_pipeline(work->aio, client_work->pid.id);
+			pipes[0] = client_work->pid.id;
+			nng_aio_set_pipeline(work->aio, &pipes);
 			nng_ctx_send(work->ctx, work->aio);
 
 			clients = clients->next;

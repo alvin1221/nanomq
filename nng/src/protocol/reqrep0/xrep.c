@@ -12,7 +12,6 @@
 
 #include "core/nng_impl.h"
 #include "nng/protocol/reqrep0/rep.h"
-#include "include/nng_debug.h"
 
 // Response protocol in raw mode.  The REP protocol is the "reply" side of a
 // request-reply pair.  This is useful for building RPC servers, for
@@ -36,7 +35,6 @@ struct xrep0_sock {
 	nni_atomic_int ttl;
 	nni_idhash *   pipes;
 	nni_aio        aio_getq;
-	uint32_t       pipe_id;
 };
 
 // xrep0_pipe is our per-pipe protocol private structure.
@@ -147,7 +145,6 @@ xrep0_pipe_init(void *arg, nni_pipe *pipe, void *s)
 	// essentially don't let peers send requests faster than they are
 	// willing to receive replies.  Something to think about for the
 	// future.)
-	// need to optimize!!!!!!!!!!!!!!!!!!!!!!!!
 	if ((rv = nni_msgq_init(&p->sendq, 64)) != 0) {
 		xrep0_pipe_fini(p);
 		return (rv);
@@ -162,19 +159,14 @@ xrep0_pipe_start(void *arg)
 	xrep0_sock *s = p->rep;
 	int         rv;
 
-	printf("xrep0_pipe_start id:%d\n", nni_pipe_id(p->pipe));
-	//TODO wrong protocol or other error
-	/*
 	if (nni_pipe_peer(p->pipe) != NNG_REP0_PEER) {
 		// Peer protocol mismatch.
 		return (NNG_EPROTO);
 	}
-*/
+
 	if ((rv = nni_idhash_insert(s->pipes, nni_pipe_id(p->pipe), p)) != 0) {
-		debug_msg("pipe hash failure!!");
 		return (rv);
 	}
-	s->pipe_id = nni_pipe_id(p->pipe);
 
 	nni_msgq_aio_get(p->sendq, &p->aio_getq);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
@@ -206,7 +198,6 @@ xrep0_sock_getq_cb(void *arg)
 	nni_msg *   msg;
 	uint32_t    id;
 	xrep0_pipe *p;
-	int rv,rs;
 
 	// This watches for messages from the upper write queue,
 	// extracts the destination pipe, and forwards it to the appropriate
@@ -220,29 +211,24 @@ xrep0_sock_getq_cb(void *arg)
 
 	msg = nni_aio_get_msg(&s->aio_getq);
 	nni_aio_set_msg(&s->aio_getq, NULL);
-	printf("xrep0_sock_getq_cb %d %s \n", s->pipe_id, (char *)nng_msg_body(msg));
-	/*
+
 	// We yank the outgoing pipe id from the header
 	if (nni_msg_header_len(msg) < 4) {
 		nni_msg_free(msg);
 
 		// Look for another message on the upper write queue.
 		nni_msgq_aio_get(uwq, &s->aio_getq);
-		debug_msg("idhash header wrong!");
 		return;
 	}
 
 	id = nni_msg_header_trim_u32(msg);
-	*/
 
 	// Look for the pipe, and attempt to put the message there
 	// (non-blocking) if we can.  If we can't for any reason, then we
 	// free the message.
 	nni_mtx_lock(&s->lk);
-
-	if (((nni_idhash_find(s->pipes, s->pipe_id, (void **) &p)) != 0) ||
+	if (((nni_idhash_find(s->pipes, id, (void **) &p)) != 0) ||
 	    (nni_msgq_tryput(p->sendq, msg) != 0)) {
-		debug_msg("msg abundunded\n");
 		nni_msg_free(msg);
 	}
 	nni_mtx_unlock(&s->lk);
@@ -282,7 +268,6 @@ xrep0_pipe_send_cb(void *arg)
 	nni_msgq_aio_get(p->sendq, &p->aio_getq);
 }
 
-// Application level
 static void
 xrep0_pipe_recv_cb(void *arg)
 {
@@ -292,7 +277,6 @@ xrep0_pipe_recv_cb(void *arg)
 	int         hops;
 	int         ttl;
 
-	printf("xrep0_pipe_recv_cb!!!!!\n");
 	if (nni_aio_result(&p->aio_recv) != 0) {
 		nni_pipe_close(p->pipe);
 		return;
@@ -301,7 +285,6 @@ xrep0_pipe_recv_cb(void *arg)
 	ttl = nni_atomic_get(&s->ttl);
 
 	msg = nni_aio_get_msg(&p->aio_recv);
-	printf("pipe msg: %s\n",(char *)nng_msg_body(msg));
 	nni_aio_set_msg(&p->aio_recv, NULL);
 
 	nni_msg_set_pipe(msg, nni_pipe_id(p->pipe));
@@ -310,7 +293,6 @@ xrep0_pipe_recv_cb(void *arg)
 	nni_msg_header_append_u32(msg, nni_pipe_id(p->pipe));
 
 	// Move backtrace from body to header
-		/*
 	hops = 1;
 	for (;;) {
 		bool     end;
@@ -320,16 +302,15 @@ xrep0_pipe_recv_cb(void *arg)
 			// too many hops.  Do not disconnect, because we
 			// can legitimately receive messages with too many
 			// hops from devices, etc.
-			//goto drop;
+			goto drop;
 		}
 		hops++;
 		if (nni_msg_len(msg) < 4) {
-			// Peer is speaking garbage. Kick it. FUCK U KICK YOUR MOM ASS
-			//nni_msg_free(msg);
-			//nni_pipe_close(p->pipe);
-			//return;
+			// Peer is speaking garbage. Kick it.
+			nni_msg_free(msg);
+			nni_pipe_close(p->pipe);
+			return;
 		}
-
 		body = nni_msg_body(msg);
 		end  = ((body[0] & 0x80u) != 0);
 		if (nni_msg_header_append(msg, body, 4) != 0) {
@@ -341,18 +322,14 @@ xrep0_pipe_recv_cb(void *arg)
 		if (end) {
 			break;
 		}
-		
 	}
-*/
 
 	// Go ahead and send it up.
 	nni_aio_set_msg(&p->aio_putq, msg);
 	nni_msgq_aio_put(s->urq, &p->aio_putq);
-	printf("end of xrep0_pipe_recv_cb\n");
 	return;
 
 drop:
-	printf("xrep0_pipe_recv_cb drop!!!!\n");
 	nni_msg_free(msg);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
 }
@@ -362,7 +339,6 @@ xrep0_pipe_putq_cb(void *arg)
 {
 	xrep0_pipe *p = arg;
 
-	printf("order xrep0_pipe_putq_cb");
 	if (nni_aio_result(&p->aio_putq) != 0) {
 		nni_msg_free(nni_aio_get_msg(&p->aio_putq));
 		nni_aio_set_msg(&p->aio_putq, NULL);

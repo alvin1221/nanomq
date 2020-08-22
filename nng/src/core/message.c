@@ -453,9 +453,11 @@ nni_msg_dup(nni_msg **dup, const nni_msg *src)
 void
 nni_msg_free(nni_msg *m)
 {
+  printf("==============================================================freeeeeeeeeeeeeeeeeeeeeeeeeee=========================\n");
 	if ((m != NULL) && (nni_atomic_dec_nv(&m->m_refcnt) == 0)) {
 		nni_chunk_free(&m->m_body);
 		NNI_FREE_STRUCT(m);
+		printf("==============================================================actually freeeeeeeeeeeeeeeeeeeeeeeeeee=========================\n");
 	}
 }
 
