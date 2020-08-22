@@ -146,6 +146,8 @@ struct db_node *new_db_node(char *topic)
 	node->topic = (char*)zmalloc(strlen(topic)+1);
 	memcpy(node->topic, topic, strlen(topic)+1);
 	log("new_db_node %s", node->topic);
+	node->hashtag = false;
+	node->plus = false;
 	node->next = NULL;
 	node->down = NULL;
 	node->sub_client = NULL;
