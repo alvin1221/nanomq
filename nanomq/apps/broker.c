@@ -42,15 +42,16 @@ fatal(const char *func, int rv)
 void
 server_cb(void *arg)
 {
-	struct work *work  = arg;
+	struct work *work       = arg;
 	nng_ctx     ctx2;
 	nng_msg     *msg;
 	nng_msg     *smsg;
 	nng_pipe    pipe;
 	int         rv;
 	uint32_t    when;
-	uint32_t    *pipes;
-	uint8_t     buf[2] = {1, 2};
+	uint32_t    *pipes      = NULL;
+	uint32_t    total_pipes = 0;
+	uint8_t     buf[2]      = {1, 2};
 	reason_code reason;
 
 	struct topic_and_node *tp_node = NULL;
@@ -212,37 +213,33 @@ server_cb(void *arg)
 //TODO					struct clients *client_list = search_client(work->db->root, topic_queue);
 //						struct client  *sub_clients = client_list->sub_client;
 
-						struct client *sub_clients = tp_node->node->sub_client;
-						emq_work      *client_work;
+						emq_work *client_work;
 
-						while (sub_clients) { //FIXME
-							debug_msg("current client pointer: [%p], id: %s, next: %p", sub_clients, sub_clients->id,
-							          sub_clients->next);
-							encode_pub_message(smsg, work->pub_packet, work);
-							client_work = (emq_work *) sub_clients->ctxt;
-
-							debug_msg("client id: [%s], ctx: [%d] aio: [%p], pipe_id: [%d], aio result: [%d]",
-							          sub_clients->id, client_work->ctx.id, client_work->aio, client_work->pid.id,
-							          nng_aio_result(client_work->aio));
-
-							work->state = SEND;
-							work->msg   = smsg;
-							nng_aio_set_msg(work->aio, smsg);
-							work->msg = NULL;
-
-							pipes = nng_alloc(sizeof(uint32_t)*3);
-							*pipes = client_work->pid.id;
-							*(pipes+1) = NULL;
-							*(pipes+2) = NULL;
-							uint32_t p[4] = {0,0,0};
-							p[0] = client_work->pid.id;
-							p[1] = client_work->pid.id;
-							printf("aaacaocao %p %ld %ld\n", pipes, *pipes, *(pipes+1));
-							nng_aio_set_pipeline(work->aio, p);
-							nng_ctx_send(work->ctx, work->aio);
-
-							sub_clients = sub_clients->next;
+						for (struct client *i = tp_node->node->sub_client; i != NULL; i = i->next) {
+							++total_pipes;
 						}
+
+						debug_msg("get total pipes: [%d]", total_pipes);
+
+						pipes = (uint32_t *) nng_alloc(sizeof(uint32_t) * (total_pipes + 1));
+						memset((uint32_t *) pipes, (uint32_t) 0, sizeof(uint32_t) * (total_pipes + 1));
+
+						struct client *sub_clients = tp_node->node->sub_client;
+
+						for (int j = 0; j < total_pipes && sub_clients != NULL; j++, sub_clients = sub_clients->next) {
+							client_work = (emq_work *) sub_clients->ctxt;
+							pipes[j] = client_work->pid.id;
+							debug_msg("get pipe id: [%d]", pipes[j]);
+						}
+
+						encode_pub_message(smsg, work->pub_packet, work);
+						work->state = SEND;
+						work->msg   = smsg;
+						nng_aio_set_msg(work->aio, smsg);
+						work->msg = NULL;
+
+						nng_aio_set_pipeline(work->aio, pipes);
+						nng_ctx_send(work->ctx, work->aio);
 
 					} else {
 						debug_msg("can not find topic [%s] info",
@@ -391,6 +388,11 @@ server_cb(void *arg)
 			}
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
+
+			if (pipes != NULL) {
+				nng_free((uint32_t *)pipes, sizeof(uint32_t) * (total_pipes + 1));
+				pipes = NULL;
+			}
 			break;
 		default:
 			fatal("bad state!", NNG_ESTATE);
