@@ -42,19 +42,21 @@ fatal(const char *func, int rv)
 void
 server_cb(void *arg)
 {
-	struct work *work       = arg;
+	struct work *work = arg;
 	nng_ctx     ctx2;
 	nng_msg     *msg;
 	nng_msg     *smsg;
 	nng_pipe    pipe;
 	int         rv;
 	uint32_t    when;
-	uint32_t    *pipes      = NULL;
-	uint32_t    total_pipes = 0;
-	uint8_t     buf[2]      = {1, 2};
-	reason_code reason;
 
-	struct topic_and_node *tp_node = NULL;
+	uint32_t              *pipes      = NULL;
+	volatile uint32_t     total_pipes = 0;
+	struct topic_and_node *tp_node    = NULL;
+	reason_code           reason;
+
+	uint8_t buf[2] = {1, 2};
+
 
 	switch (work->state) {
 		case INIT:
@@ -66,6 +68,7 @@ server_cb(void *arg)
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
+				debug_msg("nng aio result error: %d", rv);
 				break;
 				fatal("nng_ctx_recv", rv);
 			}
@@ -214,7 +217,7 @@ server_cb(void *arg)
 //						struct client  *sub_clients = client_list->sub_client;
 
 						emq_work *client_work;
-
+						total_pipes = 0;
 						for (struct client *i = tp_node->node->sub_client; i != NULL; i = i->next) {
 							++total_pipes;
 						}
@@ -390,7 +393,7 @@ server_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 
 			if (pipes != NULL) {
-				nng_free((uint32_t *)pipes, sizeof(uint32_t) * (total_pipes + 1));
+				nng_free((uint32_t *) pipes, sizeof(uint32_t) * (total_pipes + 1));
 				pipes = NULL;
 			}
 			break;
