@@ -25,6 +25,8 @@ static void
 forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
             struct pub_packet_struct *pub_packet, emq_work *work);
 
+
+#if SUPPORT_SEARCH_CLIENTS
 reason_code handle_pub(emq_work *work, struct clients *client_list)
 {
 
@@ -63,6 +65,45 @@ reason_code handle_pub(emq_work *work, struct clients *client_list)
 	}
 	return result;
 }
+#else
+reason_code handle_pub(emq_work *work, struct topic_and_node *tp_node)
+{
+
+	char **topic_queue = NULL;
+
+	reason_code result = decode_pub_message(work);
+	debug_msg("publish topic: [%s]", work->pub_packet->variable_header.publish.topic_name.str_body);
+
+	if (SUCCESS == result) {
+
+		switch (work->pub_packet->fixed_header.packet_type) {
+			case PUBLISH:
+				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
+				search_node(work->db, topic_queue, tp_node);
+				zfree(*topic_queue);
+				zfree(topic_queue);
+				break;
+
+			case PUBACK:
+				break;
+
+			case PUBREL:
+				break;
+
+			case PUBREC:
+				break;
+			case PUBCOMP:
+				break;
+
+			default:
+				break;
+		}
+
+	}
+	return result;
+}
+
+#endif
 
 
 #if 0

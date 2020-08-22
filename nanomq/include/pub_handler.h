@@ -103,7 +103,13 @@ struct pub_packet_struct {
 
 };
 
+#define SUPPORT_SEARCH_CLIENTS 0
+
+#if SUPPORT_SEARCH_CLIENTS
 reason_code handle_pub(emq_work *work, struct clients *client_list);
+#else
+reason_code handle_pub(emq_work *work, struct topic_and_node *tp_node);
+#endif
 void pub_handler(void *arg, nng_msg *send_msg);
 bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work);
 reason_code decode_pub_message(emq_work *work);

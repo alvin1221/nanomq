@@ -178,11 +178,19 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
 				debug_msg("handle CMD_PUBLISH\n");
 
+				nng_mtx_lock(work->mutex);
 				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-//				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
+
+#if SUPPORT_SEARCH_CLIENTS
 				struct clients *client_list = NULL;
 				reason = handle_pub(work, client_list);
+				struct client *sub_client = client_list.sub_client;
 
+#else
+				struct topic_and_node *tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
+				reason = handle_pub(work, tp_node);
+				struct client *sub_client = tp_node->node->sub_client;
+#endif
 				if (SUCCESS == reason) {
 
 					if (work->pub_packet->fixed_header.qos == 0) {
@@ -211,13 +219,11 @@ server_cb(void *arg)
 						work->pub_packet->fixed_header.dup = 0;//if publish first time
 					}
 
-					if (client_list->sub_client != NULL) {
-//					struct clients *client_list = search_client(work->db->root, topic_queue);
-//						struct client  *sub_clients = client_list->sub_client;
+					if (sub_client != NULL) {
 
 						emq_work *client_work;
 						total_pipes = 0;
-						for (struct client *i = client_list->sub_client; i != NULL; i = i->next) {
+						for (struct client *i = sub_client; i != NULL; i = i->next) {
 							++total_pipes;
 						}
 
@@ -226,7 +232,7 @@ server_cb(void *arg)
 						pipes = (uint32_t *) nng_alloc(sizeof(uint32_t) * (total_pipes + 1));
 						memset((uint32_t *) pipes, (uint32_t) 0, sizeof(uint32_t) * (total_pipes + 1));
 
-						struct client *sub_clients = client_list->sub_client;
+						struct client *sub_clients = sub_client;
 
 						for (int j = 0; j < total_pipes && sub_clients != NULL; j++, sub_clients = sub_clients->next) {
 							client_work = (emq_work *) sub_clients->ctxt;
@@ -235,6 +241,9 @@ server_cb(void *arg)
 						}
 
 						encode_pub_message(smsg, work->pub_packet, work);
+
+						debug_msg("----->smsg: [%p]<------",smsg);
+
 						work->state = SEND;
 						work->msg   = smsg;
 						nng_aio_set_msg(work->aio, smsg);
@@ -270,17 +279,21 @@ server_cb(void *arg)
 					debug_msg("free memory payload");
 				}
 
-/*				if (tp_node != NULL) {
+#if SUPPORT_SEARCH_CLIENTS == 0
+				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
 					debug_msg("free memory topic_and_node");
-				}*/
+				}
+#endif
 
 				if (work->state != SEND) {
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
+				nng_mtx_unlock(work->mutex);
+
 
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
 				debug_msg("handle CMD_PUBACK\n");
@@ -418,6 +431,10 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_ctx_open(&w->ctx, sock)) != 0) {
 		fatal("nng_ctx_open", rv);
 	}
+	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
+		fatal("nng_mtx_alloc", rv);
+	}
+
 	w->state = INIT;
 	return (w);
 }
