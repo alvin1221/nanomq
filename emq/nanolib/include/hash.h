@@ -4,11 +4,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void push_val(int key, char *val);
+	void push_val(int key, char *val);
 
-char *get_val(int key);
+	char *get_val(int key);
 
-void del_val(int key); 
+	void del_val(int key); 
 #ifdef __cplusplus
 }
 #endif

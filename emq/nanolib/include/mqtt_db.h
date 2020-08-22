@@ -6,9 +6,9 @@
 typedef enum {UNEQUAL = 0, EQUAL = 1 } state;
 
 struct client {
-    char				*id;
-    void			    *ctxt;
-    struct client		*next;
+	char				*id;
+	void			    *ctxt;
+	struct client		*next;
 	// size_t				len;
 };
 
@@ -19,16 +19,16 @@ struct clients {
 };
 
 struct db_node {
-    char                *topic;
+	char                *topic;
 	bool				retain;
 	bool				hashtag;
 	bool				plus;
 	void				*message;
-    struct client		*sub_client;
-    struct db_node      *up;
-    struct db_node      *down;
-    struct db_node      *next;
-    // TODO
+	struct client		*sub_client;
+	struct db_node      *up;
+	struct db_node      *down;
+	struct db_node      *next;
+	// TODO
 };
 
 
@@ -40,15 +40,15 @@ struct db_nodes {
 
 struct topic_and_node {
 	/* if topic equal NULL, topic is finded */ 
-    char				**topic;
+	char				**topic;
 	bool				hashtag;
-    struct db_node		*node; 
-    state				t_state;
+	struct db_node		*node; 
+	state				t_state;
 };
 
 struct db_tree{
-    struct db_node      *root;
-    // TODO
+	struct db_node      *root;
+	// TODO
 
 };
 
