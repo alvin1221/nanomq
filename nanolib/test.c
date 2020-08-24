@@ -159,10 +159,27 @@ static void Test_del_node(void)
 	add_node(res, &ID2);
 	print_db_tree(db);
 
-	struct clients* res_clients = NULL;
+	struct clients *res_clients = NULL;
+	struct client  **client_queue = NULL;
+	int cols = 0;
 	topic_queue = topic_parse(data);
 	res_clients = search_client(db->root, topic_queue);
-	iterate_client(res_clients);
+	client_queue = iterate_client(res_clients, &cols);
+
+    while ((*client_queue) != NULL) {
+			puts("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&");
+			printf("%p %p \n", client_queue, *client_queue);
+			printf("RES: client_queue is:%s\n", (*client_queue)->id);
+			client_queue++;
+	}
+
+
+	// for (int i = 0; i < cols-1; i++) {
+	// 		puts("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&ssss&&&&&&");
+	// 		printf("RES: client_queue is:%s\n", client_queue[i]->id);
+	// }
+
+		
 	puts("----------------------------------------------------\nall:");
 	while (res_clients) {
 		struct client *sub_client = res_clients->sub_client;
@@ -241,15 +258,73 @@ static void Test_hash_table(void)
 
 }
 
+static void Test_topic_hash(void) 
+{
+	char *id = "lkjl";
+	char *val = "12";
+	char *val1 = "1234";
+	char *val2 = "123456";
+
+	if (check_id(id)) {
+		puts("find");
+	} else {
+		puts("not find");
+	}
+	add_topic(id, val);
+	add_topic(id, val1);
+	add_topic(id, val2);
+	
+	if (check_id(id)) {
+		puts("find");
+	} else {
+		puts("not find");
+	}
+
+	struct topic_queue *res = get_topic(id); 
+	while (res) {
+		printf("res: %s\n", res->topic);
+		res = res->next;
+	}
+
+	del_topic_one(id, val1);
+	res = get_topic(id); 
+	while (res) {
+		printf("res: %s\n", res->topic);
+		res = res->next;
+	}
+	del_topic_all(id);
+
+	if (check_id(id)) {
+		puts("find");
+	} else {
+		puts("not find");
+	}
+}
+
+static void Test_pipe_hash(void)
+{
+	uint32_t pipeid[] = {11, 12, 13, 14};
+	char* clientid[] ={"aaaa", "bbbb", "cccc", "dddd"};
+	for (int i = 0; i < 4; i++) {
+		add_pipe_id(pipeid[i], clientid[i]);
+		printf("get_client_id %s\n", get_client_id(pipeid[i]));
+		del_pipe_id(pipeid[i]);
+
+	}
+}
+
 
 void test() 
 {
 	puts("\n----------------TEST START------------------");
 	// Test_topic_parse();
 	// Test_search_node();
-	Test_add_node();
-	Test_del_node();
+	// Test_add_node();
+	// Test_del_node();
 	// Test_hash_table();
+	// Test_topic_hash();
+	Test_pipe_hash();
+
 	puts("---------------TEST FINISHED----------------\n");
 }
 

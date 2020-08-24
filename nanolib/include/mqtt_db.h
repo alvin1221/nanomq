@@ -104,7 +104,7 @@ void set_topic_and_node(char **topic_queue, bool hashtag, state t_state,
 
 void *get_client_info(struct db_node *node);
 
-void iterate_client(struct clients * sub_clients /*, void func*/); 
+struct client **iterate_client(struct clients * sub_clients, int *cols); 
 
 struct clients *new_clients(struct client *sub_client);
 
