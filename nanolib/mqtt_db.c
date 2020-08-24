@@ -548,41 +548,39 @@ void *get_client_info(struct db_node *node)
 
 }
 
-void iterate_client(struct clients * sub_clients /*, void func*/) 
+struct client **iterate_client(struct clients *sub_clients, int *cols) 
 {
-	/* iterator and do */
 
-	/* func(client); */
-
-	int cols = 1;
-	char **id_queue = NULL; 
+	*cols = 1;
+	struct client **client_queue = NULL; 
 
 	while (sub_clients) {
 		struct client *sub_client = sub_clients->sub_client;
 		while (sub_client) {
 			bool equal = false;
-			id_queue = (char**)zrealloc(id_queue, cols*sizeof(char*)); 
-			// printf("RES: sub_client is:%s\n", sub_client->id);
+			client_queue = (struct client**)zrealloc(client_queue, (*cols)*sizeof(struct
+						client*)); 
 
-			for (int i = 0; i < cols-1; i++) {
-				if (!strcmp(sub_client->id, id_queue[i])) {
+			for (int i = 0; i < (*cols)-1; i++) {
+				if (!strcmp(sub_client->id, client_queue[i]->id)) {
 					equal = true;
 					break;
 				}
 			}
 
 			if (equal == false) {
-				id_queue[cols-1] = sub_client->id; 
-				printf("RES: sub_client is:%s\n", sub_client->id);
-				/* func */
-				cols++;
+				client_queue[(*cols)-1] = sub_client; 
+				(*cols)++;
 			}
 			sub_client = sub_client->next;
 		}
 		sub_clients = sub_clients->down;
 	}
-	// TODO free memory
 
+	client_queue = (struct client**)zrealloc(client_queue, (*cols) * sizeof(struct
+	  			client*)); 
+	client_queue[(*cols)-1] = NULL;
+	return client_queue;
 }
 
 struct clients *new_clients(struct client *sub_client)
