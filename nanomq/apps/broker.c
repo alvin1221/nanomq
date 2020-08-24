@@ -74,6 +74,13 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
+			// TODO disconnect handle
+			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
+				work->cparam = nng_msg_get_conn_param(msg);
+				char * clientid = conn_param_get_clentid(work->cparam);
+
+				debug_msg("pipe_id: %d, clientid: %s", conn_param_get_clentid(work->pid.id), clientid);
+			}
 /*
                 if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
                         // bad message, just ignore it.
