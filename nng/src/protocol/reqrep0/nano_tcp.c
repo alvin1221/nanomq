@@ -53,6 +53,7 @@ struct nano_pipe {
 	nni_pipe *    pipe;
 	nano_sock *    rep;
 	uint32_t      id;
+	uint8_t       retry;
 	nni_aio       aio_send;
 	nni_aio       aio_recv;
 	nni_list_node rnode; // receivable list linkage
@@ -133,7 +134,7 @@ nano_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
 static void
 nano_ctx_send(void *arg, nni_aio *aio)
 {
-	nano_ctx * ctx = arg, *ct;
+	nano_ctx * ctx = arg;
 	nano_sock *s   = ctx->sock;
 	nano_pipe *p;
 	nni_msg *  msg;
@@ -216,7 +217,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			ctx->rmsg  = msg;
 			//save ctx to start another round
 			debug_msg("pipe %p jamed!", p);
-			if ((ct = nni_list_first(&p->sendq)) == NULL) {
+			if (nni_list_first(&p->sendq) == NULL) {
 				//nni_list_append(&p->sendq, ctx);
 			}
 			need_resend++;
@@ -232,7 +233,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	if (need_resend == 0) {
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, len);
-	} else if ((ct = nni_list_first(&p->sendq)) == NULL) {
+	} else if (nni_list_first(&p->sendq) == NULL) {
 		ctx->resend_count = need_resend;
 		ctx->pipe_len     = i;
 		ctx->rspipes      = pipes;
@@ -463,52 +464,43 @@ nano_pipe_send_cb(void *arg)
 	}
 	if (index == ctx->pipe_len) {
 		debug_msg("should't reach here!");
+		goto drop;
 	}
-	
 
-	p->busy    = true;
+	if (!p->busy) {
+		p->busy    = true;
+	} else {
+		debug_msg("resend failed! message dropped");
+		*(pipes+index) = 0;
+		ctx->resend_count --;
+		goto drop;
+	}
+
 	msg        = nni_aio_get_msg(aio);
-	if (aio == NULL)
-		debug_msg("aio aaaaaaaaaaa");
-	if (msg == NULL)
-		debug_msg("msg aaaaaaaaaaa");
 	len        = nni_msg_len(msg);
 	nni_aio_set_msg(&p->aio_send, msg);
-	ctx->resend_count --;
-
 	nni_pipe_send(p->pipe, &p->aio_send);
 	*(pipes+index) = 0;
-
-	/*
-	nni_list_remove(&p->sendq, ctx);
-	debug_msg("resending!");
-	aio        = ctx->saio;
-	ctx->saio  = NULL;
-	p = ctx->spipe;
-	ctx->spipe = NULL;
-	p->busy    = true;
-	msg        = nni_aio_get_msg(aio);
-	if (aio == NULL)
-		debug_msg("aio aaaaaaaaaaa");
-	if (msg == NULL)
-		debug_msg("msg aaaaaaaaaaa");
-	len        = nni_msg_len(msg);
-	nni_aio_set_msg(aio, NULL);
-	nni_aio_set_msg(&p->aio_send, msg);
-	nni_pipe_send(p->pipe, &p->aio_send);
-*/
-	if (ctx->resend_count == 0) {
+	ctx->resend_count --;
+drop:
+	debug_msg("resending count %d", ctx->resend_count);
+	if (ctx->resend_count <= 0) {
 		nni_list_remove(&p->sendq, ctx);
 		ctx->saio  = NULL;
 		ctx->spipe = NULL;
+		ctx->rspipes = NULL;
+		ctx->resend_count = 0;
+		ctx->pipe_len = 0;
 		nni_aio_set_msg(aio, NULL);
 		debug_msg("finish resending");
 	}
 	nni_mtx_unlock(&s->lk);
 
 	//trigger application level
-	if (ctx->resend_count == 0)
-	  nni_aio_finish_synch(aio, 0, len);
+	if (ctx->resend_count <= 0) {
+
+		nni_aio_finish_synch(aio, 0, len);
+	}
 }
 
 static void
