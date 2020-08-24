@@ -6,6 +6,7 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <nng.h>
 #include <mqtt_db.h>
+#include <malloc.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -223,26 +224,21 @@ server_cb(void *arg)
 
 						emq_work *client_work;
 						total_pipes = 0;
-						for (struct client *i = sub_client; i != NULL; i = i->next) {
-							++total_pipes;
-						}
 
-						debug_msg("get total pipes: [%d]", total_pipes);
+						for (struct client *i = sub_client; i != NULL; i = i->next, ++total_pipes) {
+							client_work = (emq_work *) i->ctxt;
 
-						pipes = (uint32_t *) nng_alloc(sizeof(uint32_t) * (total_pipes + 1));
-						memset((uint32_t *) pipes, (uint32_t) 0, sizeof(uint32_t) * (total_pipes + 1));
+							pipes = reallocarray(pipes, total_pipes + 2, sizeof(uint32_t));
 
-						struct client *sub_clients = sub_client;
+							pipes[total_pipes]     = client_work->pid.id;
+							pipes[total_pipes + 1] = 0;
 
-						for (int j = 0; j < total_pipes && sub_clients != NULL; j++, sub_clients = sub_clients->next) {
-							client_work = (emq_work *) sub_clients->ctxt;
-							pipes[j] = client_work->pid.id;
-							debug_msg("get pipe id: [%d]", pipes[j]);
+							debug_msg("get pipe id, pipes[%d]: [%d]", total_pipes, pipes[total_pipes]);
 						}
 
 						encode_pub_message(smsg, work->pub_packet, work);
 
-						debug_msg("----->smsg: [%p]<------",smsg);
+						debug_msg("smsg: [%p]", smsg);
 
 						work->state = SEND;
 						work->msg   = smsg;
@@ -405,7 +401,7 @@ server_cb(void *arg)
 			nng_ctx_recv(work->ctx, work->aio);
 
 			if (pipes != NULL) {
-				nng_free((uint32_t *) pipes, sizeof(uint32_t) * (total_pipes + 1));
+				free(pipes);
 				pipes = NULL;
 			}
 			break;
