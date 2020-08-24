@@ -90,9 +90,10 @@ server_cb(void *arg)
 			nng_sleep_aio(200, work->aio);
 			break;
 		case WAIT:
+			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^");
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
-			debug_msg("WAIT  ^^^^^^^^^^^^^^^^^^^^^ %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
+			debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
 			          conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
