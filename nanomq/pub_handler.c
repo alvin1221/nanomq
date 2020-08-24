@@ -11,6 +11,7 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <include/nanomq.h>
 #include <zmalloc.h>
+#include <malloc.h>
 
 #include "include/pub_handler.h"
 
@@ -26,85 +27,153 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
             struct pub_packet_struct *pub_packet, emq_work *work);
 
 
+void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit_msgs tx_msgs)
+{
+	char                  **topic_queue = NULL;
+	struct topic_and_node *tp_node      = NULL;
+	struct client         *sub_client   = NULL;
+
+	uint32_t self_pipe_id[2] = {work->pid.id, 0};
+	uint32_t total_sub_pipes;
+
+	work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
+	reason_code result = decode_pub_message(work);
+	if (SUCCESS == result) {
+		debug_msg("decode message success");
+
+		struct pub_packet_struct pub_response = {
+				.fixed_header.qos = 0,
+				.fixed_header.dup = 0,
+				.fixed_header.retain = 0,
+				.fixed_header.remain_len = 2,
+				.variable_header.pub_arrc.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
+		};
+
+		switch (work->pub_packet->fixed_header.packet_type) {
+			case PUBLISH:
+				debug_msg("handling PUBLISH");
+
 #if SUPPORT_SEARCH_CLIENTS
-reason_code handle_pub(emq_work *work, struct clients *client_list)
-{
+				struct clients *client_list = NULL;
+					struct client *sub_client = client_list.sub_client;
 
-	char **topic_queue = NULL;
-
-	reason_code result = decode_pub_message(work);
-	debug_msg("publish topic: [%s]", work->pub_packet->variable_header.publish.topic_name.str_body);
-
-	if (SUCCESS == result) {
-
-		switch (work->pub_packet->fixed_header.packet_type) {
-			case PUBLISH:
-				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
-//				search_node(work->db, topic_queue, tp_node);
-				client_list = search_client(work->db->root, topic_queue);
-				zfree(*topic_queue);
-				zfree(topic_queue);
-
-				break;
-
-			case PUBACK:
-				break;
-
-			case PUBREL:
-				break;
-
-			case PUBREC:
-				break;
-			case PUBCOMP:
-				break;
-
-			default:
-				break;
-		}
-
-	}
-	return result;
-}
 #else
-reason_code handle_pub(emq_work *work, struct topic_and_node *tp_node)
-{
+				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
 
-	char **topic_queue = NULL;
-
-	reason_code result = decode_pub_message(work);
-	debug_msg("publish topic: [%s]", work->pub_packet->variable_header.publish.topic_name.str_body);
-
-	if (SUCCESS == result) {
-
-		switch (work->pub_packet->fixed_header.packet_type) {
-			case PUBLISH:
 				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
 				search_node(work->db, topic_queue, tp_node);
 				zfree(*topic_queue);
 				zfree(topic_queue);
+
+				sub_client = tp_node->node->sub_client;
+
+#endif
+
+				total_sub_pipes = 0;
+				if (sub_client != NULL) {
+					emq_work *client_work;
+
+					for (struct client *i = sub_client; i != NULL; i = i->next, ++total_sub_pipes) {
+						client_work = (emq_work *) i->ctxt;
+
+						sub_pipes = reallocarray(sub_pipes, total_sub_pipes + 2, sizeof(uint32_t));
+
+						sub_pipes[total_sub_pipes]     = client_work->pid.id;
+						sub_pipes[total_sub_pipes + 1] = 0;
+
+						debug_msg("get pipe id, sub_pipes[%d]: [%d]", total_sub_pipes, sub_pipes[total_sub_pipes]);
+					}
+				}
+
+				switch (work->pub_packet->fixed_header.qos) {
+					case 0:
+						work->pub_packet->fixed_header.dup = 0;
+						break;
+					case 1:
+						pub_response.fixed_header.packet_type = PUBACK;
+						encode_pub_message(send_msg, &pub_response, work);
+						tx_msgs(send_msg, work, self_pipe_id);
+						work->pub_packet->fixed_header.dup = 0;//if publish first time
+						break;
+					case 2:
+						pub_response.fixed_header.packet_type = PUBREC;
+						encode_pub_message(send_msg, &pub_response, work);
+						tx_msgs(send_msg, work, self_pipe_id);
+						work->pub_packet->fixed_header.dup = 0;//if publish first time
+						break;
+					default:
+						debug_msg("invalid qos: %d", work->pub_packet->fixed_header.qos);
+						break;
+				}
+
+				if (total_sub_pipes > 0) {
+					encode_pub_message(send_msg, work->pub_packet, work);
+					tx_msgs(send_msg, work, sub_pipes);
+				}
+
+				if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {
+					nng_free(work->pub_packet->variable_header.publish.topic_name.str_body,
+					         work->pub_packet->variable_header.publish.topic_name.str_len + 1);
+					work->pub_packet->variable_header.publish.topic_name.str_body = NULL;
+					debug_msg("free memory topic");
+				}
+
+				if (work->pub_packet->payload_body.payload != NULL) {
+					nng_free(work->pub_packet->payload_body.payload, work->pub_packet->payload_body.payload_len + 1);
+					work->pub_packet->payload_body.payload = NULL;
+					debug_msg("free memory payload");
+				}
+
+#if SUPPORT_SEARCH_CLIENTS == 0
+				if (tp_node != NULL) {
+					nng_free(tp_node, sizeof(struct topic_and_node));
+					tp_node = NULL;
+					debug_msg("free memory topic_and_node");
+				}
+#endif
 				break;
 
 			case PUBACK:
-				break;
-
-			case PUBREL:
+				debug_msg("handling PUBACK");
 				break;
 
 			case PUBREC:
+				debug_msg("handling PUBREC");
+				pub_response.fixed_header.packet_type                 = PUBREL;
+				pub_response.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.pubrec.packet_identifier;
+				encode_pub_message(send_msg, &pub_response, work);
+				tx_msgs(send_msg, work, self_pipe_id);
 				break;
+
+			case PUBREL:
+				debug_msg("handling PUBREL");
+				pub_response.fixed_header.packet_type                 = PUBCOMP;
+				pub_response.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.pubrel.packet_identifier;
+				encode_pub_message(send_msg, &pub_response, work);
+				tx_msgs(send_msg, work, self_pipe_id);
+				break;
+
 			case PUBCOMP:
+				debug_msg("handling PUBCOMP");
 				break;
 
 			default:
 				break;
 		}
 
+
+	} else {
+		debug_msg("decode message failed: %d", result);
+		//TODO send DISCONNECT with reason_code if MQTT Version=5.0
+		// tx_msgs
 	}
-	return result;
+
+	if (work->pub_packet != NULL) {
+		nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
+		work->pub_packet = NULL;
+		debug_msg("free memory pub_packet");
+	}
 }
-
-#endif
-
 
 #if 0
 /**

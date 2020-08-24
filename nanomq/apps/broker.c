@@ -23,7 +23,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 100
+#define PARALLEL 50
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -35,6 +35,18 @@ fatal(const char *func, int rv)
 	fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
 	exit(1);
 }
+
+void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
+{
+	work->state = SEND;
+	work->msg   = send_msg;
+	nng_aio_set_msg(work->aio, send_msg);
+	work->msg = NULL;
+
+	nng_aio_set_pipeline(work->aio, pipes);
+	nng_ctx_send(work->ctx, work->aio);
+}
+
 
 /*objective: 1 input/output low latency
 	     2 KV
@@ -177,211 +189,23 @@ server_cb(void *arg)
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
 				printf("after send aio\n");
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH) {
-				debug_msg("handle CMD_PUBLISH\n");
+			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH ||
+			           nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
+			           nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
+			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
+			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 
 				nng_mtx_lock(work->mutex);
-				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
 
-#if SUPPORT_SEARCH_CLIENTS
-				struct clients *client_list = NULL;
-				reason = handle_pub(work, client_list);
-				struct client *sub_client = client_list.sub_client;
-
-#else
-				struct topic_and_node *tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
-				reason = handle_pub(work, tp_node);
-				struct client *sub_client = tp_node->node->sub_client;
-#endif
-				if (SUCCESS == reason) {
-
-					if (work->pub_packet->fixed_header.qos == 0) {
-						work->pub_packet->fixed_header.dup = 0;
-
-					} else if (work->pub_packet->fixed_header.qos == 1 || work->pub_packet->fixed_header.qos == 2) {
-						struct pub_packet_struct pub_response = {
-								.fixed_header.packet_type =work->pub_packet->fixed_header.qos == 1 ? PUBACK : PUBREC,
-								.fixed_header.qos = 0,
-								.fixed_header.dup = 0,
-								.fixed_header.retain = 0,
-								.fixed_header.remain_len = 2,
-								.variable_header.pub_arrc.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
-						};
-
-						encode_pub_message(smsg, &pub_response, work);
-
-						//response PUBACK/PUBREC to client
-						work->state = SEND;
-						work->msg   = smsg;
-						nng_aio_set_msg(work->aio, work->msg);
-						work->msg = NULL;
-//						nng_aio_set_pipeline(work->aio, work->pid.id);
-						nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
-
-						work->pub_packet->fixed_header.dup = 0;//if publish first time
-					}
-
-					if (sub_client != NULL) {
-
-						emq_work *client_work;
-						total_pipes = 0;
-
-						for (struct client *i = sub_client; i != NULL; i = i->next, ++total_pipes) {
-							client_work = (emq_work *) i->ctxt;
-
-							pipes = reallocarray(pipes, total_pipes + 2, sizeof(uint32_t));
-
-							pipes[total_pipes]     = client_work->pid.id;
-							pipes[total_pipes + 1] = 0;
-
-							debug_msg("get pipe id, pipes[%d]: [%d]", total_pipes, pipes[total_pipes]);
-						}
-
-						encode_pub_message(smsg, work->pub_packet, work);
-
-						debug_msg("smsg: [%p]", smsg);
-
-						work->state = SEND;
-						work->msg   = smsg;
-						nng_aio_set_msg(work->aio, smsg);
-						work->msg = NULL;
-
-						nng_aio_set_pipeline(work->aio, pipes);
-						nng_ctx_send(work->ctx, work->aio);
-
-					} else {
-						debug_msg("can not find topic [%s] info",
-						          work->pub_packet->variable_header.publish.topic_name.str_body);
-					}
-				} else {
-					//TODO send DISCONNECT with reason_code if MQTT Version=5.0
-				}
-
-				if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {
-					nng_free(work->pub_packet->variable_header.publish.topic_name.str_body,
-					         work->pub_packet->variable_header.publish.topic_name.str_len + 1);
-					work->pub_packet->variable_header.publish.topic_name.str_body = NULL;
-					debug_msg("free memory topic");
-				}
-
-				if (work->pub_packet->payload_body.payload != NULL) {
-					nng_free(work->pub_packet->payload_body.payload, work->pub_packet->payload_body.payload_len + 1);
-					work->pub_packet->payload_body.payload = NULL;
-					debug_msg("free memory payload");
-				}
-
-				if (work->pub_packet != NULL) {
-					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
-					work->pub_packet = NULL;
-					debug_msg("free memory payload");
-				}
-
-#if SUPPORT_SEARCH_CLIENTS == 0
-				if (tp_node != NULL) {
-					nng_free(tp_node, sizeof(struct topic_and_node));
-					tp_node = NULL;
-					debug_msg("free memory topic_and_node");
-				}
-#endif
+				handle_pub(work, smsg, pipes, transmit_msgs_cb);
 
 				if (work->state != SEND) {
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
+
 				nng_mtx_unlock(work->mutex);
-
-
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBACK) {
-				debug_msg("handle CMD_PUBACK\n");
-				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, NULL);
-				if (SUCCESS == reason) {
-
-				}
-
-				if (work->pub_packet != NULL) {
-					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
-					work->pub_packet = NULL;
-					debug_msg("free memory payload");
-				}
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREC) {
-				debug_msg("handle CMD_PUBREC\n");
-				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, NULL);
-				if (SUCCESS == reason) {
-					struct pub_packet_struct pub_response = {
-							.fixed_header.packet_type = PUBREL,
-							.fixed_header.qos = 0,
-							.fixed_header.dup = 0,
-							.fixed_header.retain = 0,
-							.fixed_header.remain_len = 2,
-							.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
-					};
-
-					encode_pub_message(smsg, &pub_response, work);
-
-					//response PUBREL to client
-
-					work->state = SEND;
-					work->msg   = smsg;
-					nng_aio_set_msg(work->aio, work->msg);
-					work->msg = NULL;
-//						nng_aio_set_pipeline(work->aio, work->pid.id);
-					nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
-
-				}
-
-				if (work->pub_packet != NULL) {
-					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
-					work->pub_packet = NULL;
-					debug_msg("free memory payload");
-				}
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBREL) {
-				debug_msg("handle CMD_PUBREL\n");
-				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, NULL);
-				if (SUCCESS == reason) {
-					struct pub_packet_struct pub_response = {
-							.fixed_header.packet_type = PUBCOMP,
-							.fixed_header.dup = 0,
-							.fixed_header.qos = 1,//bit1 = 1
-							.fixed_header.retain = 0,
-							.fixed_header.remain_len = 2,
-							.variable_header.pubcomp.packet_identifier = work->pub_packet->variable_header.publish.packet_identifier
-					};
-
-					encode_pub_message(smsg, &pub_response, work);
-					//response PUBREL to client
-
-					work->state = SEND;
-					work->msg   = smsg;
-					nng_aio_set_msg(work->aio, work->msg);
-					work->msg = NULL;
-//						nng_aio_set_pipeline(work->aio, work->pid.id);
-					nng_ctx_send(work->ctx, work->aio); //FIXME Bug!
-				}
-
-				if (work->pub_packet != NULL) {
-					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
-					work->pub_packet = NULL;
-					debug_msg("free memory payload");
-				}
-
-			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
-				debug_msg("handle CMD_PUBCOMP\n");
-				work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-				reason = handle_pub(work, NULL);
-
-				if (SUCCESS == reason) {
-
-				}
-
-				if (work->pub_packet != NULL) {
-					nng_free(work->pub_packet, sizeof(struct pub_packet_struct));
-					work->pub_packet = NULL;
-					debug_msg("free memory payload");
-				}
 
 			} else {
 				debug_msg("broker has nothing to do");

@@ -103,12 +103,16 @@ struct pub_packet_struct {
 
 };
 
+
+typedef void (*transmit_msgs)(nng_msg *, emq_work *, uint32_t *);
+
 #define SUPPORT_SEARCH_CLIENTS 0
 
 #if SUPPORT_SEARCH_CLIENTS
-reason_code handle_pub(emq_work *work, struct clients *client_list);
+
 #else
-reason_code handle_pub(emq_work *work, struct topic_and_node *tp_node);
+
+void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit_msgs tx_msgs);
 #endif
 void pub_handler(void *arg, nng_msg *send_msg);
 bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work);
