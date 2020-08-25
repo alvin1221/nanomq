@@ -51,7 +51,7 @@ struct nano_sock {
 // nano_pipe is our per-pipe protocol private structure.
 struct nano_pipe {
 	nni_pipe *    pipe;
-	nano_sock *    rep;
+	nano_sock *   rep;
 	uint32_t      id;
 	uint8_t       retry;
 	nni_aio       aio_send;
@@ -101,7 +101,7 @@ nano_ctx_init(void *carg, void *sarg)
 	nano_sock *s   = sarg;
 	nano_ctx * ctx = carg;
 
-	debug_msg("&&&&&&&&&&&&&&& nano_ctx_init");
+	debug_msg("&&&&&&&& nano_ctx_init &&&&&&&&&");
 	NNI_LIST_NODE_INIT(&ctx->sqnode);
 	NNI_LIST_NODE_INIT(&ctx->rqnode);
 	//TODO send list??
@@ -380,7 +380,7 @@ nano_pipe_close(void *arg)
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
 
-	debug_msg("#################3nano_pipe_close!!##############33");
+	debug_msg("#################nano_pipe_close!!##############");
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
 
@@ -573,6 +573,7 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 	//nni_msg_header_clear(msg);
 	nni_aio_set_msg(aio, msg);
 	nni_aio_finish(aio, 0, nni_msg_len(msg));
+	//nni_mtx_unlock(&s->lk);
 }
 
 static void
@@ -600,7 +601,7 @@ nano_pipe_recv_cb(void *arg)
 	}
 
 	header = nng_msg_header(msg);
-	debug_msg("start nano_pipe_recv_cb pipe: %p TYPE: %x ===== header: %x %x header len: %d\n",p ,nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
+	debug_msg("start nano_pipe_recv_cb pipe: %p p_id %d TYPE: %x ===== header: %x %x header len: %d\n",p ,p->id, nng_msg_cmd_type(msg), *header, *(header+1), nng_msg_header_len(msg));
 	//ttl = nni_atomic_get(&s->ttl);
 	nni_msg_set_pipe(msg, p->id);
 
@@ -612,9 +613,23 @@ nano_pipe_recv_cb(void *arg)
 			break;
 		case CMD_PUBLISH:
 			break;
-
+		case CMD_DISCONNECT:
+			break;
 	}
 
+	/*
+	if (nng_msg_cmd_type(msg) == CMD_DISCONNECT && (ctx = nni_list_first(&s->recvq)) != NULL)
+	{
+		aio       = ctx->raio;
+		ctx->raio = NULL;
+		nni_aio_set_msg(&p->aio_recv, NULL);
+		ctx->pipe_id = p->id;
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, msg);
+		nni_aio_finish_synch(aio, 0, 2);
+		debug_msg("client is dead!!");
+		return;
+	}*/
 	if (p->closed) {
 		// If we are closed, then we can't return data.
 		nni_aio_set_msg(&p->aio_recv, NULL);

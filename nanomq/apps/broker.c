@@ -23,7 +23,8 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 50
+#define PARALLEL 150
+
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -87,15 +88,16 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
-/*
-                if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
-                        // bad message, just ignore it.
-                        nng_msg_free(msg);
-                        nng_ctx_recv(work->sock, work->aio);
-                        printf("debug: bad message, just ignore it.\n");
-                        return;
-                }
-*/
+			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+				work->state = RECV;
+				nng_msg_free(msg);
+				nng_aio_abort(work->aio, 31);
+				debug_msg("--------------------------CMD_DISCONNECT------------------------------------------");
+				nng_ctx_recv(work->ctx, work->aio);
+				break;
+			}
+			/**/
+
 			work->msg   = msg;
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %s ******************************************\n",
