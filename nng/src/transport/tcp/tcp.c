@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <poll.h>
+#include <mqtt_db.h>
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"

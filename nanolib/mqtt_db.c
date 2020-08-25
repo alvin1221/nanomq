@@ -604,6 +604,7 @@ void del_all(uint32_t pipe_id, struct db_tree *db)
 			}
 			del_topic_all(client);
 			del_pipe_id(pipe_id);
+			printf("del all\n");
 		}
 	}
 	return;

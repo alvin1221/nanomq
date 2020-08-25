@@ -24,7 +24,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 150
+#define PARALLEL 50
 
 
 // The server keeps a list of work items, sorted by expiration time,
@@ -64,13 +64,11 @@ server_cb(void *arg)
 	nng_pipe    pipe;
 	int         rv;
 	uint32_t    when;
-
 	uint32_t          *pipes      = NULL;
 	volatile uint32_t total_pipes = 0;
 //	struct topic_and_node *tp_node    = NULL;
 	reason_code       reason;
-
-	uint8_t buf[2] = {1, 2};
+	uint8_t buf[2];
 
 
 	switch (work->state) {
@@ -308,6 +306,7 @@ server(const char *url)
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
 		works[i]->db = db;
+		nng_aio_set_dbtree(works[i]->aio, db);
 //		works[i]->pid = pipe_id;
 	}
 

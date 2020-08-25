@@ -754,7 +754,7 @@ NNG_DECL const uint8_t * conn_param_get_password(conn_param *cparam);
 NNG_DECL const uint8_t   conn_param_get_con_flag(conn_param *cparam);
 NNG_DECL const uint16_t  conn_param_get_keepalive(conn_param *cparam);
 NNG_DECL const uint8_t   conn_param_get_protover(conn_param *cparam);
-
+NNG_DECL void nng_aio_set_dbtree(nng_aio *aio, void *db);
 
 
 
