@@ -377,6 +377,27 @@ void del_node(struct db_node *node)
 	return;
 }
 
+bool check_retain(struct db_node *node)
+{
+	return node->retain;
+}
+
+void set_retain(struct db_node *node, bool retain)
+{
+	node->retain = retain;
+}
+
+void set_message(struct db_node *node, void *message)
+{
+	set_retain(node, true);
+	node->message = message;
+}
+
+void *get_message(struct db_node *node)
+{
+	return node->message;
+}
+
 /* 
  ** Delete client. 
  */
@@ -435,10 +456,11 @@ struct client *set_client(const char *id, void *ctxt)
 	// assert(ctxt);
 	struct client *sub_client = NULL;
 	sub_client = (struct client*)zmalloc(sizeof(struct client));
+	memset(sub_client, 0, sizeof(struct client));
 	sub_client->id = (char*)zmalloc(strlen(id)+1);
 	memcpy(sub_client->id, id, strlen(id)+1);
 	sub_client->ctxt = ctxt;
-	sub_client->next = NULL;
+	// sub_client->next = NULL;
 	return sub_client;
 
 }
@@ -734,11 +756,12 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 			} else if (node->down->down && *(topic_queue+2)) {
 				debug("continue");
 				char ** tmp_topic = topic_queue;
-				tmp = search_client(node->down, topic_queue+1);
-				if (tmp->down) {
+				tmp->down = search_client(node->down, topic_queue+1);
+				while (tmp->down) {
 					tmp = tmp->down;
 				}
-				tmp = search_client(node->down->down, tmp_topic+2);
+				tmp->down = search_client(node->down->down, tmp_topic+2);
+				return res;
 			}
 
 		} else {
@@ -813,18 +836,18 @@ char **topic_parse(char *topic)
 	return topic_queue;
 }
 
-void hash_add_topic(int alias, char *topic_data) 
+void hash_add_alias(int alias, char *topic_data) 
 {
 	assert(topic_data);
 	push_val(alias, topic_data);
 }
 
-char *hash_check_topic(int alias)
+char *hash_check_alias(int alias)
 {
 	return get_val(alias);
 }
 
-void hash_del_topic(int alias)
+void hash_del_alias(int alias)
 {
 	del_val(alias);
 }
