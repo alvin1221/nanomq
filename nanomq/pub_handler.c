@@ -140,17 +140,20 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 				switch (work->pub_packet->fixed_header.qos) {
 					case 0:
 						work->pub_packet->fixed_header.dup = 0;
+						work->pub_packet->fixed_header.retain = 0;
 						break;
 					case 1:
 						pub_response.fixed_header.packet_type = PUBACK;
 						encode_pub_message(send_msg, &pub_response, work);
 						tx_msgs(send_msg, work, self_pipe_id);
+						work->pub_packet->fixed_header.retain = 0;
 						work->pub_packet->fixed_header.dup = 0;//if publish first time
 						break;
 					case 2:
 						pub_response.fixed_header.packet_type = PUBREC;
 						encode_pub_message(send_msg, &pub_response, work);
 						tx_msgs(send_msg, work, self_pipe_id);
+						work->pub_packet->fixed_header.retain = 0;
 						work->pub_packet->fixed_header.dup = 0;//if publish first time
 						break;
 					default:

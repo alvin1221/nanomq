@@ -48,8 +48,8 @@ add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 
 
-add_executable(test test.c)
-target_link_libraries(test nano_shared)
+#add_executable(test test.c)
+#target_link_libraries(test nano_shared)
 
 
 install(TARGETS nano_shared EXPORT nanolibConfig
