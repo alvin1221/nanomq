@@ -108,7 +108,7 @@ struct pub_packet_struct {
 typedef void (*transmit_msgs)(nng_msg *, emq_work *, uint32_t *);
 typedef void (*handle_client)(struct client *sub_client, uint32_t **pipes, uint32_t *total);
 
-#define SUPPORT_SEARCH_CLIENTS 1
+#define SUPPORT_SEARCH_CLIENTS 0
 
 void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit_msgs tx_msgs);
 void pub_handler(void *arg, nng_msg *send_msg);

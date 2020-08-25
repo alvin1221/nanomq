@@ -30,7 +30,7 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
 void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *total)
 {
 	int current_index = *total;
-	
+
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
 	*pipes = reallocarray(*pipes, current_index + 2, sizeof(uint32_t));
 
@@ -69,7 +69,7 @@ void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *tot
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				debug_msg("RES: sub_client: [%p], id: [%s]\n",sub_client, sub_client->id);
+				debug_msg("RES: sub_client: [%p], id: [%s]\n", sub_client, sub_client->id);
 				handle_cb(sub_client, pipes, totals);
 				cols++;
 			}
@@ -77,7 +77,8 @@ void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *tot
 		}
 		sub_clients               = sub_clients->down;
 	}
-	// TODO free memory
+	// free memory
+	zfree(id_queue);
 
 }
 
@@ -128,16 +129,8 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 
 #else
 				if (sub_client != NULL) {
-					emq_work *client_work;
-
 					for (struct client *i = sub_client; i != NULL; i = i->next, ++total_sub_pipes) {
-						client_work = (emq_work *) i->ctxt;
-
-						sub_pipes = reallocarray(sub_pipes, total_sub_pipes + 2, sizeof(uint32_t));
-
-						sub_pipes[total_sub_pipes]     = client_work->pid.id;
-						sub_pipes[total_sub_pipes + 1] = 0;
-
+						handle_sub_client(i, &sub_pipes, &total_sub_pipes);
 						debug_msg("get pipe id, sub_pipes[%d]: [%d]", total_sub_pipes, sub_pipes[total_sub_pipes]);
 					}
 
