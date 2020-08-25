@@ -8,10 +8,10 @@
 
 
 /* 
- ** Create a db_tree
- ** Declare a global variable as func para 
- ** struct db_tree *db;
- */
+** Create a db_tree
+** Declare a global variable as func para 
+** struct db_tree *db;
+*/
 void create_db_tree(struct db_tree **db)
 {
 	log_info("CREATE_DB_TREE");
@@ -24,9 +24,9 @@ void create_db_tree(struct db_tree **db)
 }
 
 /*
- ** Destory db tree 
- ** destory all node & db_tree
- */
+** Destory db tree 
+** destory all node & db_tree
+*/
 void destory_db_tree(struct db_tree *db)
 {
 	log_info("DESTORY_DB_TREE");
@@ -35,10 +35,10 @@ void destory_db_tree(struct db_tree *db)
 }
 
 /*
- ** Print db_tree
- ** For debugging, you can output all node 
- ** & node info
- */
+** Print db_tree
+** For debugging, you can output all node 
+** & node info
+*/
 void print_db_tree(struct db_tree *db) 
 {
 	assert(db);
@@ -116,9 +116,8 @@ void print_db_tree(struct db_tree *db)
 }
 
 /*
- ** Determine if the current topic data is "#"
- ** or not.
- */
+** Determine if the current topic data is "#"
+*/
 bool check_hashtag(char *topic_data) 
 {
 	if (topic_data == NULL) {
@@ -128,9 +127,8 @@ bool check_hashtag(char *topic_data)
 }
 
 /*
- ** Determine if the current topic data is "+"
- ** or not.
- */
+** Determine if the current topic data is "+"
+*/
 bool check_plus(char *topic_data) 
 {
 	if (topic_data == NULL) {
@@ -143,14 +141,11 @@ struct db_node *new_db_node(char *topic)
 {
 	struct db_node *node = NULL;
 	node = (struct db_node*)zmalloc(sizeof(struct db_node));
+	memset(node, 0, sizeof(struct db_node));
 	node->topic = (char*)zmalloc(strlen(topic)+1);
+	memset(node->topic, 0, strlen(topic)+1);
 	memcpy(node->topic, topic, strlen(topic)+1);
 	log("new_db_node %s", node->topic);
-	node->hashtag = false;
-	node->plus = false;
-	node->next = NULL;
-	node->down = NULL;
-	node->sub_client = NULL;
 	return node;
 }
 
@@ -797,18 +792,18 @@ char **topic_parse(char *topic)
 	return topic_queue;
 }
 
-void hash_add_topic(int alias, char *topic_data) 
+void hash_add_alias(int alias, char *topic_data) 
 {
 	assert(topic_data);
 	push_val(alias, topic_data);
 }
 
-char *hash_check_topic(int alias)
+char *hash_check_alias(int alias)
 {
 	return get_val(alias);
 }
 
-void hash_del_topic(int alias)
+void hash_del_alias(int alias)
 {
 	del_val(alias);
 }

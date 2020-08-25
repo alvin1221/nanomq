@@ -8,6 +8,9 @@
 
 struct db_tree *db = NULL;
 
+typedef enum{test_topic_parse = 0, test_search_node, test_add_node, test_del_node,
+	test_hash_alias, test_topic_hash, test_pipe_hash} test_state;
+
 struct client ID1 = {"150429", NULL, NULL};
 
 static void Test_topic_parse(void)
@@ -212,7 +215,7 @@ static void Test_del_node(void)
 	// print_db_tree(db);
 }
 
-static void Test_hash_table(void) 
+static void Test_hash_alias(void) 
 {
 	puts(">>>>>>>>>>TEST_HASH_TABLE<<<<<<<<");
 	int i = 1;
@@ -226,24 +229,24 @@ static void Test_hash_table(void)
 	printf("INPUT: %d --> %s\n", k, topic3);
 
 
-	hash_add_topic(i, topic1);
-	hash_add_topic(i, topic2);
-	hash_add_topic(i, topic3);
-	hash_add_topic(j, topic2);
-	hash_add_topic(k, topic3);
-	char* t1 = hash_check_topic(i);
-	char* t2 = hash_check_topic(j);
-	char* t3 = hash_check_topic(k);
+	hash_add_alias(i, topic1);
+	hash_add_alias(i, topic2);
+	hash_add_alias(i, topic3);
+	hash_add_alias(j, topic2);
+	hash_add_alias(k, topic3);
+	char* t1 = hash_check_alias(i);
+	char* t2 = hash_check_alias(j);
+	char* t3 = hash_check_alias(k);
 
 	printf("RES: %s\n", t1);
 	printf("RES: %s\n", t2);
 	printf("RES: %s\n", t3);
-	hash_del_topic(i);
-	hash_del_topic(j);
-	hash_del_topic(k);
-	t1 = hash_check_topic(i);
-	t2 = hash_check_topic(j);
-	t3 = hash_check_topic(k);
+	hash_del_alias(i);
+	hash_del_alias(j);
+	hash_del_alias(k);
+	t1 = hash_check_alias(i);
+	t2 = hash_check_alias(j);
+	t3 = hash_check_alias(k);
 	if (t1) {
 		printf("RES: %s\n", t1);
 	}
@@ -313,39 +316,49 @@ static void Test_pipe_hash(void)
 	}
 }
 
-
-void test() 
+void test(test_state what) 
 {
-	puts("\n----------------TEST START------------------");
-	// Test_topic_parse();
-	// Test_search_node();
-	// Test_add_node();
-	// Test_del_node();
-	// Test_hash_table();
-	// Test_topic_hash();
-	Test_pipe_hash();
-
-	puts("---------------TEST FINISHED----------------\n");
+	switch(what) {
+		case test_topic_parse:
+			Test_topic_parse();
+			break;
+		case test_search_node:
+			Test_search_node();
+			break;
+		case test_add_node:
+			Test_add_node();
+			break;
+		case test_del_node:
+			Test_del_node();
+			break;
+		case test_hash_alias:
+			Test_hash_alias();
+			break;
+		case test_topic_hash:
+			Test_topic_hash();
+			break;
+		case test_pipe_hash:
+			Test_pipe_hash();
+			break;
+		default:
+			log("No this state");
+			break;
+	}
+			
 }
+
 
 
 int main(int argc, char *argv[]) 
 {
-	test();
-
+	puts("\n----------------TEST START------------------");
+	char *str = NULL;
+	while (1) {
+		scanf("%s", &str);
+		int i = atoi(str);
+		test((test_state) i );
+	}
+	puts("---------------TEST FINISHED----------------\n");
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -9,7 +9,6 @@ struct client {
 	char				*id;
 	void			    *ctxt;
 	struct client		*next;
-	// size_t				len;
 };
 
 struct clients {
@@ -28,18 +27,19 @@ struct db_node {
 	struct db_node      *up;
 	struct db_node      *down;
 	struct db_node      *next;
-	// TODO
 };
 
 
-/* for print_db_tree */
+/* 
+** for print_db_tree 
+*/
 struct db_nodes {
 	struct db_node		*node;
 	struct db_nodes		*next;
 };
 
+/* if topic equal NULL, topic is finded */ 
 struct topic_and_node {
-	/* if topic equal NULL, topic is finded */ 
 	char				**topic;
 	bool				hashtag;
 	struct db_node		*node; 
@@ -49,7 +49,6 @@ struct topic_and_node {
 struct db_tree{
 	struct db_node      *root;
 	// TODO
-
 };
 
 
@@ -72,7 +71,6 @@ void delete_db_node(struct db_node *node);
 void set_db_node(struct db_node *node, char **topic_queue);
 
 /* Search node in db_tree*/
-// struct topic_and_node *search_node(struct db_tree *db, char *topic_data);
 void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *tan);
 
 /* Add node to db_tree */
@@ -102,8 +100,6 @@ struct client *set_client(const char *id, void *ctxt);
 void set_topic_and_node(char **topic_queue, bool hashtag, state t_state, 
 		struct db_node *node, struct topic_and_node *tan);
 
-void *get_client_info(struct db_node *node);
-
 struct client **iterate_client(struct clients * sub_clients, int *cols); 
 
 struct clients *new_clients(struct client *sub_client);
@@ -112,10 +108,10 @@ struct clients *new_clients(struct client *sub_client);
 void add_client(struct topic_and_node *input, struct client* sub_client);
 
 /* A hash table, clientId or alias as key, topic as value */ 
-char* hash_check_topic(int alias);
+char* hash_check_alias(int alias);
 
-void hash_add_topic(int alias, char *topic_data);
+void hash_add_alias(int alias, char *topic_data);
 
-void hash_del_topic(int alias);
+void hash_del_alias(int alias);
 
 #endif
