@@ -2,6 +2,7 @@
 #define MQTT_DB_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {UNEQUAL = 0, EQUAL = 1 } state;
 
@@ -17,12 +18,19 @@ struct clients {
 	int					len;
 };
 
+struct retain_msg {
+	// uint8_t				qos;
+	bool				retain;
+	void				*message;
+};
+
 struct db_node {
 	char                *topic;
-	bool				retain;
+	// bool				retain;
 	bool				hashtag;
 	bool				plus;
-	void				*message;
+	// void				*message;
+	struct retain_msg   *ret_msg;
 	struct client		*sub_client;
 	struct db_node      *up;
 	struct db_node      *down;
@@ -79,6 +87,8 @@ void add_node(struct topic_and_node *input, struct client *id);
 /* Delete node from db_tree when node does not have clientId */
 void del_node(struct db_node *node);
 
+void del_all(uint32_t pipe_id, struct db_tree *db);
+
 /* Free node memory */
 void free_node(struct db_node *node);
 
@@ -87,6 +97,14 @@ char **topic_parse(char *topic);
 
 struct db_node *find_next(struct db_node *node, bool *equal, char
 		**topic_queue);
+
+bool check_retain(struct db_node *node);
+
+void set_retain(struct db_node *node, bool retain);
+
+void set_message(struct db_node *node, void *message);
+
+void *get_message(struct db_node *node);
 
 struct clients *search_client(struct db_node *root, char **topic_queue);
 
