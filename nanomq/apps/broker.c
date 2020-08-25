@@ -81,8 +81,8 @@ server_cb(void *arg)
 				char * clientid = conn_param_get_clentid(work->cparam);
 				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
 				char ** topics;
-				struct client * cli;
-				struct topic_queue * tq;
+				struct client * cli = NULL;
+				struct topic_queue * tq = NULL;
 
 				debug_msg("########DISCONNECT########clientid: %s", clientid);
 				if(check_id(clientid)){
@@ -93,6 +93,7 @@ server_cb(void *arg)
 						search_node(work->db, topics, tan);
 						cli = del_client(tan, clientid);
 						destroy_sub_ctx(cli->ctxt);
+						nng_free(cli, sizeof(struct client));
 						tq = tq->next;
 					}
 					del_topic_all(clientid);
