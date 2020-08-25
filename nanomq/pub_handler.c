@@ -32,7 +32,7 @@ void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *to
 	int current_index = *total;
 
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
-	*pipes = reallocarray(*pipes, current_index + 2, sizeof(uint32_t));
+	*pipes = realloc(*pipes, sizeof(uint32_t)*(current_index + 2));
 
 	(*pipes)[current_index]     = client_work->pid.id;
 	(*pipes)[current_index + 1] = 0;
