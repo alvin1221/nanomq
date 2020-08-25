@@ -195,7 +195,7 @@ server_cb(void *arg)
 			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 
-				nng_mtx_lock(work->mutex);
+//				nng_mtx_lock(work->mutex);
 
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
 
@@ -205,7 +205,7 @@ server_cb(void *arg)
 					nng_ctx_recv(work->ctx, work->aio);
 				}
 
-				nng_mtx_unlock(work->mutex);
+//				nng_mtx_unlock(work->mutex);
 
 			} else {
 				debug_msg("broker has nothing to do");

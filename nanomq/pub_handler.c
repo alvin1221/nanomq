@@ -27,6 +27,61 @@ forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, 
             struct pub_packet_struct *pub_packet, emq_work *work);
 
 
+void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *total)
+{
+	int current_index = *total;
+	
+	emq_work *client_work = (emq_work *) sub_client->ctxt;
+	*pipes = reallocarray(*pipes, current_index + 2, sizeof(uint32_t));
+
+	(*pipes)[current_index]     = client_work->pid.id;
+	(*pipes)[current_index + 1] = 0;
+
+	debug_msg("get pipe id, sub_pipes[%d]: [%d]", *total, (*pipes)[*total]);
+
+	*total = current_index + 1;
+
+}
+
+
+void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *totals, handle_client handle_cb)
+{
+	/* iterator and do */
+
+	/* func(client); */
+
+	int  cols       = 1;
+	char **id_queue = NULL;
+
+	while (sub_clients) {
+		struct client *sub_client = sub_clients->sub_client;
+		while (sub_client) {
+			bool equal = false;
+			id_queue = (char **) zrealloc(id_queue, cols * sizeof(char *));
+			// printf("RES: sub_client is:%s\n", sub_client->id);
+
+			for (int i = 0; i < cols - 1; i++) {
+				if (!strcmp(sub_client->id, id_queue[i])) {
+					equal = true;
+					break;
+				}
+			}
+
+			if (equal == false) {
+				id_queue[cols - 1] = sub_client->id;
+				debug_msg("RES: sub_client: [%p], id: [%s]\n",sub_client, sub_client->id);
+				handle_cb(sub_client, pipes, totals);
+				cols++;
+			}
+			sub_client = sub_client->next;
+		}
+		sub_clients               = sub_clients->down;
+	}
+	// TODO free memory
+
+}
+
+
 void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit_msgs tx_msgs)
 {
 	char                  **topic_queue = NULL;
@@ -52,24 +107,26 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 		switch (work->pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
 				debug_msg("handling PUBLISH");
+				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
 
 #if SUPPORT_SEARCH_CLIENTS
-				struct clients *client_list = NULL;
-					struct client *sub_client = client_list.sub_client;
-
+				struct clients *client_list = search_client(work->db->root, topic_queue);
 #else
 				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
-
-				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
 				search_node(work->db, topic_queue, tp_node);
+				sub_client = tp_node->node->sub_client;
+#endif
+
 				zfree(*topic_queue);
 				zfree(topic_queue);
 
-				sub_client = tp_node->node->sub_client;
-
-#endif
-
 				total_sub_pipes = 0;
+#if SUPPORT_SEARCH_CLIENTS
+				if (client_list != NULL) {
+					foreach_client(client_list, &sub_pipes, &total_sub_pipes, handle_sub_client);
+				}
+
+#else
 				if (sub_client != NULL) {
 					emq_work *client_work;
 
@@ -83,7 +140,9 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 
 						debug_msg("get pipe id, sub_pipes[%d]: [%d]", total_sub_pipes, sub_pipes[total_sub_pipes]);
 					}
+
 				}
+#endif
 
 				switch (work->pub_packet->fixed_header.qos) {
 					case 0:
@@ -135,6 +194,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 
 			case PUBACK:
 				debug_msg("handling PUBACK");
+				//TODO
 				break;
 
 			case PUBREC:
@@ -143,6 +203,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 				pub_response.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.pubrec.packet_identifier;
 				encode_pub_message(send_msg, &pub_response, work);
 				tx_msgs(send_msg, work, self_pipe_id);
+				//TODO
 				break;
 
 			case PUBREL:
@@ -151,16 +212,17 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 				pub_response.variable_header.pubrel.packet_identifier = work->pub_packet->variable_header.pubrel.packet_identifier;
 				encode_pub_message(send_msg, &pub_response, work);
 				tx_msgs(send_msg, work, self_pipe_id);
+				//TODO
 				break;
 
 			case PUBCOMP:
 				debug_msg("handling PUBCOMP");
+				//TODO
 				break;
 
 			default:
 				break;
 		}
-
 
 	} else {
 		debug_msg("decode message failed: %d", result);
