@@ -6,7 +6,7 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <nng.h>
 #include <mqtt_db.h>
-#include <malloc.h>
+#include <hash.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -23,7 +23,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 50
+#define PARALLEL 100
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -87,6 +87,30 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
+			// TODO disconnect handle
+			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
+				work->cparam = nng_msg_get_conn_param(msg);
+				char * clientid = conn_param_get_clentid(work->cparam);
+				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
+				char ** topics;
+				struct client * cli;
+
+				debug_msg("########DISCONNECT########clientid: %s", clientid);
+				if(check_id(clientid)){
+					debug_msg("This client is in hash table.");
+					struct topic_queue * tq = get_topic(clientid);
+					while(tq){
+						topics = topic_parse(tq->topic);
+						search_node(work->db, topics, tan);
+						cli = del_client(tan, clientid);
+						destroy_sub_ctx(cli->ctxt);
+						tq = tq->next;
+					}
+					del_topic_all(clientid);
+				}
+				work->state = INIT;
+				break;
+			}
 /*
                 if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
                         // bad message, just ignore it.
