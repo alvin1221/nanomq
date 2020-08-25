@@ -69,13 +69,12 @@ static void Test_add_node(void)
 	puts(">>>>>>>>>>> TEST_ADD_NODE <<<<<<<<<");
 	char *data = "a/bv/cv";
 	char *data1 = "a/b/c";
-	char *data2 = "lee/+/#";
+	char *data2 = "lee/+/jian";
 	char *data3 = "lee/hom/jian";
 	struct client ID3 = {"150410", NULL, NULL};
 	struct client ID4 = {"150422", NULL, NULL};
 	struct client ID5 = {"150418", NULL, NULL};
 
-	create_db_tree(&db);
 
 	struct topic_and_node *res = NULL;
 	res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
@@ -125,7 +124,13 @@ static void Test_add_node(void)
 
 	topic_queue = topic_parse(data3);
 	search_node(db, topic_queue, res);
-	add_node(res, &ID5);
+	if (res->topic) {
+		add_node(res, &ID5);
+	} else {
+		if (check_client(res->node, ID5.id)) {
+			 add_client(res, &ID5);
+		}
+	}
 	print_db_tree(db);
 
 	search_node(db, topic_queue, res);
@@ -139,7 +144,7 @@ static void Test_add_node(void)
 static void Test_del_node(void)
 {
 	puts(">>>>>>>>>> TEST_DEL_NODE <<<<<<<<");
-	char *data = "lee/hom/jian/lihai";
+	char *data = "lee/hom/jian";
 	char *data1 = "#";
 	char *data2 = "lee/#";
 	struct topic_and_node *res = NULL;
@@ -347,16 +352,41 @@ void test(test_state what)
 			
 }
 
+void help() 
+{
+	printf("please input the right num to conduct diff test\n");
+	printf(" test_topic_parse,  0\n");
+	printf(" test_search_node,  1\n");
+	printf(" test_add_node,     2\n");
+	printf(" test_del_node,	    3\n");
+	printf(" test_hash_alias,   4\n");
+	printf(" test_topic_hash,   5\n");
+	printf(" test_pipe_hash,    6\n");
+	printf(" quit               q\n");
+	printf(" help               h\n");
+}
+
 
 
 int main(int argc, char *argv[]) 
 {
 	puts("\n----------------TEST START------------------");
-	char *str = NULL;
+	char str[5];
+	create_db_tree(&db);
+	help();
+
 	while (1) {
-		scanf("%s", &str);
+		printf("input:");
+		scanf("%s", str);
+		if (!strcmp(str, "q")) {
+			break;
+		} else if (!strcmp(str, "h")) {
+			help();
+			continue;
+		}
+
 		int i = atoi(str);
-		test((test_state) i );
+		test((test_state)i);
 	}
 	puts("---------------TEST FINISHED----------------\n");
 	return 0;
