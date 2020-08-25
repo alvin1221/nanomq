@@ -82,11 +82,12 @@ server_cb(void *arg)
 				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
 				char ** topics;
 				struct client * cli;
+				struct topic_queue * tq;
 
 				debug_msg("########DISCONNECT########clientid: %s", clientid);
 				if(check_id(clientid)){
 					debug_msg("This client is in hash table.");
-					struct topic_queue * tq = get_topic(clientid);
+					tq = get_topic(clientid);
 					while(tq){
 						topics = topic_parse(tq->topic);
 						search_node(work->db, topics, tan);
@@ -96,6 +97,8 @@ server_cb(void *arg)
 					}
 					del_topic_all(clientid);
 				}
+
+				nng_free(tan, sizeof(struct topic_and_node));
 				work->state = INIT;
 				break;
 			}
