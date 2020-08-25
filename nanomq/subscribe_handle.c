@@ -1,5 +1,6 @@
 #include <nng.h>
 #include <mqtt_db.h>
+#include <hash.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
@@ -178,23 +179,44 @@ void sub_ctx_handle(emq_work * work){
 		}
 		if(tan->topic){
 			add_node(tan, client);
+			add_topic(client->id, topic_str);
+			struct topic_queue * q = get_topic(client->id);
+			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
 		}else{
 			// TODO contain but not strcmp
-			if(tan->node->sub_client==NULL || strcmp(tan->node->sub_client->id, client->id)){
+			if(tan->node->sub_client==NULL || check_client(tan->node, client->id)){
+				add_topic(client->id, topic_str);
+				struct topic_queue * q = get_topic(client->id);
+				debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
 				add_client(tan, client);
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
-		topic_node_t = topic_node_t->next;
-		debug_msg("finish ADD_CLIENT");
 //		search_node(work->db, topic_parse(topic_str), tan);
 //		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
+		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
+		topic_node_t = topic_node_t->next;
+		debug_msg("finish ADD_CLIENT");
 	}
 
 	// check treeDB
 //	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
+}
+
+void destroy_sub_ctx(void * ctxt){
+	emq_work * work = ctxt;
+	packet_subscribe * sub_pkt = work->sub_pkt;
+	topic_node * topic_node_t = sub_pkt->node;
+	topic_node * _topic_node;
+	while(topic_node_t){
+		nng_free(topic_node_t->it, sizeof(topic_with_option));
+
+		_topic_node = topic_node_t->next;
+		nng_free(topic_node_t, sizeof(topic_node));
+		topic_node_t = _topic_node;
+	}
 }
 

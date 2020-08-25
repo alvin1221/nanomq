@@ -42,7 +42,8 @@ class mqtt_hash {
 
 		bool find(const K &_key)
 		{
-			mqtt_hash<K, V>::iterator iter = hash_map.find(_key);
+			mqtt_hash<K, V>::iterator iter = hash_map.begin();
+			iter = hash_map.find(_key);
 
 			if (iter != hash_map.end()) {
 				return true;

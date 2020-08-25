@@ -7,6 +7,7 @@
 #include <nng.h>
 #include <mqtt_db.h>
 #include <malloc.h>
+#include <hash.h>
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
@@ -88,15 +89,37 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
-			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+
+			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
+				work->cparam = nng_msg_get_conn_param(msg);
+				char * clientid = conn_param_get_clentid(work->cparam);
+				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
+				char ** topics;
+				struct client * cli = NULL;
+				struct topic_queue * tq = NULL;
+
+				debug_msg("########DISCONNECT########clientid: %s", clientid);
+				if(check_id(clientid)){
+					debug_msg("This client is in hash table.");
+					tq = get_topic(clientid);
+					while(tq){
+						topics = topic_parse(tq->topic);
+						search_node(work->db, topics, tan);
+						cli = del_client(tan, clientid);
+						destroy_sub_ctx(cli->ctxt);
+						nng_free(cli, sizeof(struct client));
+						tq = tq->next;
+					}
+					del_topic_all(clientid);
+				}
+
+				nng_free(tan, sizeof(struct topic_and_node));
 				work->state = RECV;
 				nng_msg_free(msg);
 				nng_aio_abort(work->aio, 31);
-				debug_msg("--------------------------CMD_DISCONNECT------------------------------------------");
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			}
-			/**/
 
 			work->msg   = msg;
 			work->state = WAIT;

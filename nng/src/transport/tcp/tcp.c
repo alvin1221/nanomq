@@ -457,7 +457,7 @@ tcptran_pipe_recv_cb(void *arg)
 		*/
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
-			debug_msg("disconnect");
+			//debug_msg("disconnect");
 			//return;
 		}
 	}
