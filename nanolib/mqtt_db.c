@@ -8,10 +8,10 @@
 
 
 /* 
-** Create a db_tree
-** Declare a global variable as func para 
-** struct db_tree *db;
-*/
+ ** Create a db_tree
+ ** Declare a global variable as func para 
+ ** struct db_tree *db;
+ */
 void create_db_tree(struct db_tree **db)
 {
 	log_info("CREATE_DB_TREE");
@@ -24,9 +24,9 @@ void create_db_tree(struct db_tree **db)
 }
 
 /*
-** Destory db tree 
-** destory all node & db_tree
-*/
+ ** Destory db tree 
+ ** destory all node & db_tree
+ */
 void destory_db_tree(struct db_tree *db)
 {
 	log_info("DESTORY_DB_TREE");
@@ -35,10 +35,10 @@ void destory_db_tree(struct db_tree *db)
 }
 
 /*
-** Print db_tree
-** For debugging, you can output all node 
-** & node info
-*/
+ ** Print db_tree
+ ** For debugging, you can output all node 
+ ** & node info
+ */
 void print_db_tree(struct db_tree *db) 
 {
 	assert(db);
@@ -116,8 +116,9 @@ void print_db_tree(struct db_tree *db)
 }
 
 /*
-** Determine if the current topic data is "#"
-*/
+ ** Determine if the current topic data is "#"
+ ** or not.
+ */
 bool check_hashtag(char *topic_data) 
 {
 	if (topic_data == NULL) {
@@ -127,8 +128,9 @@ bool check_hashtag(char *topic_data)
 }
 
 /*
-** Determine if the current topic data is "+"
-*/
+ ** Determine if the current topic data is "+"
+ ** or not.
+ */
 bool check_plus(char *topic_data) 
 {
 	if (topic_data == NULL) {
@@ -141,11 +143,14 @@ struct db_node *new_db_node(char *topic)
 {
 	struct db_node *node = NULL;
 	node = (struct db_node*)zmalloc(sizeof(struct db_node));
-	memset(node, 0, sizeof(struct db_node));
 	node->topic = (char*)zmalloc(strlen(topic)+1);
-	memset(node->topic, 0, strlen(topic)+1);
 	memcpy(node->topic, topic, strlen(topic)+1);
 	log("new_db_node %s", node->topic);
+	node->hashtag = false;
+	node->plus = false;
+	node->next = NULL;
+	node->down = NULL;
+	node->sub_client = NULL;
 	return node;
 }
 
@@ -620,13 +625,14 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 	struct clients *res = NULL;
 	struct clients *tmp = NULL;
 	tmp = (struct clients*)zmalloc(sizeof(struct clients));
+	memset(tmp, 0, sizeof(struct clients));
 	res = tmp;
 	struct db_node *node = root;
 
 	log("entry search");
 	while (*topic_queue && node) {
 		if (strcmp(node->topic, *topic_queue)) {
-			debug("node->topic %s, topic_queue %s", node->topic, *topic_queue);
+			log("node->topic %s, topic_queue %s", node->topic, *topic_queue);
 			bool equal = false;
 			node = find_next(node, &equal, topic_queue);
 
@@ -638,8 +644,10 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 
 		if (node->hashtag) {
 			log("Find the sign of #. Add it if sub_client of # is not NULL!");
-			tmp->down = new_clients(node->next->sub_client);
-			tmp = tmp->down;
+			if (node->next->sub_client) {
+				tmp->down = new_clients(node->next->sub_client);
+				tmp = tmp->down;
+			}
 		}
 
 		if (*(topic_queue+1) == NULL) {
@@ -655,12 +663,16 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				debug("When plus is the last one");
 				if (node->down->hashtag) {
 					log("Find the sign of #. Add it if sub_client of # is not NULL!");
-					tmp->down = new_clients(node->down->next->sub_client);
-					tmp = tmp->down;
+					if (node->down->next->sub_client) {
+						tmp->down = new_clients(node->down->next->sub_client);
+						tmp = tmp->down;
+					}
 				}
 
-				tmp->down = new_clients(node->down->sub_client);
-				tmp = tmp->down;
+				if (node->down->sub_client) {
+					tmp->down = new_clients(node->down->sub_client);
+					tmp = tmp->down;
+				}
 
 				bool equal = false;
 				struct db_node  *t = find_next(node->down->next, &equal,
@@ -673,12 +685,17 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 
 				if (t->hashtag) {
 					log("Find the sign of #. Add it if sub_client of # is not NULL!");
-					tmp->down = new_clients(t->next->sub_client);
-					tmp = tmp->down;
+					if (t->next->sub_client) {
+						tmp->down = new_clients(t->next->sub_client);
+						tmp = tmp->down;
+					}
 				}
 
-				tmp->down = new_clients(t->sub_client);
-				tmp = tmp->down;
+
+                if (t->sub_client) {					
+					tmp->down = new_clients(t->sub_client);
+					tmp = tmp->down;
+				}
 				return res;
 
 			} else if (node->down->down == NULL) { 
@@ -686,8 +703,10 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 
 				if (node->down->hashtag) {
 					log("Find the sign of #. Add it if sub_client of # is not NULL!");
-					tmp->down = new_clients(node->down->next->sub_client);
-					tmp = tmp->down;
+					if (node->down->next->sub_client) {
+						tmp->down = new_clients(node->down->next->sub_client);
+						tmp = tmp->down;
+					}
 				}
 
 				bool equal = false;
@@ -701,8 +720,10 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 
 				if (t->hashtag) {
 					log("Find the sign of #. Add it if sub_client of # is not NULL!");
-					tmp->down = new_clients(t->next->sub_client);
-					tmp = tmp->down;
+					if (t->next->sub_client) {
+						tmp->down = new_clients(t->next->sub_client);
+						tmp = tmp->down;
+					}
 				}
 
 				debug("t->topic, %s, topic_queue ,%s", t->down->topic,
@@ -792,18 +813,18 @@ char **topic_parse(char *topic)
 	return topic_queue;
 }
 
-void hash_add_alias(int alias, char *topic_data) 
+void hash_add_topic(int alias, char *topic_data) 
 {
 	assert(topic_data);
 	push_val(alias, topic_data);
 }
 
-char *hash_check_alias(int alias)
+char *hash_check_topic(int alias)
 {
 	return get_val(alias);
 }
 
-void hash_del_alias(int alias)
+void hash_del_topic(int alias)
 {
 	del_val(alias);
 }
