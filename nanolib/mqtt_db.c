@@ -377,26 +377,26 @@ void del_node(struct db_node *node)
 	return;
 }
 
-bool check_retain(struct db_node *node)
-{
-	return node->retain;
-}
-
-void set_retain(struct db_node *node, bool retain)
-{
-	node->retain = retain;
-}
-
-void set_message(struct db_node *node, void *message)
-{
-	set_retain(node, true);
-	node->message = message;
-}
-
-void *get_message(struct db_node *node)
-{
-	return node->message;
-}
+// bool check_retain(struct db_node *node)
+// {
+// 	return node->retain;
+// }
+// 
+// void set_retain(struct db_node *node, bool retain)
+// {
+// 	node->retain = retain;
+// }
+// 
+// void set_message(struct db_node *node, void *message)
+// {
+// 	set_retain(node, true);
+// 	node->message = message;
+// }
+// 
+// void *get_message(struct db_node *node)
+// {
+// 	return node->message;
+// }
 
 /* 
  ** Delete client. 
@@ -553,11 +553,57 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 		} else if (*(topic_queue+1) == NULL) {
 			// debug("topic_queue is NULL");
 			set_topic_and_node(NULL, false, EQUAL, node, tan);
+			// debug("node->topic = %s", node->topic);
 			break;
 		} else {
 			// debug("node is NULL");
 			set_topic_and_node(topic_queue, false, EQUAL, node, tan);
 			break;
+		}
+	}
+	return;
+}
+
+void del_all(uint32_t pipe_id, struct db_tree *db)
+{
+	char *client = get_client_id(pipe_id);
+	if (client) {
+		if (check_id(client)) {
+			struct topic_queue *tq = get_topic(client);
+			while (tq) {
+				char **topic_queue = topic_parse(tq->topic);
+				char ** t = topic_queue;
+				while (*t) {
+					debug("%s", *t);
+					t++;
+				}
+				struct topic_and_node *tan = NULL;
+				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
+				search_node(db, topic_queue, tan); 
+				debug("%s", tan->node->topic);
+				del_client(tan, client);
+				del_node(tan->node);
+
+				char *tmp = NULL;
+				char **tt = topic_queue;
+
+				while (*topic_queue) {
+					tmp = *topic_queue;
+					topic_queue++;
+					zfree(tmp);
+					tmp = NULL;
+				}
+
+				zfree(tt);
+				topic_queue = NULL;
+
+				zfree(tan);
+				tan = NULL;
+
+				tq = tq->next;
+			}
+			del_topic_all(client);
+			del_pipe_id(pipe_id);
 		}
 	}
 	return;
