@@ -103,6 +103,14 @@ struct pub_packet_struct {
 
 };
 
+struct pipes_msg_content {
+	nng_msg *msg;
+	uint32_t *pipes;
+	uint32_t index;
+
+	struct nng_msg_pipes *next;
+};
+
 typedef void (*transmit_msgs)(nng_msg *, emq_work *, uint32_t *);
 typedef void (*handle_client)(struct client *sub_client, uint32_t **pipes, uint32_t *total);
 

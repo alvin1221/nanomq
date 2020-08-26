@@ -39,7 +39,7 @@ fatal(const char *func, int rv)
 void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
 {
 	work->state = SEND;
-	work->msg   = send_msg;
+	work->msg   = send_msg;//FIXME should be encode message for each sub cilent due to different minimum QoS
 	nng_aio_set_msg(work->aio, send_msg);
 	work->msg = NULL;
 
