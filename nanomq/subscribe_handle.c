@@ -180,12 +180,14 @@ void sub_ctx_handle(emq_work * work){
 		if(tan->topic){
 			add_node(tan, client);
 			add_topic(client->id, topic_str);
+			add_pipe_id(work->pid.id, client->id);
 			struct topic_queue * q = get_topic(client->id);
 			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
 		}else{
 			// TODO contain but not strcmp
 			if(tan->node->sub_client==NULL || check_client(tan->node, client->id)){
 				add_topic(client->id, topic_str);
+				add_pipe_id(work->pid.id, client->id);
 				struct topic_queue * q = get_topic(client->id);
 				debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
 				add_client(tan, client);

@@ -68,7 +68,6 @@ server_cb(void *arg)
 	volatile uint32_t total_pipes = 0;
 //	struct topic_and_node *tp_node    = NULL;
 	reason_code       reason;
-
 	uint8_t buf[2];
 
 
@@ -110,6 +109,7 @@ server_cb(void *arg)
 						tq = tq->next;
 					}
 					del_topic_all(clientid);
+					del_pipe_id(pipe.id);
 				}
 
 				nng_free(tan, sizeof(struct topic_and_node));

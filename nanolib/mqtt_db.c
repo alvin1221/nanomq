@@ -567,6 +567,7 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 void del_all(uint32_t pipe_id, struct db_tree *db)
 {
 	char *client = get_client_id(pipe_id);
+	log("--PID %d--CLID %s--", pipe_id, client);
 	if (client) {
 		if (check_id(client)) {
 			struct topic_queue *tq = get_topic(client);
