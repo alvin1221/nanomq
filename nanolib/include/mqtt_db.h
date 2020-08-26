@@ -19,18 +19,16 @@ struct clients {
 };
 
 struct retain_msg {
-	// uint8_t				qos;
-	bool				retain;
-	void				*message;
+	bool     exist;
+	uint8_t  qos;
+	void     *message;
 };
 
 struct db_node {
 	char                *topic;
-	// bool				retain;
 	bool				hashtag;
 	bool				plus;
-	// void				*message;
-	struct retain_msg   *ret_msg;
+	struct retain_msg   *retain;
 	struct client		*sub_client;
 	struct db_node      *up;
 	struct db_node      *down;
