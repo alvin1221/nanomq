@@ -136,6 +136,7 @@ void unsub_ctx_handle(emq_work * work){
 	topic_node * topic_node_t = work->unsub_pkt->node;
 	char * topic_str;
 	char * clientid;
+	struct client * cli = NULL;
 
 	// delete ctx_unsub into treeDB
 	while(topic_node_t){
@@ -153,8 +154,15 @@ void unsub_ctx_handle(emq_work * work){
 		search_node(work->db, topic_queue, tan);
 
 		if(tan->topic == NULL){ // find the topic
-			del_client(tan, clientid);
-//			del_node(tan->);
+			cli = del_client(tan, clientid);
+			if(cli != NULL){
+				// FREE clientinfo in dbtree and hashtable
+				destroy_sub_ctx(cli->ctxt);
+				nng_free(cli, sizeof(struct client));
+				del_topic_one(clientid, topic_str);
+				debug_msg("INHASH: clientid [%s] exist?: %d", clientid, check_id(clientid));
+			}
+
 			topic_node_t->it->reason_code = 0x00;
 		}else{ // not find the topic
 			topic_node_t->it->reason_code = 0x11;

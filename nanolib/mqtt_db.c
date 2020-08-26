@@ -295,9 +295,12 @@ void add_node(struct topic_and_node *input, struct client *id)
 			new_node = new_node->down;
 		}
 	}
+	new_node->sub_client = id;
+	/*
 	new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
 	memcpy(new_node->sub_client, id, sizeof(struct client));
 	new_node->sub_client->next = NULL;
+	*/
 	return;
 }
 /*	For duplicate node
@@ -557,6 +560,7 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 void del_all(uint32_t pipe_id, struct db_tree *db)
 {
 	char *client = get_client_id(pipe_id);
+	log("--PID %d--CLID %s--", pipe_id, client);
 	if (client) {
 		if (check_id(client)) {
 			struct topic_queue *tq = get_topic(client);
