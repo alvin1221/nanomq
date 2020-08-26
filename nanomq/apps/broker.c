@@ -6,7 +6,6 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <nng.h>
 #include <mqtt_db.h>
-#include <malloc.h>
 #include <hash.h>
 
 #include "include/nanomq.h"
@@ -24,8 +23,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 3
-
+#define PARALLEL 100
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -41,7 +39,7 @@ fatal(const char *func, int rv)
 void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
 {
 	work->state = SEND;
-	work->msg   = send_msg;
+	work->msg   = send_msg;//FIXME should be encode message for each sub cilent due to different minimum QoS
 	nng_aio_set_msg(work->aio, send_msg);
 	work->msg = NULL;
 
@@ -64,6 +62,7 @@ server_cb(void *arg)
 	nng_pipe    pipe;
 	int         rv;
 	uint32_t    when;
+
 	uint32_t          *pipes      = NULL;
 	volatile uint32_t total_pipes = 0;
 //	struct topic_and_node *tp_node    = NULL;

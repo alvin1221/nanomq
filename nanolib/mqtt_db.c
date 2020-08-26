@@ -15,7 +15,7 @@
 void create_db_tree(struct db_tree **db)
 {
 	log_info("CREATE_DB_TREE");
-	*db = (struct db_tree *)zmalloc(sizeof(struct db_tree)); 
+	*db = (struct db_tree *)zmalloc(sizeof(struct db_tree));
 	memset(*db, 0, sizeof(struct db_tree));
 
 	struct db_node *node = new_db_node("\0");
@@ -39,7 +39,7 @@ void destory_db_tree(struct db_tree *db)
  ** For debugging, you can output all node 
  ** & node info
  */
-void print_db_tree(struct db_tree *db) 
+void print_db_tree(struct db_tree *db)
 {
 	assert(db);
 	struct db_nodes *tmps = NULL;
@@ -55,7 +55,7 @@ void print_db_tree(struct db_tree *db)
 	puts("TOPIC | HASHTAG&PLUS | CLIENTID | FATHER_NODE");
 	puts("-----------------------------------------------");
 
-	while (tmps) {            
+	while (tmps) {
 		size = 0;
 		while (len-- && tmps) {
 			struct db_node *tmp = tmps->node;
@@ -88,7 +88,7 @@ void print_db_tree(struct db_tree *db)
 				if (tmp->down) {
 					// debug("sth new");
 					size++;
-					tmps_end->next = (struct db_nodes*)zmalloc(sizeof(struct db_nodes)); 
+					tmps_end->next = (struct db_nodes*)zmalloc(sizeof(struct db_nodes));
 					tmps_end = tmps_end->next;
 					tmps_end->node = tmp->down;
 					tmps_end->next = NULL;
@@ -119,7 +119,7 @@ void print_db_tree(struct db_tree *db)
  ** Determine if the current topic data is "#"
  ** or not.
  */
-bool check_hashtag(char *topic_data) 
+bool check_hashtag(char *topic_data)
 {
 	if (topic_data == NULL) {
 		return false;
@@ -131,7 +131,7 @@ bool check_hashtag(char *topic_data)
  ** Determine if the current topic data is "+"
  ** or not.
  */
-bool check_plus(char *topic_data) 
+bool check_plus(char *topic_data)
 {
 	if (topic_data == NULL) {
 		return false;
@@ -188,7 +188,7 @@ void insert_db_node(struct db_node *new_node, struct db_node *old_node)
 	log("insert_db_node %s", new_node->topic);
 	if (old_node->next != new_node) {
 		struct db_node *tmp_node = NULL;
-		tmp_node = old_node->next; 
+		tmp_node = old_node->next;
 		old_node->next = new_node;
 		new_node->next = tmp_node->next;
 	}
@@ -218,7 +218,7 @@ void add_node(struct topic_and_node *input, struct client *id)
 	if (input->t_state == EQUAL) {
 		/* 
 		 ** # is the last string in topic 
-		 */ 
+		 */
 		if (input->hashtag) {
 			input->node->hashtag = true;
 			if (input->node->next) {
@@ -255,12 +255,12 @@ void add_node(struct topic_and_node *input, struct client *id)
 				if (input->node->down->hashtag) {
 					tmp_node = input->node->down->next->next;
 					input->node->down->next->next = new_node;
-					new_node->next = tmp_node; 
+					new_node->next = tmp_node;
 
 				} else {
 					tmp_node = input->node->down->next;
 					input->node->down->next = new_node;
-					new_node->next = tmp_node; 
+					new_node->next = tmp_node;
 				}
 			} else {
 				input->node->down->next = new_node;
@@ -274,7 +274,7 @@ void add_node(struct topic_and_node *input, struct client *id)
 			new_node->hashtag = true;
 			/*
 			 ** TODO delete it or not
-			 */ 
+			 */
 			if (new_node->next) {
 				tmp_node = new_db_node(*topic_queue);
 				tmp_node->up = new_node->up ? new_node->up : NULL;
@@ -303,9 +303,9 @@ void add_node(struct topic_and_node *input, struct client *id)
 	*/
 	return;
 }
-/*	For duplicate node 
+/*	For duplicate node
 	TODO*/
-void del_node(struct db_node *node) 
+void del_node(struct db_node *node)
 {
 	assert(node);
 	log_info("DEL_NODE_START");
@@ -380,26 +380,16 @@ void del_node(struct db_node *node)
 	return;
 }
 
-// bool check_retain(struct db_node *node)
-// {
-// 	return node->retain;
-// }
-// 
-// void set_retain(struct db_node *node, bool retain)
-// {
-// 	node->retain = retain;
-// }
-// 
-// void set_message(struct db_node *node, void *message)
-// {
-// 	set_retain(node, true);
-// 	node->message = message;
-// }
-// 
-// void *get_message(struct db_node *node)
-// {
-// 	return node->message;
-// }
+void set_retain_msg(struct db_node *node, struct retain_msg *retain)
+{
+	node->retain = retain;
+}
+
+struct retain_msg *get_retain_msg(struct db_node *node)
+{
+	return node->retain;
+}
+
 
 /* 
  ** Delete client. 
@@ -408,8 +398,8 @@ struct client *del_client(struct topic_and_node *input, char *id)
 {
 	log_info("DEL_CLIENT_START");
 	assert(input && id);
-	struct client *client = input->node->sub_client; 
-	struct client *before_client = NULL; 
+	struct client *client = input->node->sub_client;
+	struct client *before_client = NULL;
 	while (client) {
 		// debug("delete id is %s, client id is %s", id, client->id);
 		if (!strcmp(client->id, id)) {
@@ -418,7 +408,7 @@ struct client *del_client(struct topic_and_node *input, char *id)
 				before_client->next = before_client->next->next;
 				return client;
 			} else {
-				before_client = input->node->sub_client; 
+				before_client = input->node->sub_client;
 				if (input->node->sub_client->next) {
 					input->node->sub_client = input->node->sub_client->next;
 				} else {
@@ -437,7 +427,7 @@ struct client *del_client(struct topic_and_node *input, char *id)
 	return NULL;
 }
 
-bool check_client(struct db_node *node, char *id) 
+bool check_client(struct db_node *node, char *id)
 {
 	assert(node && id);
 	struct client *sub = node->sub_client;
@@ -453,7 +443,7 @@ bool check_client(struct db_node *node, char *id)
 }
 
 
-struct client *set_client(const char *id, void *ctxt) 
+struct client *set_client(const char *id, void *ctxt)
 {
 	assert(id);
 	// assert(ctxt);
@@ -474,7 +464,7 @@ struct client *set_client(const char *id, void *ctxt)
  ** & search_node to get the val of res where you can add_client
  */
 void add_client(struct topic_and_node *input, struct client *sub_client)
-{    
+{
 	log_info("ADD_CLIENT_START");
 	assert(input && sub_client);
 
@@ -488,7 +478,7 @@ void add_client(struct topic_and_node *input, struct client *sub_client)
 			return;
 		}
 
-		while (client->next) { 
+		while (client->next) {
 			if (strcmp(client->id, sub_client->id)) {
 				client = client->next;
 			} else {
@@ -502,12 +492,12 @@ void add_client(struct topic_and_node *input, struct client *sub_client)
 	return;
 }
 
-void set_topic_and_node(char **topic_queue, bool hashtag, state t_state, 
-		struct db_node *node, struct topic_and_node *tan) 
+void set_topic_and_node(char **topic_queue, bool hashtag, state t_state,
+		struct db_node *node, struct topic_and_node *tan)
 {
 	tan->t_state = t_state;
 	tan->topic = topic_queue;
-	tan->hashtag = hashtag; 
+	tan->hashtag = hashtag;
 	tan->node = node;
 	return;
 }
@@ -585,7 +575,7 @@ void del_all(uint32_t pipe_id, void *ptr)
 				}
 				struct topic_and_node *tan = NULL;
 				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
-				search_node(db, topic_queue, tan); 
+				search_node(db, topic_queue, tan);
 				debug("%s", tan->node->topic);
 				del_client(tan, client);
 				del_node(tan->node);
@@ -616,25 +606,25 @@ void del_all(uint32_t pipe_id, void *ptr)
 	return;
 }
 
-void *get_client_info(struct db_node *node) 
+void *get_client_info(struct db_node *node)
 {
 	/* TODO */
 	return NULL;
 
 }
 
-struct client **iterate_client(struct clients *sub_clients, int *cols) 
+struct client **iterate_client(struct clients *sub_clients, int *cols)
 {
 
 	*cols = 1;
-	struct client **client_queue = NULL; 
+	struct client **client_queue = NULL;
 
 	while (sub_clients) {
 		struct client *sub_client = sub_clients->sub_client;
 		while (sub_client) {
 			bool equal = false;
 			client_queue = (struct client**)zrealloc(client_queue, (*cols)*sizeof(struct
-						client*)); 
+						client*));
 
 			for (int i = 0; i < (*cols)-1; i++) {
 				if (!strcmp(sub_client->id, client_queue[i]->id)) {
@@ -644,7 +634,7 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 			}
 
 			if (equal == false) {
-				client_queue[(*cols)-1] = sub_client; 
+				client_queue[(*cols)-1] = sub_client;
 				(*cols)++;
 			}
 			sub_client = sub_client->next;
@@ -653,14 +643,14 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 	}
 
 	client_queue = (struct client**)zrealloc(client_queue, (*cols) * sizeof(struct
-	  			client*)); 
+	  			client*));
 	client_queue[(*cols)-1] = NULL;
 	return client_queue;
 }
 
 struct clients *new_clients(struct client *sub_client)
 {
-	struct clients *sub_clients = NULL; 
+	struct clients *sub_clients = NULL;
 	if (sub_client) {
 		sub_clients = (struct clients*)zmalloc(sizeof(struct clients));
 		sub_clients->sub_client = sub_client;
@@ -670,7 +660,7 @@ struct clients *new_clients(struct client *sub_client)
 	return sub_clients;
 }
 
-struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue) 
+struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue)
 {
 	struct db_node  *t = node;
 
@@ -732,7 +722,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 			return res;
 		}
 
-		if (node->plus) { 
+		if (node->plus) {
 			log("Find the sign of +");
 			if (*(topic_queue+2) == NULL) {
 				debug("When plus is the last one");
@@ -767,13 +757,13 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				}
 
 
-                if (t->sub_client) {					
+                if (t->sub_client) {
 					tmp->down = new_clients(t->sub_client);
 					tmp = tmp->down;
 				}
 				return res;
 
-			} else if (node->down->down == NULL) { 
+			} else if (node->down->down == NULL) {
 				log("topic is longer than tree, check hashtag");
 
 				if (node->down->hashtag) {
@@ -889,7 +879,7 @@ char **topic_parse(char *topic)
 	return topic_queue;
 }
 
-void hash_add_alias(int alias, char *topic_data) 
+void hash_add_alias(int alias, char *topic_data)
 {
 	assert(topic_data);
 	push_val(alias, topic_data);

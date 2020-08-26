@@ -22,17 +22,15 @@
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void
-forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
-            struct pub_packet_struct *pub_packet, emq_work *work);
 
 
-void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *total)
+void handle_sub_client(struct client *sub_client, void **pipe_content, uint32_t *total)
 {
-	int current_index = *total;
+	int      current_index = *total;
+	uint32_t **pipes       = (uint32_t **) pipe_content;
 
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
-	*pipes = realloc(*pipes, sizeof(uint32_t)*(current_index + 2));
+	*pipes = realloc(*pipes, sizeof(uint32_t) * (current_index + 2));
 
 	(*pipes)[current_index]     = client_work->pid.id;
 	(*pipes)[current_index + 1] = 0;
@@ -44,12 +42,8 @@ void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *to
 }
 
 
-void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *totals, handle_client handle_cb)
+void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, handle_client handle_cb)
 {
-	/* iterator and do */
-
-	/* func(client); */
-
 	int  cols       = 1;
 	char **id_queue = NULL;
 
@@ -58,7 +52,6 @@ void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *tot
 		while (sub_client) {
 			bool equal = false;
 			id_queue = (char **) zrealloc(id_queue, cols * sizeof(char *));
-			// printf("RES: sub_client is:%s\n", sub_client->id);
 
 			for (int i = 0; i < cols - 1; i++) {
 				if (!strcmp(sub_client->id, id_queue[i])) {
@@ -69,15 +62,14 @@ void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *tot
 
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
-				debug_msg("RES: sub_client: [%p], id: [%s]\n", sub_client, sub_client->id);
-				handle_cb(sub_client, pipes, totals);
+				debug_msg("sub_client: [%p], id: [%s]\n", sub_client, sub_client->id);
+				handle_cb(sub_client, pipe_content, totals);
 				cols++;
 			}
 			sub_client = sub_client->next;
 		}
 		sub_clients               = sub_clients->down;
 	}
-	// free memory
 	zfree(id_queue);
 
 }
@@ -110,36 +102,20 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 				debug_msg("handling PUBLISH");
 				topic_queue = topic_parse(work->pub_packet->variable_header.publish.topic_name.str_body);
 
-#if SUPPORT_SEARCH_CLIENTS
 				struct clients *client_list = search_client(work->db->root, topic_queue);
-#else
-				tp_node = (struct topic_and_node *) nng_alloc(sizeof(struct topic_and_node));
-				search_node(work->db, topic_queue, tp_node);
-				sub_client = tp_node->node->sub_client;
-#endif
-
-				zfree(*topic_queue);
-				zfree(topic_queue);
 
 				total_sub_pipes = 0;
-#if SUPPORT_SEARCH_CLIENTS
+
 				if (client_list != NULL) {
-					foreach_client(client_list, &sub_pipes, &total_sub_pipes, handle_sub_client);
+					foreach_client(client_list, (void *) &sub_pipes, &total_sub_pipes, handle_sub_client);
 				}
 
-#else
-				if (sub_client != NULL) {
-					for (struct client *i = sub_client; i != NULL; i = i->next, ++total_sub_pipes) {
-						handle_sub_client(i, &sub_pipes, &total_sub_pipes);
-						debug_msg("get pipe id, sub_pipes[%d]: [%d]", total_sub_pipes, sub_pipes[total_sub_pipes]);
-					}
+				debug_msg("total_sub_pipes: [%d]", total_sub_pipes);
 
-				}
-#endif
 
 				switch (work->pub_packet->fixed_header.qos) {
 					case 0:
-						work->pub_packet->fixed_header.dup = 0;
+						work->pub_packet->fixed_header.dup    = 0;
 						work->pub_packet->fixed_header.retain = 0;
 						break;
 					case 1:
@@ -147,18 +123,23 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 						encode_pub_message(send_msg, &pub_response, work);
 						tx_msgs(send_msg, work, self_pipe_id);
 						work->pub_packet->fixed_header.retain = 0;
-						work->pub_packet->fixed_header.dup = 0;//if publish first time
+						work->pub_packet->fixed_header.dup    = 0;//if publish first time
 						break;
 					case 2:
 						pub_response.fixed_header.packet_type = PUBREC;
 						encode_pub_message(send_msg, &pub_response, work);
 						tx_msgs(send_msg, work, self_pipe_id);
 						work->pub_packet->fixed_header.retain = 0;
-						work->pub_packet->fixed_header.dup = 0;//if publish first time
+						work->pub_packet->fixed_header.dup    = 0;//if publish first time
 						break;
 					default:
 						debug_msg("invalid qos: %d", work->pub_packet->fixed_header.qos);
 						break;
+				}
+
+				if (work->pub_packet->fixed_header.retain) {
+//				 tp_node = nng_alloc(sizeof(struct topic_and_node));
+//					search_node(work->db,topic_queue, tp_node);
 				}
 
 				if (total_sub_pipes > 0) {
@@ -179,13 +160,14 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 					debug_msg("free memory payload");
 				}
 
-#if SUPPORT_SEARCH_CLIENTS == 0
 				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
 					debug_msg("free memory topic_and_node");
 				}
-#endif
+
+				zfree(*topic_queue);
+				zfree(topic_queue);
 				break;
 
 			case PUBACK:
