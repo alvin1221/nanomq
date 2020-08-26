@@ -18,10 +18,11 @@ struct clients {
 	int					len;
 };
 
+
 struct retain_msg {
-	bool     exist;
-	uint8_t  qos;
-	void     *message;
+	uint8_t				qos;
+	bool				exist;
+	void				*message;
 };
 
 struct db_node {

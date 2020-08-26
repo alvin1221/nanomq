@@ -69,8 +69,8 @@ static void Test_add_node(void)
 	puts(">>>>>>>>>>> TEST_ADD_NODE <<<<<<<<<");
 	char *data = "a/bv/cv";
 	char *data1 = "a/b/c";
-	char *data2 = "lee/+/jian";
-	char *data3 = "lee/hom/jian";
+	char *data2 = "lee/+/+";
+	char *data3 = "lee/hom/+";
 	struct client ID3 = {"150410", NULL, NULL};
 	struct client ID4 = {"150422", NULL, NULL};
 	struct client ID5 = {"150418", NULL, NULL};
@@ -268,10 +268,11 @@ static void Test_hash_alias(void)
 
 static void Test_topic_hash(void) 
 {
-	char *id = "lkjl";
-	char *val = "12";
-	char *val1 = "1234";
-	char *val2 = "123456";
+	char *id = "150410";
+	char *val = "lee/hom/jian";
+	char *val1 =  "#";          
+	char *val2 =  "lee/#";      
+	char *val3 = "a/b/c";
 
 	if (check_id(id)) {
 		puts("find");
@@ -281,6 +282,7 @@ static void Test_topic_hash(void)
 	add_topic(id, val);
 	add_topic(id, val1);
 	add_topic(id, val2);
+	add_topic(id, val3);
 	
 	if (check_id(id)) {
 		puts("find");
@@ -294,13 +296,13 @@ static void Test_topic_hash(void)
 		res = res->next;
 	}
 
-	del_topic_one(id, val1);
+	// del_topic_one(id, val1);
 	res = get_topic(id); 
 	while (res) {
 		printf("res: %s\n", res->topic);
 		res = res->next;
 	}
-	del_topic_all(id);
+	// del_topic_all(id);
 
 	if (check_id(id)) {
 		puts("find");
@@ -311,13 +313,12 @@ static void Test_topic_hash(void)
 
 static void Test_pipe_hash(void)
 {
-	uint32_t pipeid[] = {11, 12, 13, 14};
-	char* clientid[] ={"aaaa", "bbbb", "cccc", "dddd"};
+	uint32_t pipeid[] = {1, 2, 3, 4};
+	char* clientid[] ={"150429", "150410", "150428", "150418"};
 	for (int i = 0; i < 4; i++) {
 		add_pipe_id(pipeid[i], clientid[i]);
 		printf("get_client_id %s\n", get_client_id(pipeid[i]));
-		del_pipe_id(pipeid[i]);
-
+		// del_pipe_id(pipeid[i]);
 	}
 }
 
@@ -388,6 +389,13 @@ int main(int argc, char *argv[])
 		int i = atoi(str);
 		test((test_state)i);
 	}
+
+	int i = 2;
+	puts("11111");
+	print_db_tree(db);
+	del_all(i, db);
+	puts("22222");
+	print_db_tree(db);
 	puts("---------------TEST FINISHED----------------\n");
 	return 0;
 }

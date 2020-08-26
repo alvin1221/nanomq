@@ -295,12 +295,11 @@ void add_node(struct topic_and_node *input, struct client *id)
 			new_node = new_node->down;
 		}
 	}
-	new_node->sub_client = id;
-	/*
-	new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
-	memcpy(new_node->sub_client, id, sizeof(struct client));
-	new_node->sub_client->next = NULL;
-	*/
+
+	if (id) {
+		new_node->sub_client = id;
+	}
+
 	return;
 }
 /*	For duplicate node
@@ -337,6 +336,7 @@ void del_node(struct db_node *node)
 	} else {
 		log("DELETE NODE AND UP!");
 		if (node->up == NULL) {
+			log("Node can't be deleted!");
 			return;
 		} else if (node->up->next == node) {
 			node->up->hashtag = false;
@@ -346,9 +346,8 @@ void del_node(struct db_node *node)
 		}
 
 		struct db_node *tmp_node = node->up;
-		if (tmp_node->plus) {
+		if (tmp_node->plus && tmp_node->down == node) {
 			tmp_node->plus = false;
-			tmp_node->down = NULL;
 		}
 
 		if (tmp_node->down == node) {
@@ -623,8 +622,8 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 		struct client *sub_client = sub_clients->sub_client;
 		while (sub_client) {
 			bool equal = false;
-			client_queue = (struct client**)zrealloc(client_queue, (*cols)*sizeof(struct
-						client*));
+			client_queue = (struct client**)zrealloc(client_queue,
+					(*cols)*sizeof(struct client*));
 
 			for (int i = 0; i < (*cols)-1; i++) {
 				if (!strcmp(sub_client->id, client_queue[i]->id)) {
@@ -642,8 +641,7 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 		sub_clients = sub_clients->down;
 	}
 
-	client_queue = (struct client**)zrealloc(client_queue, (*cols) * sizeof(struct
-	  			client*));
+	client_queue = (struct client**)zrealloc(client_queue, (*cols) * sizeof(struct client*)); 
 	client_queue[(*cols)-1] = NULL;
 	return client_queue;
 }
@@ -663,6 +661,10 @@ struct clients *new_clients(struct client *sub_client)
 struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue)
 {
 	struct db_node  *t = node;
+
+	if (node == NULL) {
+		return NULL;
+	}
 
 	while (t->next) {
 		t = t->next;

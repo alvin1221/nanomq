@@ -210,9 +210,24 @@ void sub_ctx_handle(emq_work * work){
 }
 
 void destroy_sub_ctx(void * ctxt){
+	debug_msg("Here i am");
 	emq_work * work = ctxt;
+	if(!work){
+		return;
+	}
+	if(!work->sub_pkt){
+		debug_msg("ERROR : ctx->sub is nil");
+		return;
+	}
 	packet_subscribe * sub_pkt = work->sub_pkt;
+	debug_msg("%p-----", sub_pkt);
+	if(!(sub_pkt->node->it)){
+		debug_msg("NOT FIND TOPIC");
+		return;
+	}
 	topic_node * topic_node_t = sub_pkt->node;
+	debug_msg("sb");
+	debug_msg("info: %s", topic_node_t->it->topic_filter.str_body);
 	topic_node * _topic_node;
 	while(topic_node_t){
 		nng_free(topic_node_t->it, sizeof(topic_with_option));
@@ -221,5 +236,8 @@ void destroy_sub_ctx(void * ctxt){
 		nng_free(topic_node_t, sizeof(topic_node));
 		topic_node_t = _topic_node;
 	}
+	nng_free(sub_pkt, sizeof(packet_subscribe));
+	work->sub_pkt = NULL;
+	debug_msg("finish");
 }
 
