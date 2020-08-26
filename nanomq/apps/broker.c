@@ -6,7 +6,6 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <nng.h>
 #include <mqtt_db.h>
-#include <malloc.h>
 #include <hash.h>
 
 #include "include/nanomq.h"
@@ -24,7 +23,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 50
+#define PARALLEL 100
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
