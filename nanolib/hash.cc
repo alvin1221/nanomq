@@ -168,8 +168,11 @@ void del_topic_one(char *id, char *topic)
 {
 	struct topic_queue *tt = _topic_hash[id];
 	struct topic_queue *tb = NULL;
-	if (tt->next == NULL) {
+
+	if (!strcmp(tt->topic, topic) && tt->next == NULL) {
 		_topic_hash.del(id);
+		delete_topic_queue(tt);
+		return;
 	}
 
 	if (!strcmp(tt->topic, topic)) {
@@ -242,3 +245,10 @@ char *get_client_id(uint32_t pipe_id)
 {
 	return _pipe_hash[pipe_id];
 }
+
+bool check_pipe_id(uint32_t pipe_id)
+{
+	return _pipe_hash.find(pipe_id);
+}
+
+

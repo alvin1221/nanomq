@@ -36,6 +36,8 @@ void del_pipe_id(uint32_t pipe_id);
 
 char *get_client_id(uint32_t pipe_id); 
 
+bool check_pipe_id(uint32_t pipe_id);
+
 #ifdef __cplusplus
 }
 #endif
