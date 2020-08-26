@@ -674,6 +674,10 @@ struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue)
 {
 	struct db_node  *t = node;
 
+	if (node == NULL) {
+		return NULL;
+	}
+
 	while (t->next) {
 		t = t->next;
 		// debug("t->topic %s, topic_queue %s", t->topic,
