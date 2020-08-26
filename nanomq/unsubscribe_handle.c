@@ -155,6 +155,7 @@ void unsub_ctx_handle(emq_work * work){
 
 		if(tan->topic == NULL){ // find the topic
 			cli = del_client(tan, clientid);
+			del_node(tan->node);
 			if(cli != NULL){
 				// FREE clientinfo in dbtree and hashtable
 				destroy_sub_ctx(cli->ctxt);
