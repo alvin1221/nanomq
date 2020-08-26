@@ -22,17 +22,15 @@
 static char *bytes_to_str(const unsigned char *src, char *dest, int src_len);
 static void print_hex(const char *prefix, const unsigned char *src, int src_len);
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
-static void
-forward_msg(struct db_node *root, struct topic_and_node *res_node, char *topic, nng_msg *send_msg,
-            struct pub_packet_struct *pub_packet, emq_work *work);
 
 
-void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *total)
+void handle_sub_client(struct client *sub_client, void **pipe_content, uint32_t *total)
 {
-	int current_index = *total;
+	int      current_index = *total;
+	uint32_t **pipes       = (uint32_t **) pipe_content;
 
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
-	*pipes = realloc(*pipes, sizeof(uint32_t)*(current_index + 2));
+	*pipes = realloc(*pipes, sizeof(uint32_t) * (current_index + 2));
 
 	(*pipes)[current_index]     = client_work->pid.id;
 	(*pipes)[current_index + 1] = 0;
@@ -44,7 +42,7 @@ void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *to
 }
 
 
-void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *totals, handle_client handle_cb)
+void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, handle_client handle_cb)
 {
 	int  cols       = 1;
 	char **id_queue = NULL;
@@ -65,7 +63,7 @@ void foreach_client(struct clients *sub_clients, uint32_t **pipes, uint32_t *tot
 			if (equal == false) {
 				id_queue[cols - 1] = sub_client->id;
 				debug_msg("sub_client: [%p], id: [%s]\n", sub_client, sub_client->id);
-				handle_cb(sub_client, pipes, totals);
+				handle_cb(sub_client, pipe_content, totals);
 				cols++;
 			}
 			sub_client = sub_client->next;
@@ -106,16 +104,13 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 
 				struct clients *client_list = search_client(work->db->root, topic_queue);
 
-				zfree(*topic_queue);
-				zfree(topic_queue);
-
 				total_sub_pipes = 0;
 
 				if (client_list != NULL) {
-					foreach_client(client_list, &sub_pipes, &total_sub_pipes, handle_sub_client);
+					foreach_client(client_list, (void *) &sub_pipes, &total_sub_pipes, handle_sub_client);
 				}
 
-				debug_msg("total_sub_pipes: [%d]",total_sub_pipes);
+				debug_msg("total_sub_pipes: [%d]", total_sub_pipes);
 
 
 				switch (work->pub_packet->fixed_header.qos) {
@@ -142,6 +137,11 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 						break;
 				}
 
+				if (work->pub_packet->fixed_header.retain) {
+//				 tp_node = nng_alloc(sizeof(struct topic_and_node));
+//					search_node(work->db,topic_queue, tp_node);
+				}
+
 				if (total_sub_pipes > 0) {
 					encode_pub_message(send_msg, work->pub_packet, work);
 					tx_msgs(send_msg, work, sub_pipes);
@@ -160,13 +160,14 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 					debug_msg("free memory payload");
 				}
 
-#if SUPPORT_SEARCH_CLIENTS == 0
 				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
 					debug_msg("free memory topic_and_node");
 				}
-#endif
+
+				zfree(*topic_queue);
+				zfree(topic_queue);
 				break;
 
 			case PUBACK:
