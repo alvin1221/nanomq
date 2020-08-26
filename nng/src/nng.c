@@ -1459,6 +1459,12 @@ nng_aio_free(nng_aio *aio)
 }
 
 void
+nng_msg_clone(nng_msg *msg)
+{
+	nni_msg_clone(msg);
+}
+
+void
 nng_sleep_aio(nng_duration ms, nng_aio *aio)
 {
 	nni_sleep_aio(ms, aio);
@@ -1706,3 +1712,4 @@ conn_param_get_protover(conn_param *cparam)
 {
 	return cparam->pro_ver;
 }
+

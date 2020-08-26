@@ -104,6 +104,10 @@ void set_message(struct db_node *node, void *message);
 
 void *get_message(struct db_node *node);
 
+struct retain_msg *get_retain_msg(struct db_node *node);
+
+void set_retain_msg(struct db_node *node, struct retain_msg *retain);
+
 struct clients *search_client(struct db_node *root, char **topic_queue);
 
 bool check_client(struct db_node *node, char *id);

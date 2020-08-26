@@ -741,7 +741,7 @@ NNG_DECL uint8_t* nng_msg_variable_ptr(nng_msg *);
 NNG_DECL uint8_t* nng_msg_payload_ptr(nng_msg *);
 NNG_DECL void     nng_msg_set_payload_ptr(nng_msg *, uint8_t *);
 NNG_DECL void     nng_msg_set_remaining_len(nng_msg *, size_t);
-
+NNG_DECL void     nng_msg_clone(nng_msg *msg);
 
 //NANOMQ
 NNG_DECL const uint8_t * conn_param_get_clentid(conn_param *cparam);

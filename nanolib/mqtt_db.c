@@ -205,7 +205,7 @@ void insert_db_node(struct db_node *new_node, struct db_node *old_node)
 void add_node(struct topic_and_node *input, struct client *id)
 {
 	log_info("ADD_NODE_START");
-	assert(input && id);
+	assert(input);
 	struct db_node *tmp_node = NULL;
 	struct db_node *new_node = NULL;
 	char **topic_queue = input->topic;
