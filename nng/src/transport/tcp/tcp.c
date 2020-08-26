@@ -1,13 +1,3 @@
-//
-// Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
-// Copyright 2018 Capitar IT Group BV <info@capitar.com>
-// Copyright 2019 Devolutions <info@devolutions.net>
-//
-// This software is supplied under the terms of the MIT License, a
-// copy of which should be located in the distribution where this
-// file was obtained (LICENSE.txt).  A copy of the license may also be
-// found online at https://opensource.org/licenses/MIT.
-//
 //rewrite by Jaylin EMQ X for MQTT usage
 //TODO Independent tcptran protocol 
 
@@ -15,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <poll.h>
+#include <mqtt_db.h>
 
 #include "include/nng_debug.h"
 #include "core/nng_impl.h"
@@ -467,8 +458,8 @@ tcptran_pipe_recv_cb(void *arg)
 		*/
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
-			debug_msg("disconnect");
-			// return;
+			//debug_msg("disconnect");
+			//return;
 		}
 	}
 
@@ -587,6 +578,31 @@ quit:
 	nni_mtx_unlock(&p->mtx);
 	nni_aio_finish(aio,0,2);
 	debug_msg("finish PINGRESP");
+	return;
+close:
+	nni_aio_list_remove(aio);
+		if ((rv = nni_msg_alloc(&p->rxmsg, 2)) != 0) {
+			debug_msg("mem error %d\n", 2);
+			goto recv_error;
+		}
+	msg      = p->rxmsg;
+	p->rxmsg = NULL;
+	n        = nni_msg_len(msg);
+	uint8_t  hh[2];
+	type = CMD_DISCONNECT;
+	hh[0]	 = CMD_DISCONNECT;
+	hh[1]	 = 0xFF;
+
+	cparam = &p->tcp_cparam;
+	nni_msg_header_append(msg, hh, 2);
+	nni_msg_set_conn_param(msg, cparam);
+	nni_msg_set_remaining_len(msg, 0);
+	nni_msg_set_cmd_type(msg, type);
+	nni_mtx_unlock(&p->mtx);
+	nni_aio_set_msg(aio, msg);
+	// finish IO expose msg to EMQ_NANO protocl level
+	nni_aio_finish_synch(aio, 0, 2);
+	debug_msg("tcptran_pipe_recv_cb: disconnect rv: %d\n", rv);
 }
 
 static void

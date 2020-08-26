@@ -1511,6 +1511,11 @@ nng_aio_set_pipeline(nng_aio *aio, uint32_t *id)
 {
 	nni_aio_set_pipeline(aio, id);
 }
+void
+nng_aio_set_dbtree(nng_aio *aio, void *db)
+{
+	nni_aio_set_dbtree(aio, db);
+}
 
 nng_msg *
 nng_aio_get_msg(nng_aio *aio)

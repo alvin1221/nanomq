@@ -734,3 +734,8 @@ nni_aio_get_pipeline(nni_aio *aio)
 {
 	return aio->pipes;
 }
+
+void nni_aio_set_dbtree(nni_aio *aio, void *db)
+{
+	aio->db = db;
+}

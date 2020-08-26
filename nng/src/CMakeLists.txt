@@ -28,6 +28,9 @@ add_library(${PROJECT_NAME}
         nng.c
         ${PROJECT_SOURCE_DIR}/include/nng/nng.h)
 
+# for deleting node when client closed abnormally
+include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
+
 if (NNG_TESTS)
     add_library(${PROJECT_NAME}_testlib STATIC
             nng.c

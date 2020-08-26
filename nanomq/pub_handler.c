@@ -32,8 +32,7 @@ void handle_sub_client(struct client *sub_client, uint32_t **pipes, uint32_t *to
 	int current_index = *total;
 
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
-
-	*pipes = realloc(*pipes, (current_index + 2) * sizeof(uint32_t));
+	*pipes = realloc(*pipes, sizeof(uint32_t)*(current_index + 2));
 
 	(*pipes)[current_index]     = client_work->pid.id;
 	(*pipes)[current_index + 1] = 0;
@@ -161,12 +160,13 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 					debug_msg("free memory payload");
 				}
 
+#if SUPPORT_SEARCH_CLIENTS == 0
 				if (tp_node != NULL) {
 					nng_free(tp_node, sizeof(struct topic_and_node));
 					tp_node = NULL;
 					debug_msg("free memory topic_and_node");
 				}
-
+#endif
 				break;
 
 			case PUBACK:
@@ -465,7 +465,7 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 			/*fixed header*/
 			append_res = nng_msg_header_append(dest_msg, (uint8_t *) &dest_pub_packet->fixed_header, 1);
 
-			debug_msg("append cmd: [%d], qos: [%d], retain: [%d], dup: [%d]; result: [%d]",
+			debug_msg("header append --> cmd: [%d], qos: [%d], retain: [%d], dup: [%d]; result: [%d]",
 			          dest_pub_packet->fixed_header.packet_type, dest_pub_packet->fixed_header.qos,
 			          dest_pub_packet->fixed_header.retain, dest_pub_packet->fixed_header.dup,
 			          append_res);
@@ -473,7 +473,7 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 
 			arr_len    = put_var_integer(tmp, dest_pub_packet->fixed_header.remain_len);
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-			debug_msg("append remaining length: [%d]; result: [%d]",
+			debug_msg("header append --> remaining length: [%d]; result: [%d]",
 			          dest_pub_packet->fixed_header.remain_len,
 			          append_res);
 
@@ -481,19 +481,19 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 			//topic name
 			if (dest_pub_packet->variable_header.publish.topic_name.str_len > 0) {
 				append_res = nng_msg_append_u16(dest_msg, dest_pub_packet->variable_header.publish.topic_name.str_len);
-				debug_msg("append topic length [%d]; result: [%d]",
+				debug_msg("topic length append ---> [%d]; result: [%d]",
 				          dest_pub_packet->variable_header.publish.topic_name.str_len, append_res);
 
 				append_res = nng_msg_append(dest_msg, dest_pub_packet->variable_header.publish.topic_name.str_body,
 				                            dest_pub_packet->variable_header.publish.topic_name.str_len);
-				debug_msg("append topic [%s]; result: [%d]",
+				debug_msg("topic append ---> [%s]; result: [%d]",
 				          dest_pub_packet->variable_header.publish.topic_name.str_body, append_res);
 			}
 
 			//identifier
 			if (dest_pub_packet->fixed_header.qos > 0) {
 				append_res = nng_msg_append_u16(dest_msg, dest_pub_packet->variable_header.publish.packet_identifier);
-				debug_msg("append identifier [%d]; result: [%d]",
+				debug_msg("identifier append ---> [%d]; result: [%d]",
 				          dest_pub_packet->variable_header.publish.packet_identifier, append_res);
 			}
 
@@ -561,7 +561,7 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 			if (dest_pub_packet->payload_body.payload_len > 0) {
 				append_res = nng_msg_append(dest_msg, dest_pub_packet->payload_body.payload,
 				                            dest_pub_packet->payload_body.payload_len);
-				debug_msg("payload [%s], result: [%d]", dest_pub_packet->payload_body.payload, append_res);
+				debug_msg("payload append ---> [%s]; result: [%d]", dest_pub_packet->payload_body.payload, append_res);
 			}
 			break;
 
@@ -657,7 +657,7 @@ reason_code decode_pub_message(emq_work *work)
 	pub_packet->fixed_header            = *(struct fixed_header *) nng_msg_header(msg);
 	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
 
-	debug_msg("cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
+	debug_msg("fixed header----------> cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
 	          pub_packet->fixed_header.packet_type,
 	          pub_packet->fixed_header.retain,
 	          pub_packet->fixed_header.qos,
@@ -666,6 +666,7 @@ reason_code decode_pub_message(emq_work *work)
 
 	if (pub_packet->fixed_header.remain_len <= msg_len) {
 
+		debug_msg("variable header------->");
 		switch (pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
 				//variable header

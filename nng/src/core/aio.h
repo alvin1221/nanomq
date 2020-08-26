@@ -160,6 +160,7 @@ extern void nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
 
 //naomq api
 extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t *id);
+extern void nni_aio_set_dbtree(nni_aio *aio, void *db);
 extern uint32_t* nni_aio_get_pipeline(nni_aio *aio);
 
 
@@ -216,6 +217,7 @@ struct nng_aio {
 	void *           a_cancel_arg;
 	nni_list_node    a_prov_node;     // Linkage on provider list.
 	void *           a_prov_extra[4]; // Extra data used by provider
+	void *		 db;
 
 	// Socket address.  This turns out to be very useful, as we wind up
 	// needing socket addresses for numerous connection related routines.

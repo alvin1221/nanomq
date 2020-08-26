@@ -477,7 +477,8 @@ if (NNG_ENABLE_TLS)
 endif ()
 
 #add_subdirectory(docs/man)
-#add_subdirectory(nanolib)
+# for deleting node when client closed abnormally
+include_directories(${CMAKE_SOURCE_DIR}/nanolib/include)
 
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VERSION ${NNG_PACKAGE_VERSION})
