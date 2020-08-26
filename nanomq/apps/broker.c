@@ -104,12 +104,13 @@ server_cb(void *arg)
 						topics = topic_parse(tq->topic);
 						search_node(work->db, topics, tan);
 						cli = del_client(tan, clientid);
-						destroy_sub_ctx(cli->ctxt);
+						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
 						nng_free(cli, sizeof(struct client));
 						tq = tq->next;
 					}
 					del_topic_all(clientid);
 					del_pipe_id(pipe.id);
+					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid), pipe.id, check_pipe_id(pipe.id));
 				}
 
 				nng_free(tan, sizeof(struct topic_and_node));

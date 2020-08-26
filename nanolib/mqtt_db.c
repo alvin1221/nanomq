@@ -295,9 +295,12 @@ void add_node(struct topic_and_node *input, struct client *id)
 			new_node = new_node->down;
 		}
 	}
+	new_node->sub_client = id;
+	/*
 	new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
 	memcpy(new_node->sub_client, id, sizeof(struct client));
 	new_node->sub_client->next = NULL;
+	*/
 	return;
 }
 /*	For duplicate node 
