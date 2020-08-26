@@ -337,6 +337,7 @@ void del_node(struct db_node *node)
 	} else {
 		log("DELETE NODE AND UP!");
 		if (node->up == NULL) {
+			log("Node can't be deleted!");
 			return;
 		} else if (node->up->next == node) {
 			node->up->hashtag = false;
@@ -346,9 +347,8 @@ void del_node(struct db_node *node)
 		}
 
 		struct db_node *tmp_node = node->up;
-		if (tmp_node->plus) {
+		if (tmp_node->plus && tmp_node->down == node) {
 			tmp_node->plus = false;
-			tmp_node->down = NULL;
 		}
 
 		if (tmp_node->down == node) {
