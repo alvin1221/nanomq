@@ -36,6 +36,18 @@ fatal(const char *func, int rv)
 	exit(1);
 }
 
+void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
+{
+	work->state = SEND;
+	work->msg   = send_msg;
+	nng_aio_set_msg(work->aio, send_msg);
+	work->msg = NULL;
+
+	nng_aio_set_pipeline(work->aio, pipes);
+	nng_ctx_send(work->ctx, work->aio);
+}
+
+
 /*objective: 1 input/output low latency
 	     2 KV
 	     3 tree 
@@ -56,7 +68,7 @@ server_cb(void *arg)
 //	struct topic_and_node *tp_node    = NULL;
 	reason_code       reason;
 
-	uint8_t buf[2] = {1, 2};
+	uint8_t buf[2];
 
 
 	switch (work->state) {
@@ -75,7 +87,7 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
-			// TODO disconnect handle
+
 			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
 				work->cparam = nng_msg_get_conn_param(msg);
 				char * clientid = conn_param_get_clentid(work->cparam);
@@ -100,18 +112,13 @@ server_cb(void *arg)
 				}
 
 				nng_free(tan, sizeof(struct topic_and_node));
-				work->state = INIT;
+				work->state = RECV;
+				nng_msg_free(msg);
+				nng_aio_abort(work->aio, 31);
+				nng_ctx_recv(work->ctx, work->aio);
 				break;
 			}
-/*
-                if ((rv = nng_msg_trim_u32(msg, &when)) != 0) {
-                        // bad message, just ignore it.
-                        nng_msg_free(msg);
-                        nng_ctx_recv(work->sock, work->aio);
-                        printf("debug: bad message, just ignore it.\n");
-                        return;
-                }
-*/
+
 			work->msg   = msg;
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %s ******************************************\n",
