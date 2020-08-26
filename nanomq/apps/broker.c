@@ -68,6 +68,7 @@ server_cb(void *arg)
 	volatile uint32_t total_pipes = 0;
 //	struct topic_and_node *tp_node    = NULL;
 	reason_code       reason;
+
 	uint8_t buf[2];
 
 
