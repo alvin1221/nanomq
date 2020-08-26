@@ -146,7 +146,6 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
-	debug_msg("nano_ctx_send  tree %p", nni_aio_get_dbtree(aio));
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
@@ -383,12 +382,14 @@ nano_pipe_close(void *arg)
 	nano_pipe *p = arg;
 	nano_sock *s = p->rep;
 	nano_ctx * ctx;
+	void *     tree;
 
 	debug_msg("#################nano_pipe_close!!##############");
 	nni_mtx_lock(&s->lk);
 	debug_msg("deleting %d", p->id);
 	debug_msg("tree : %p", p->tree);
-	del_all(p->id, nni_aio_get_dbtree(&p->aio_recv));
+
+	del_all(p->id, p->tree);
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
 
