@@ -338,14 +338,14 @@ tcptran_pipe_send_cb(void *arg)
 	aio = nni_list_first(&p->sendq);
 
 	debug_msg("###############tcptran_pipe_send_cb################");
-	/*
+	/**/
 	if (aio == NULL) {
 		//nni_pipe_bump_tx(p->npipe, n);
 		// be aware null aio BUG
-		//nni_mtx_unlock(&p->mtx);
-		//return;
+		nni_mtx_unlock(&p->mtx);
+		return;
 	}
-	*/
+
 	if ((rv = nni_aio_result(txaio)) != 0) {
 		//nni_pipe_bump_error(p->npipe, rv);
 		// Intentionally we do not queue up another transfer.
@@ -361,7 +361,7 @@ tcptran_pipe_send_cb(void *arg)
 
 	n = nni_aio_count(txaio);
 	nni_aio_iov_advance(txaio, n);
-	debug_msg("tcp socket sent %d iov %d", n, nni_aio_iov_count(txaio));
+	debug_msg("tcp socket sent %d bytes iov %d", n, nni_aio_iov_count(txaio));
 
 	if (nni_aio_iov_count(txaio) > 0) {
 		nng_stream_send(p->conn, txaio);
@@ -446,7 +446,7 @@ tcptran_pipe_recv_cb(void *arg)
 		//BUG? PINGRESP (PUBACK SUBACK) here
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
 			debug_msg("ping");
-		  /*
+		  /**/
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
 			iov.iov_len = 2;
@@ -455,7 +455,7 @@ tcptran_pipe_recv_cb(void *arg)
 			nni_aio_set_iov(txaio, 1, &iov);
 			nng_stream_send(p->conn, txaio);
 			goto quit;
-		*/
+		
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
 			//debug_msg("disconnect");
@@ -576,7 +576,8 @@ quit:
 	//simply quit after reply PINGRESP to clinet
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
-	nni_aio_finish(aio,0,2);
+	debug_msg("finish PINGRESP1");
+	nni_aio_finish_error(aio, 0);
 	debug_msg("finish PINGRESP");
 	return;
 close:

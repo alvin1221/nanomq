@@ -55,6 +55,7 @@ struct nano_pipe {
 	nano_sock *   rep;
 	uint32_t      id;
 	uint8_t       retry;
+	void *        tree;
 	nni_aio       aio_send;
 	nni_aio       aio_recv;
 	nni_list_node rnode; // receivable list linkage
@@ -145,6 +146,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
+	debug_msg("nano_ctx_send  tree %p", nni_aio_get_dbtree(aio));
 
 	if (nni_aio_begin(aio) != 0) {
 		return;
@@ -202,6 +204,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			fail_count++;
 			continue;
 		}
+		p->tree = nni_aio_get_dbtree(aio);
 		nni_msg_clone(msg);
 		if (!p->busy) {
 			uint8_t  *header;
@@ -384,7 +387,8 @@ nano_pipe_close(void *arg)
 	debug_msg("#################nano_pipe_close!!##############");
 	nni_mtx_lock(&s->lk);
 	debug_msg("deleting %d", p->id);
-	del_all(&p->aio_recv, p->id);
+	debug_msg("tree : %p", p->tree);
+	del_all(p->id, nni_aio_get_dbtree(&p->aio_recv));
 	nni_aio_close(&p->aio_send);
 	nni_aio_close(&p->aio_recv);
 

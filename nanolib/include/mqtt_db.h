@@ -37,7 +37,6 @@ struct db_node {
 	struct db_node      *next;
 };
 
-
 /* 
 ** for print_db_tree 
 */
@@ -58,7 +57,6 @@ struct db_tree{
 	struct db_node      *root;
 	// TODO
 };
-
 
 /* Create a db_tree */
 void create_db_tree(struct db_tree **db);
@@ -87,7 +85,7 @@ void add_node(struct topic_and_node *input, struct client *id);
 /* Delete node from db_tree when node does not have clientId */
 void del_node(struct db_node *node);
 
-void del_all(uint32_t pipe_id, struct db_tree *db);
+void del_all(uint32_t pipe_id, void *db);
 
 /* Free node memory */
 void free_node(struct db_node *node);

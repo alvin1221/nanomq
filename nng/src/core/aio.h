@@ -161,6 +161,7 @@ extern void nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *);
 //naomq api
 extern void nni_aio_set_pipeline(nni_aio *aio, uint32_t *id);
 extern void nni_aio_set_dbtree(nni_aio *aio, void *db);
+extern void* nni_aio_get_dbtree(nni_aio *aio);
 extern uint32_t* nni_aio_get_pipeline(nni_aio *aio);
 
 

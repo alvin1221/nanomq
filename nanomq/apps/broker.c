@@ -24,7 +24,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 50
+#define PARALLEL 3
 
 
 // The server keeps a list of work items, sorted by expiration time,

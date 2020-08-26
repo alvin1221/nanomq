@@ -34,7 +34,6 @@ tcp_dowrite(nni_tcp_conn *c)
 	nni_aio *aio;
 	int      fd;
 
-	debug_msg("tcp_dowrite!");
 	if (c->closed || ((fd = nni_posix_pfd_fd(c->pfd)) < 0)) {
 		return;
 	}
@@ -92,7 +91,6 @@ tcp_dowrite(nni_tcp_conn *c)
 		// (Sendmsg never returns a partial result.)
 		nni_aio_list_remove(aio);
 		nni_aio_finish(aio, 0, nni_aio_count(aio));
-		debug_msg("end of tcp_dowrite!");
 
 		// Go back to start of loop to see if there is another
 		// aio ready for us to process.
