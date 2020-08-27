@@ -625,8 +625,7 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 		struct client *sub_client = sub_clients->sub_client;
 		while (sub_client) {
 			bool equal = false;
-			client_queue = (struct client**)zrealloc(client_queue, (*cols)*sizeof(struct
-						client*)); 
+			client_queue = (struct client**)zrealloc(client_queue, (*cols)*sizeof(struct client*)); 
 
 			for (int i = 0; i < (*cols)-1; i++) {
 				if (!strcmp(sub_client->id, client_queue[i]->id)) {
@@ -644,8 +643,7 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 		sub_clients = sub_clients->down;
 	}
 
-	client_queue = (struct client**)zrealloc(client_queue, (*cols) * sizeof(struct
-	  			client*)); 
+	client_queue = (struct client**)zrealloc(client_queue, (*cols) * sizeof(struct client*)); 
 	client_queue[(*cols)-1] = NULL;
 	return client_queue;
 }
