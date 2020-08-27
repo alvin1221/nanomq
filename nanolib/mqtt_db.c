@@ -576,11 +576,12 @@ void del_all(uint32_t pipe_id, void *ptr)
 				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
 				search_node(db, topic_queue, tan);
 				debug("%s", tan->node->topic);
-				del_client(tan, client);
+				struct client * cli = del_client(tan, client);
+				// TODO free cli
 				del_node(tan->node);
 
 				char *tmp = NULL;
-				char **tt = topic_queue;
+	    		char **tt = topic_queue;
 
 				while (*topic_queue) {
 					tmp = *topic_queue;
