@@ -296,11 +296,6 @@ void add_node(struct topic_and_node *input, struct client *id)
 		}
 	}
 	new_node->sub_client = id;
-	/*
-	new_node->sub_client = (struct client*)zmalloc(sizeof(struct client));
-	memcpy(new_node->sub_client, id, sizeof(struct client));
-	new_node->sub_client->next = NULL;
-	*/
 	return;
 }
 /*	For duplicate node 
@@ -380,26 +375,16 @@ void del_node(struct db_node *node)
 	return;
 }
 
-// bool check_retain(struct db_node *node)
-// {
-// 	return node->retain;
-// }
-// 
-// void set_retain(struct db_node *node, bool retain)
-// {
-// 	node->retain = retain;
-// }
-// 
-// void set_message(struct db_node *node, void *message)
-// {
-// 	set_retain(node, true);
-// 	node->message = message;
-// }
-// 
-// void *get_message(struct db_node *node)
-// {
-// 	return node->message;
-// }
+
+void set_retain_msg(struct db_node *node, struct retain_msg *retain)
+{
+	node->retain = retain;
+}
+
+struct retain_msg *get_retain_msg(struct db_node *node)
+{
+	return node->retain;
+}
 
 /* 
  ** Delete client. 
