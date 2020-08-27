@@ -87,9 +87,10 @@ server_cb(void *arg)
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
+			work->cparam = nng_msg_get_conn_param(msg);
+			work->pid = pipe;
 
 			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
-				work->cparam = nng_msg_get_conn_param(msg);
 				char * clientid = conn_param_get_clentid(work->cparam);
 				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
 				char ** topics;
@@ -101,20 +102,27 @@ server_cb(void *arg)
 					debug_msg("This client is in hash table.");
 					tq = get_topic(clientid);
 					while(tq){
-						topics = topic_parse(tq->topic);
-						search_node(work->db, topics, tan);
-						cli = del_client(tan, clientid);
-						del_node(tan->node);
-						debug_msg("--------");
-						debug_msg("!!!!!!!!!!!!!!!!!!!%s, %p", cli->id,
-								cli->ctxt);
-						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
-						nng_free(cli, sizeof(struct client));
-						tq = tq->next;
+						if(tq->topic){
+							topics = topic_parse(tq->topic);
+							search_node(work->db, topics, tan);
+							if((cli = del_client(tan, clientid)) == NULL){
+								break;
+							}
+							del_pipe_id(work->pid.id);
+						}
+						if(cli){
+							del_node(tan->node);
+							debug_msg("!!!!!!!!!!!!!!!!!!!%s, %p", cli->id, cli->ctxt);
+							destroy_sub_ctx(cli->ctxt, tq); // only free work->sub_pkt
+							nng_free(cli, sizeof(struct client));
+						}
+						if(check_id(clientid)){
+							tq = tq->next;
+						}
 					}
 					del_topic_all(clientid);
 					del_pipe_id(pipe.id);
-					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid), pipe.id, check_pipe_id(pipe.id));
+					//debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid), pipe.id, check_pipe_id(pipe.id));
 				}
 
 				nng_free(tan, sizeof(struct topic_and_node));

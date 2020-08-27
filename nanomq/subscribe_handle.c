@@ -182,21 +182,21 @@ void sub_ctx_handle(emq_work * work){
 			add_topic(client->id, topic_str);
 			add_pipe_id(work->pid.id, client->id);
 			struct topic_queue * q = get_topic(client->id);
-			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
+			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d",
+					client->id, q->topic, work->pid.id);
 		}else{
 			// TODO contain but not strcmp
 			if(tan->node->sub_client==NULL || check_client(tan->node, client->id)){
 				add_topic(client->id, topic_str);
 				add_pipe_id(work->pid.id, client->id);
 				struct topic_queue * q = get_topic(client->id);
-				debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
+				debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s",
+						client->id, q->next->topic);
 				add_client(tan, client);
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
-//		search_node(work->db, topic_parse(topic_str), tan);
-//		debug_msg("ENSURE CLIENTID: %s", tan->node->sub_client->id);
 		nng_free(tan, sizeof(struct topic_and_node));
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;
@@ -204,12 +204,11 @@ void sub_ctx_handle(emq_work * work){
 	}
 
 	// check treeDB
-//	print_db_tree(work->db);
+	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
 }
 
-void destroy_sub_ctx(void * ctxt){
-	debug_msg("Here i am");
+void destroy_sub_ctx(void * ctxt, struct topic_queue * tq){
 	emq_work * work = ctxt;
 	if(!work){
 		return;
@@ -225,18 +224,26 @@ void destroy_sub_ctx(void * ctxt){
 		return;
 	}
 	topic_node * topic_node_t = sub_pkt->node;
-	debug_msg("sb");
-	debug_msg("info: %s", topic_node_t->it->topic_filter.str_body);
-	topic_node * _topic_node;
+	topic_node * before_topic_node = NULL;
 	while(topic_node_t){
-		nng_free(topic_node_t->it, sizeof(topic_with_option));
-
-		_topic_node = topic_node_t->next;
-		nng_free(topic_node_t, sizeof(topic_node));
-		topic_node_t = _topic_node;
+		if(!strncmp(topic_node_t->it->topic_filter.str_body, tq->topic,
+					topic_node_t->it->topic_filter.len)){
+			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
+			if(before_topic_node){
+				before_topic_node->next = topic_node_t->next;
+			}else{
+				sub_pkt->node = topic_node_t->next;
+			}
+			nng_free(topic_node_t->it, sizeof(topic_with_option));
+			nng_free(topic_node_t, sizeof(topic_node));
+			break;
+		}
+        before_topic_node = topic_node_t;
+		topic_node_t = topic_node_t->next;
 	}
-	nng_free(sub_pkt, sizeof(packet_subscribe));
-	work->sub_pkt = NULL;
-	debug_msg("finish");
+	if(sub_pkt->node == NULL){
+		nng_free(sub_pkt, sizeof(packet_subscribe));
+		work->sub_pkt = NULL;
+	}
 }
 
