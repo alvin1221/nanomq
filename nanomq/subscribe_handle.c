@@ -181,6 +181,7 @@ void sub_ctx_handle(emq_work * work){
 			add_node(tan, client);
 			add_topic(client->id, topic_str);
 			add_pipe_id(work->pid.id, client->id);
+			debug_msg("------CHECKHASHTABLE----pipeid:%d---clientid:%s",work->pid.id, get_client_id(work->pid.id));
 			struct topic_queue * q = get_topic(client->id);
 			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s", client->id, q->topic);
 		}else{

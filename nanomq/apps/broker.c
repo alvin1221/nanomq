@@ -78,30 +78,30 @@ server_cb(void *arg)
 			printf("INIT!!\n");
 			break;
 		case RECV:
-			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d\n", work->ctx.id);
+			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-				debug_msg("nng aio result error: %d", rv);
+				debug_msg("RECV nng aio result error: %d", rv);
 				break;
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
+			if (msg == NULL) {		//BUG
+				debug_msg("RECV NULL msg");
+			}
 			pipe    = nng_msg_get_pipe(msg);
+			debug_msg("RECVIED %d %x\n", work->ctx.id,  nng_msg_cmd_type(msg));
 
 			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
-				work->cparam = nng_msg_get_conn_param(msg);
-				char * clientid = conn_param_get_clentid(work->cparam);
+				char * clientid = conn_param_get_clentid(nng_msg_get_conn_param(msg));
 				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
-				char ** topics;
 				struct client * cli = NULL;
 				struct topic_queue * tq = NULL;
 
-				debug_msg("########DISCONNECT########clientid: %s", clientid);
+				debug_msg("##########DISCONNECT (clientID:[%s])##########", clientid);
 				if(check_id(clientid)){
-					debug_msg("This client is in hash table.");
 					tq = get_topic(clientid);
 					while(tq){
-						topics = topic_parse(tq->topic);
-						search_node(work->db, topics, tan);
+						search_node(work->db, topic_parse(tq->topic), tan);
 						cli = del_client(tan, clientid);
 						del_node(tan->node);
 						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
@@ -110,7 +110,8 @@ server_cb(void *arg)
 					}
 					del_topic_all(clientid);
 					del_pipe_id(pipe.id);
-					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid), pipe.id, check_pipe_id(pipe.id));
+//					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", 
+//						clientid, check_id(clientid), pipe.id, check_pipe_id(pipe.id));
 				}
 
 				nng_free(tan, sizeof(struct topic_and_node));
@@ -123,16 +124,16 @@ server_cb(void *arg)
 
 			work->msg   = msg;
 			work->state = WAIT;
-			debug_msg("RECV ********************* msg: %s ******************************************\n",
-			          (char *) nng_msg_body(work->msg));
+			debug_msg("RECV ********************* msg: %s %x******************************************\n",
+			          (char *) nng_msg_body(work->msg), nng_msg_cmd_type(work->msg));
 			nng_sleep_aio(200, work->aio);
 			break;
 		case WAIT:
-			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^");
+			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^", work->ctx.id);
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
-			debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
-			          conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
+			//debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
+			          //conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -177,10 +178,10 @@ server_cb(void *arg)
 				if ((reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in encode: %x.", reason);
 				}
-				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
-				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
-				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
-				          *((uint8_t *) nng_msg_body(smsg) + 1));
+				debug_msg("Header Len: %d, Body Len: %d. In Body. TYPE:%x LEN:%x PKTID: %x %x.", 
+					nng_msg_header_len(smsg), nng_msg_len(smsg), *((uint8_t *) nng_msg_header(smsg)),
+				    *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
+				    *((uint8_t *) nng_msg_body(smsg) + 1));
 				work->msg = smsg;
 				// We could add more data to the message here.
 				nng_aio_set_msg(work->aio, work->msg);
@@ -242,9 +243,10 @@ server_cb(void *arg)
 			break;
 
 		case SEND:
-			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^\n");
+			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				nng_msg_free(work->msg);
+				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("nng_ctx_send", rv);
 			}
 			work->state = RECV;
