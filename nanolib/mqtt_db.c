@@ -150,6 +150,7 @@ struct db_node *new_db_node(char *topic)
 	node->plus = false;
 	node->next = NULL;
 	node->down = NULL;
+	node->up = NULL;
 	node->sub_client = NULL;
 	return node;
 }
@@ -302,6 +303,9 @@ void add_node(struct topic_and_node *input, struct client *id)
 
 	return;
 }
+
+
+
 /*	For duplicate node
 	TODO*/
 void del_node(struct db_node *node)
@@ -576,7 +580,7 @@ void del_all(uint32_t pipe_id, void *ptr)
 				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
 				search_node(db, topic_queue, tan);
 				debug("%s", tan->node->topic);
-				struct client * cli = del_client(tan, client);
+				// struct client * cli = del_client(tan, client);
 				// TODO free cli
 				del_node(tan->node);
 
@@ -669,8 +673,8 @@ struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue)
 
 	while (t->next) {
 		t = t->next;
-		// debug("t->topic %s, topic_queue %s", t->topic,
-		// 					*(topic_queue));
+		debug("t->topic %s, topic_queue %s", t->topic,
+							*(topic_queue));
 		if (!strcmp(t->topic, *(topic_queue))) {
 			*equal = true;
 			break;
@@ -699,12 +703,33 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 
 	log("entry search");
 	while (*topic_queue && node) {
+		bool plus = false;
 		if (strcmp(node->topic, *topic_queue)) {
 			log("node->topic %s, topic_queue %s", node->topic, *topic_queue);
+
+			if (!strcmp(node->topic, "+")) {
+				if (*(topic_queue+1) == NULL) {
+					if (node->sub_client) {
+						log("add client in last +");
+						tmp->down = new_clients(node->sub_client);
+						tmp = tmp->down;
+					}
+				} else {
+					plus = true;
+					if (node->hashtag) {
+						log("!!!!!!!!!!!!!!!!!!!!!!!!!Find the sign of #. Add it if sub_client of # is not NULL!");
+						if (node->next->sub_client) {
+							tmp->down = new_clients(node->next->sub_client);
+							tmp = tmp->down;
+						}
+					}
+				}  
+			}
+
 			bool equal = false;
 			node = find_next(node, &equal, topic_queue);
 
-			if (equal == false) {
+			if (equal == false && plus == false) {
 				log("searching unqual");
 				return res;
 			}
@@ -725,7 +750,8 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 			return res;
 		}
 
-		if (node->plus) {
+		
+		if (node->plus) { 
 			log("Find the sign of +");
 			if (*(topic_queue+2) == NULL) {
 				debug("When plus is the last one");
@@ -778,7 +804,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				}
 
 				bool equal = false;
-				struct db_node  *t = find_next(node->down->next, &equal,
+				struct db_node  *t = find_next(node->down, &equal,
 						++topic_queue);
 
 				if (equal == false) {
@@ -794,9 +820,11 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 					}
 				}
 
-				debug("t->topic, %s, topic_queue ,%s", t->down->topic,
-						*(topic_queue+1));
-				tmp->down = search_client(t->down, topic_queue+1);
+				if (t != node->down) {
+					debug("t->topic, %s, topic_queue ,%s", t->topic,
+							*(topic_queue));
+					tmp->down = search_client(t, topic_queue);
+				}
 				return res;
 
 			} else if (node->down->down && *(topic_queue+2)) {
