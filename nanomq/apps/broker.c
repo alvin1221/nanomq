@@ -107,7 +107,7 @@ server_cb(void *arg)
 						debug_msg("--------");
 						debug_msg("!!!!!!!!!!!!!!!!!!!%s, %p", cli->id,
 								cli->ctxt);
-						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
+//						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
 						nng_free(cli, sizeof(struct client));
 						tq = tq->next;
 					}

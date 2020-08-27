@@ -24,9 +24,19 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *content, uint32_t len);
 
 
+void set_pipes_msgs(struct client *sub_client, void **pipe_content, uint32_t *index)
+{
+
+	emq_work *client_work = (emq_work *) sub_client->ctxt;
+
+
+
+
+}
+
 void handle_sub_client(struct client *sub_client, void **pipe_content, uint32_t *total)
 {
-	int      current_index = *total;
+	uint32_t      current_index = *total;
 	uint32_t **pipes       = (uint32_t **) pipe_content;
 
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
@@ -38,7 +48,6 @@ void handle_sub_client(struct client *sub_client, void **pipe_content, uint32_t 
 	debug_msg("get pipe id, sub_pipes[%d]: [%d]", *total, (*pipes)[*total]);
 
 	*total = current_index + 1;
-
 }
 
 
@@ -87,7 +96,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 	bool                  free_packet   = true;
 
 	work->pub_packet = (struct pub_packet_struct *) nng_alloc(sizeof(struct pub_packet_struct));
-	debug_msg("work->pub_packet: [%p]", work->pub_packet);
+
 
 	reason_code result = decode_pub_message(work);
 	if (SUCCESS == result) {
@@ -141,30 +150,35 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 				if (work->pub_packet->fixed_header.retain) {
 					debug_msg("handle retain message");
 					tp_node = nng_alloc(sizeof(struct topic_and_node));
+					struct topic_and_node **temp_tan = NULL;
 
 					search_node(work->db, topic_queue, tp_node);
-					debug_msg("topic_and_node: [%p],topic_and_node.node: [%p]", tp_node,tp_node->node);
+					temp_tan = &tp_node;
+					debug_msg("before add node, topic_and_node: [%p],topic_and_node.node: [%p]", tp_node,
+					          tp_node->node);
 
 					struct retain_msg *retain = NULL;
 
 					if (tp_node->node != NULL) {
 
 						retain = get_retain_msg(tp_node->node);
+						debug_msg("retain: [%p]", retain);
 						if (retain != NULL) {
+							debug_msg("retain.message: [%p]", retain->message);
 							if (retain->message != NULL) {
 								nng_free(retain->message, sizeof(struct pub_packet_struct));
 								retain->message = NULL;
 							}
 							nng_free(retain, sizeof(struct retain_msg));
 							retain = NULL;
-							retain = nng_alloc(sizeof(struct retain_msg));
-						} else {
-							add_node(tp_node, NULL);
-							retain = nng_alloc(sizeof(struct retain_msg));
 						}
+						retain = nng_alloc(sizeof(struct retain_msg));
+
 					} else {
 						add_node(tp_node, NULL);
 					}
+
+					debug_msg("after add node, topic_and_node: [%p],topic_and_node.node: [%p]", tp_node, tp_node->node);
 
 					retain->qos = work->pub_packet->fixed_header.qos;
 					if (work->pub_packet->payload_body.payload_len > 0) {
@@ -175,10 +189,16 @@ void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit
 						retain->exist   = false;
 						retain->message = NULL;
 					}
-					debug_msg("set_retain_msg: qos: [%d],exist: [%d], message: [%p]", retain->qos, retain->exist,
+					debug_msg("set_retain_msg: qos: [%d], exist: [%d], message: [%p]", retain->qos, retain->exist,
 					          retain->message);
 
-					set_retain_msg(tp_node->node, retain);
+//					search_node(work->db, topic_queue, tp_node);
+
+					debug_msg("search node second time, topic_and_node: [%p],temp topic_and_node: [%p]", tp_node,
+					          *temp_tan);
+
+//					set_retain_msg(tp_node->node, retain);
+					set_retain_msg((*temp_tan)->node, retain);
 
 					if (tp_node != NULL) {
 						nng_free(tp_node, sizeof(struct topic_and_node));
@@ -514,38 +534,23 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 			/*fixed header*/
 			append_res = nng_msg_header_append(dest_msg, (uint8_t *) &dest_pub_packet->fixed_header, 1);
 
-			debug_msg("header append --> cmd: [%d], qos: [%d], retain: [%d], dup: [%d]; result: [%d]",
-			          dest_pub_packet->fixed_header.packet_type, dest_pub_packet->fixed_header.qos,
-			          dest_pub_packet->fixed_header.retain, dest_pub_packet->fixed_header.dup,
-			          append_res);
-
-
 			arr_len    = put_var_integer(tmp, dest_pub_packet->fixed_header.remain_len);
 			append_res = nng_msg_header_append(dest_msg, tmp, arr_len);
-			debug_msg("header append --> remaining length: [%d]; result: [%d]",
-			          dest_pub_packet->fixed_header.remain_len,
-			          append_res);
 
 			/*variable header*/
 			//topic name
 			if (dest_pub_packet->variable_header.publish.topic_name.str_len > 0) {
 				append_res = nng_msg_append_u16(dest_msg,
 				                                dest_pub_packet->variable_header.publish.topic_name.str_len);
-				debug_msg("topic length append ---> [%d]; result: [%d]",
-				          dest_pub_packet->variable_header.publish.topic_name.str_len, append_res);
 
 				append_res = nng_msg_append(dest_msg, dest_pub_packet->variable_header.publish.topic_name.str_body,
 				                            dest_pub_packet->variable_header.publish.topic_name.str_len);
-				debug_msg("topic append ---> [%s]; result: [%d]",
-				          dest_pub_packet->variable_header.publish.topic_name.str_body, append_res);
 			}
 
 			//identifier
 			if (dest_pub_packet->fixed_header.qos > 0) {
 				append_res = nng_msg_append_u16(dest_msg,
 				                                dest_pub_packet->variable_header.publish.packet_identifier);
-				debug_msg("identifier append ---> [%d]; result: [%d]",
-				          dest_pub_packet->variable_header.publish.packet_identifier, append_res);
 			}
 
 #if SUPPORT_MQTT5_0
@@ -612,8 +617,6 @@ bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_pa
 			if (dest_pub_packet->payload_body.payload_len > 0) {
 				append_res = nng_msg_append(dest_msg, dest_pub_packet->payload_body.payload,
 				                            dest_pub_packet->payload_body.payload_len);
-				debug_msg("payload append ---> [%s]; result: [%d]", dest_pub_packet->payload_body.payload,
-				          append_res);
 			}
 			break;
 
@@ -709,7 +712,7 @@ reason_code decode_pub_message(emq_work *work)
 	pub_packet->fixed_header            = *(struct fixed_header *) nng_msg_header(msg);
 	pub_packet->fixed_header.remain_len = nng_msg_remaining_len(msg);
 
-	debug_msg("fixed header----------> cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
+	debug_msg("cmd: %d, retain: %d, qos: %d, dup: %d, remaining length: %d",
 	          pub_packet->fixed_header.packet_type,
 	          pub_packet->fixed_header.retain,
 	          pub_packet->fixed_header.qos,
@@ -718,7 +721,6 @@ reason_code decode_pub_message(emq_work *work)
 
 	if (pub_packet->fixed_header.remain_len <= msg_len) {
 
-		debug_msg("variable header------->");
 		switch (pub_packet->fixed_header.packet_type) {
 			case PUBLISH:
 				//variable header
@@ -748,14 +750,10 @@ reason_code decode_pub_message(emq_work *work)
 					}
 				}
 
-//				debug_msg("get topic: %s, len: %d ,strlen(topic): %lu",
-//				          pub_packet->variable_header.publish.topic_name.str_body, len,
-//				          strlen(pub_packet->variable_header.publish.topic_name.str_body));
-
+				debug_msg("topic: [%s]", pub_packet->variable_header.publish.topic_name.str_body);
 
 				if (pub_packet->fixed_header.qos > 0) { //extract packet_identifier while qos > 0
 					NNI_GET16(msg_body + pos, pub_packet->variable_header.publish.packet_identifier);
-					debug_msg("packet identifier: %d", pub_packet->variable_header.publish.packet_identifier);
 					pos += 2;
 				}
 
@@ -1020,31 +1018,3 @@ static void print_hex(const char *prefix, const unsigned char *src, int src_len)
 	}
 }
 
-
-#if 0
-uint32_t get_uint32(const uint8_t *buf)
-{
-	return (((uint32_t) ((uint8_t) (buf)[0])) >> 24u) +
-		   (((uint32_t) ((uint8_t) (buf)[+1])) >> 16u) +
-		   (((uint32_t) ((uint8_t) (buf)[+2])) >> 8u) +
-		   (((uint32_t) (uint8_t) (buf)[+3]));
-}
-
-uint64_t get_uint64(const uint8_t *buf)
-{
-	return (((uint64_t) ((uint8_t) (buf)[0])) >> 56u) +
-		   (((uint64_t) ((uint8_t) (buf)[1])) >> 48u) +
-		   (((uint64_t) ((uint8_t) (buf)[2])) >> 40u) +
-		   (((uint64_t) ((uint8_t) (buf)[3])) >> 32u) +
-		   (((uint64_t) ((uint8_t) (buf)[4])) >> 24u) +
-		   (((uint64_t) ((uint8_t) (buf)[5])) >> 16u) +
-		   (((uint64_t) ((uint8_t) (buf)[6])) >> 8u) +
-		   (((uint64_t) (uint8_t) (buf)[7]));
-}
-
-uint32_t get_uint16(const uint8_t *buf)
-{
-	return (((uint32_t) ((uint8_t) (buf)[0])) >> 8u) +
-		   (((uint32_t) (uint8_t) (buf)[1]));
-}
-#endif

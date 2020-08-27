@@ -19,6 +19,7 @@ void create_db_tree(struct db_tree **db)
 	memset(*db, 0, sizeof(struct db_tree));
 
 	struct db_node *node = new_db_node("\0");
+	node->up = NULL;
 	(*db)->root = node;
 	return;
 }
