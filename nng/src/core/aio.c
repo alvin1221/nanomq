@@ -737,5 +737,12 @@ nni_aio_get_pipeline(nni_aio *aio)
 
 void nni_aio_set_dbtree(nni_aio *aio, void *db)
 {
+	debug_msg("dbtree %p ===========================================;;;;;;;;;;;;;;;;;;;;;;;;;;;;", db);
 	aio->db = db;
+}
+
+void*
+nni_aio_get_dbtree(nni_aio *aio)
+{
+	return(aio->db);
 }
