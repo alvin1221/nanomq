@@ -105,6 +105,9 @@ server_cb(void *arg)
 						search_node(work->db, topics, tan);
 						cli = del_client(tan, clientid);
 						del_node(tan->node);
+						debug_msg("--------");
+						debug_msg("!!!!!!!!!!!!!!!!!!!%s, %p", cli->id,
+								cli->ctxt);
 						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
 						nng_free(cli, sizeof(struct client));
 						tq = tq->next;
