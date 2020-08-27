@@ -576,9 +576,7 @@ quit:
 	//simply quit after reply PINGRESP to clinet
 	tcptran_pipe_recv_start(p);
 	nni_mtx_unlock(&p->mtx);
-	debug_msg("finish PINGRESP1");
 	nni_aio_finish_error(aio, 0);
-	debug_msg("finish PINGRESP");
 	return;
 close:
 	nni_aio_list_remove(aio);

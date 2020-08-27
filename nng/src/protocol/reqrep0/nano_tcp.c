@@ -151,7 +151,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	debug_msg("nanomq start sending with ctx");
+	debug_msg("nanomq start sending with ctx %p", ctx);
 	nni_mtx_lock(&s->lk);
 	//len  = ctx->pp_len;
 	if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
@@ -234,8 +234,10 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	//as long as one pipe sucess, aio is sucessd. TODO qos1/2 broker need to ensure all aio completed.
 	debug_msg("pub/reply total %d resend %d fail %d", i, need_resend, fail_count);
 	if (need_resend == 0) {
+		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
 		nni_aio_finish(aio, 0, len);
+		return;
 	} else if (nni_list_first(&p->sendq) == NULL) {
 		ctx->resend_count = need_resend;
 		ctx->pipe_len     = i;
@@ -243,6 +245,10 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_list_append(&p->sendq, ctx);
 	} else {
 		debug_msg("message dropped!!");
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, NULL);
+		nni_aio_finish(aio, 0, len);
+		return;
 	}
 	nni_mtx_unlock(&s->lk);
 	return;
@@ -507,9 +513,10 @@ drop:
 
 	//trigger application level
 	if (ctx->resend_count <= 0) {
-
 		nni_aio_finish_synch(aio, 0, len);
-	}
+	} //else 
+	 // nni_aio_finish(aio,0,len);
+	debug_msg("end of nano_pipe_send_cb ctx : %p", ctx);
 }
 
 static void
@@ -678,7 +685,7 @@ nano_pipe_recv_cb(void *arg)
 	nni_aio_set_msg(aio, msg);
 	//trigger application level
 	nni_aio_finish_synch(aio, 0, nni_msg_len(msg));
-	debug_msg("end of nano_pipe_recv_cb");
+	debug_msg("end of nano_pipe_recv_cb %p", ctx);
 	return;
 
 drop:
