@@ -92,6 +92,7 @@ server_cb(void *arg)
 			debug_msg("RECVIED %d %x\n", work->ctx.id,  nng_msg_cmd_type(msg));
 
 			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
+				work->cparam = nng_msg_get_conn_param(msg);
 				char * clientid = conn_param_get_clentid(work->cparam);
 				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
 				struct client * cli = NULL;

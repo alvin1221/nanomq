@@ -401,30 +401,6 @@ struct client *del_client(struct topic_and_node *input, char *id)
 {
 	log_info("DEL_CLIENT_START");
 	assert(input && id);
-	struct client *client = input->node->sub_client; 
-	struct client *before_client = NULL; 
-	while (client) {
-		// debug("delete id is %s, client id is %s", id, client->id);
-		if (!strcmp(client->id, id)) {
-			log("delete client %s", id);
-			if (before_client) {
-				before_client->next = before_client->next->next;
-				return client;
-			} else {
-				before_client = input->node->sub_client; 
-				if (input->node->sub_client->next) {
-					input->node->sub_client = input->node->sub_client->next;
-				} else {
-					input->node->sub_client = NULL;
-				}
-
-/* 
- ** Delete client. 
- */
-struct client *del_client(struct topic_and_node *input, char *id)
-{
-	log_info("DEL_CLIENT_START");
-	assert(input && id);
 	struct client *client = input->node->sub_client;
 	struct client *before_client = NULL;
 	while (client) {
@@ -632,6 +608,7 @@ void del_all(uint32_t pipe_id, void *ptr)
 			log("del all");
 		}  else {
 			log("no topic can be found");
+		}
 	}
 	return;
 }

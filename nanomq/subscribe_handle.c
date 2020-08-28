@@ -201,7 +201,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 				add_pipe_id(work->pid.id, client->id);
 				struct topic_queue * q = get_topic(client->id);
 				// debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s",
-						client->id, q->next->topic);
+				//		client->id, q->next->topic);
 				add_client(tan, client);
 				// test
 				search_node(work->db, topic_queue, tan);
