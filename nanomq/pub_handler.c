@@ -29,15 +29,16 @@ static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *cont
 static void handle_client_pipe_msgs(struct client *sub_client, void **pipe_content, uint32_t *total, void *pub_pucket)
 {
 
-	nng_msg  *msg;
+	nng_msg *msg;
 	nng_msg_alloc(&msg, 0);
 
-	emq_work *client_work = (emq_work *) sub_client->ctxt;
-	uint32_t current_index = *total;
-	struct pub_packet_struct *pub_pk = (struct pub_packet_struct *) pub_pucket;
+	emq_work                 *client_work  = (emq_work *) sub_client->ctxt;
+	uint32_t                 current_index = *total;
+	struct pub_packet_struct *pub_pk       = (struct pub_packet_struct *) pub_pucket;
 	*pipe_content = (struct pipe_nng_msg *) realloc(*pipe_content,
 	                                                sizeof(struct pipe_nng_msg) * (current_index + 2));
-	debug_msg("realloc for pipe_nng_msg, [%p]", *pipe_content);
+	debug_msg("realloc for pipe_nng_msg: [%p],nmember: [%d], size: [%lu]", *pipe_content, current_index + 2,
+	          sizeof(struct pipe_nng_msg) * (current_index + 2));
 
 	struct pipe_nng_msg **pnm = (struct pipe_nng_msg **) pipe_content;
 
@@ -184,16 +185,19 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 				if (work->pub_packet->fixed_header.retain) {
 					debug_msg("handle retain message");
 					tp_node = nng_alloc(sizeof(struct topic_and_node));
-					struct topic_and_node **temp_tan = NULL;
-
 					search_node(work->db, topic_queue, tp_node);
-					temp_tan = &tp_node;
+
+					struct topic_and_node *temp_tan = tp_node;
+
+					debug_msg("search result, topic_and_node: [%p]", tp_node);
 
 					struct retain_msg *retain = NULL;
 
-					if (tp_node->node != NULL) {
+					if (tp_node->topic == NULL) {
 
 						retain = get_retain_msg(tp_node->node);
+						debug_msg("get retain: [%p]", retain);
+
 						if (retain != NULL) {
 							if (retain->message != NULL) {
 								nng_free(retain->message, sizeof(struct pub_packet_struct));
@@ -202,11 +206,13 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 							nng_free(retain, sizeof(struct retain_msg));
 							retain = NULL;
 						}
-						retain = nng_alloc(sizeof(struct retain_msg));
-
 					} else {
 						add_node(tp_node, NULL);
 					}
+
+					debug_msg("alloc retain ago");
+					retain = nng_alloc(sizeof(struct retain_msg));
+					debug_msg("alloc retain later: [%p]",retain);
 
 					retain->qos = work->pub_packet->fixed_header.qos;
 					if (work->pub_packet->payload_body.payload_len > 0) {
@@ -218,7 +224,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 						retain->message = NULL;
 					}
 
-					set_retain_msg((*temp_tan)->node, retain);
+					set_retain_msg(temp_tan->node, retain);
 
 					if (tp_node != NULL) {
 						nng_free(tp_node, sizeof(struct topic_and_node));
@@ -227,10 +233,12 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 					}
 				}
 
-//				if (total_sub_pipes > 0) {
-//					encode_pub_message(send_msg, work->pub_packet, work);
-//				if(tx_msgs != NULL)	tx_msgs(send_msg, work, pipes);
-//				}
+#if !DISTRIBUTE_DIFF_MSG
+				if (total_sub_pipes > 0) {
+					encode_pub_message(send_msg, work->pub_packet, work);
+					tx_msgs(send_msg, work, pipes);
+				}
+#endif
 
 				if (free_packet) {
 					if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {
