@@ -92,8 +92,8 @@ server_cb(void *arg)
 			debug_msg("RECVIED %d %x\n", work->ctx.id,  nng_msg_cmd_type(msg));
 
 			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
-				work->cparam = nng_msg_get_conn_param(msg);
-				char * clientid = conn_param_get_clentid(work->cparam);
+				work->cparam = (conn_param *)nng_msg_get_conn_param(msg);
+				char * clientid = (char *)conn_param_get_clentid(work->cparam);
 				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
 				struct client * cli = NULL;
 				struct topic_queue * tq = NULL;
@@ -112,7 +112,7 @@ server_cb(void *arg)
 						if(cli){
 							del_node(tan->node);
 							debug_msg("Destroy CTX [%p] clientID: [%s]", cli->ctxt, cli->id);
-							destroy_sub_ctx(cli->ctxt, tq); // only free work->sub_pkt
+							destroy_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
 							nng_free(cli, sizeof(struct client));
 						}
 						if(check_id(clientid)){
@@ -122,7 +122,7 @@ server_cb(void *arg)
 					del_topic_all(clientid);
 					del_pipe_id(pipe.id);
 					nng_free(tan, sizeof(struct topic_and_node));
-					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d",
+					debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
 						clientid, (int)check_id(clientid), pipe.id, (int)check_pipe_id(pipe.id));
 				}
 
@@ -142,7 +142,7 @@ server_cb(void *arg)
 		case WAIT:
 			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^", work->ctx.id);
 			// We could add more data to the message here.
-			work->cparam = nng_msg_get_conn_param(work->msg);
+			work->cparam = (conn_param *)nng_msg_get_conn_param(work->msg);
 			//debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
 			          //conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
@@ -181,10 +181,9 @@ server_cb(void *arg)
 				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
 					(reason = sub_ctx_handle(work)) != SUCCESS ||
 					(reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
-					if(work->sub_pkt){
-						debug_msg("ERROR IN SUB_HANDLE: %d", reason);
-					}
-				}else{
+					debug_msg("ERROR IN SUB_HANDLE: %d", reason);
+					// TODO free sub_pkt
+				} else {
 					// success but check info
 					debug_msg("In sub_pkt: pktid:%d, topicLen: %d, topic: %s", work->sub_pkt->packet_id,
 						work->sub_pkt->node->it->topic_filter.len, work->sub_pkt->node->it->topic_filter.str_body);
@@ -204,21 +203,21 @@ server_cb(void *arg)
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 				work->unsub_pkt = nng_alloc(sizeof(struct packet_unsubscribe));
-				if ((reason = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in decode: %x.", reason);
+				if ((reason = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS ||
+					(reason = unsub_ctx_handle(work)) != SUCCESS ||
+					(reason = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
+					debug_msg("ERROR IN UNSUB_HANDLE: %d", reason);
+					// TODO free unsub_pkt
+				} else {
+					// check info
+					debug_msg("In unsub_pkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
+						work->unsub_pkt->node->it->topic_filter.len);
+					debug_msg("Header Len: %ld, Body Len: %ld.", nng_msg_header_len(smsg), nng_msg_len(smsg));
+					debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
+						*((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
+						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
-				debug_msg("In unsub_pkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
-				          work->unsub_pkt->node->it->topic_filter.len);
-				// Handle the sub_ctx & ops to tree
-				unsub_ctx_handle(work);
 
-				if ((reason = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in encode: %x.", reason);
-				}
-				debug_msg("Header Len: %ld, Body Len: %ld.", nng_msg_header_len(smsg), nng_msg_len(smsg));
-				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
-				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
-				          *((uint8_t *) nng_msg_body(smsg) + 1));
 				work->msg = smsg;
 				// We could add more data to the message here.
 				nng_aio_set_msg(work->aio, work->msg);
