@@ -177,23 +177,30 @@ void sub_ctx_handle(emq_work * work){
 		if(tan->topic){
 			debug_msg("finish SEARCH_NODE; tan->topic: %s", (char *)(*tan->topic));
 		}
-		if(tan->topic){
+		if(tan->topic){ // not contain the node
 			add_node(tan, client);
 			add_topic(client->id, topic_str);
 			add_pipe_id(work->pid.id, client->id);
 			debug_msg("------CHECKHASHTABLE----pipeid:%d---clientid:%s",work->pid.id, get_client_id(work->pid.id));
 			struct topic_queue * q = get_topic(client->id);
-			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d",
-					client->id, q->topic, work->pid.id);
+			debug_msg("^^^^^--------");
+			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d", client->id, q->topic, work->pid.id);
 		}else{
-			// TODO contain but not strcmp
+			// not contain clientid
 			if(tan->node->sub_client==NULL || check_client(tan->node, client->id)){
 				add_topic(client->id, topic_str);
 				add_pipe_id(work->pid.id, client->id);
 				struct topic_queue * q = get_topic(client->id);
-				debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s",
-						client->id, q->next->topic);
+				debug_msg("--------");
+				// debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s", client->id, q->next->topic);
 				add_client(tan, client);
+				// test
+				search_node(work->db, topic_queue, tan);
+				struct client * cli = tan->node->sub_client;
+				while(cli){
+					debug_msg("client: %s", cli->id);
+					cli = cli->next;
+				}
 			}else{
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
@@ -219,7 +226,6 @@ void destroy_sub_ctx(void * ctxt, struct topic_queue * tq){
 		return;
 	}
 	packet_subscribe * sub_pkt = work->sub_pkt;
-	debug_msg("%p-----", sub_pkt);
 	if(!(sub_pkt->node->it)){
 		debug_msg("NOT FIND TOPIC");
 		return;

@@ -103,12 +103,11 @@ server_cb(void *arg)
 					tq = get_topic(clientid);
 					while(tq){
 						if(tq->topic){
-							topics = topic_parse(tq->topic);
-							search_node(work->db, topics, tan);
+							search_node(work->db, topic_parse(tq->topic), tan);
 							if((cli = del_client(tan, clientid)) == NULL){
 								break;
 							}
-							del_pipe_id(work->pid.id);
+							del_pipe_id(pipe.id);
 						}
 						if(cli){
 							del_node(tan->node);
@@ -183,8 +182,8 @@ server_cb(void *arg)
 					debug_msg("ERROR in decode: %x.", reason);
 				}
 				// Handle the sub_ctx & ops to tree
-				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id,
-				          work->sub_pkt->node->it->topic_filter.len);
+				debug_msg("In sub_pkt: pktid:%d, topicLen: %d, topic: %s", work->sub_pkt->packet_id,
+				          work->sub_pkt->node->it->topic_filter.len, work->sub_pkt->node->it->topic_filter.str_body);
 				sub_ctx_handle(work);
 
 				if ((reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
