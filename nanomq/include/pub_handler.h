@@ -9,7 +9,7 @@
 #include <apps/broker.h>
 #include "nng/protocol/mqtt/mqtt.h"
 
-#define DISTRIBUTE_DIFF_MSG 0
+#define DISTRIBUTE_DIFF_MSG 1
 
 typedef uint32_t variable_integer;
 
