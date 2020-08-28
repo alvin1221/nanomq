@@ -404,7 +404,6 @@ nni_aio_finish_impl(
 	aio->a_sleep  = false;
 	nni_mtx_unlock(&nni_aio_lk);
 
-	debug_msg("synch:%d\n", synch);
 	if (synch) {
 		nni_task_exec(&aio->a_task);
 	} else {
@@ -415,7 +414,7 @@ nni_aio_finish_impl(
 void
 nni_aio_finish(nni_aio *aio, int result, size_t count)
 {
-	debug_msg("aio finish : %d\n", count);
+	debug_msg("aio %p finish : %d result %d\n", aio, count, result);
 	nni_aio_finish_impl(aio, result, count, NULL, false);
 }
 

@@ -151,7 +151,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	debug_msg("nanomq start sending with ctx %p", ctx);
+	debug_msg("############### nano_ctx_send with ctx %p ###############", ctx);
 	nni_mtx_lock(&s->lk);
 	//len  = ctx->pp_len;
 	if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
@@ -236,18 +236,20 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	if (need_resend == 0) {
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
-		nni_aio_finish(aio, 0, len);
+		debug_msg("send sucessfully ctx %p", ctx);
+		nni_aio_finish_synch(aio, 0, len);
 		return;
 	} else if (nni_list_first(&p->sendq) == NULL) {
 		ctx->resend_count = need_resend;
 		ctx->pipe_len     = i;
 		ctx->rspipes      = pipes;
-		nni_list_append(&p->sendq, ctx);
+		//nni_list_append(&p->sendq, ctx);
+		goto exit;
 	} else {
 		debug_msg("message dropped!!");
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
-		nni_aio_finish(aio, 0, len);
+		nni_aio_finish_synch(aio, 0, len);
 		return;
 	}
 	nni_mtx_unlock(&s->lk);
@@ -255,7 +257,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 exit:
 	nni_mtx_unlock(&s->lk);
 	nni_aio_set_msg(aio, NULL);
-	nni_aio_finish(aio, 0, nni_msg_len(msg));
+	//nni_aio_finish((aio, 0 ,nni_msg_len(msg)));
+	nni_aio_finish_error(aio, 0);
 	nni_msg_free(msg);
 	return;
 }
@@ -415,7 +418,7 @@ nano_pipe_close(void *arg)
 		ctx->saio = NULL;
 		msg       = nni_aio_get_msg(aio);
 		nni_aio_set_msg(aio, NULL);
-		nni_aio_finish(aio, 0, nni_msg_len(msg));
+		nni_aio_finish_synch(aio, 0, nni_msg_len(msg));
 		nni_msg_free(msg);
 	}
 	if (p->id == s->ctx.pipe_id) {
@@ -588,7 +591,7 @@ nano_ctx_recv(void *arg, nni_aio *aio)
 
 	//nni_msg_header_clear(msg);
 	nni_aio_set_msg(aio, msg);
-	nni_aio_finish(aio, 0, nni_msg_len(msg));
+	nni_aio_finish_synch(aio, 0, nni_msg_len(msg));
 	//nni_mtx_unlock(&s->lk);
 }
 
@@ -609,7 +612,7 @@ nano_pipe_recv_cb(void *arg)
 		nni_pipe_close(p->pipe);
 		return;
 	}
-	debug_msg("nano_pipe_recv_cb !");
+	debug_msg("#########nano_pipe_recv_cb !############");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
 	if (msg == NULL) {
@@ -671,7 +674,6 @@ nano_pipe_recv_cb(void *arg)
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
 	}
-	debug_msg("ctx %p pipe: %p",ctx,p);
 
 	// schedule another receive
 	nni_pipe_recv(p->pipe, &p->aio_recv);
@@ -692,6 +694,7 @@ drop:
 	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
+	debug_msg("drop of nano_pipe_recv_cb %p", ctx);
 }
 
 static int

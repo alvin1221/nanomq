@@ -44,7 +44,7 @@ void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
 	work->msg = NULL;
 
 	nng_aio_set_pipeline(work->aio, pipes);
-	nng_ctx_send(work->ctx, work->aio);
+	//nng_ctx_send(work->ctx, work->aio);
 }
 
 
@@ -81,6 +81,7 @@ server_cb(void *arg)
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("RECV nng aio result error: %d", rv);
+				nng_aio_wait(work->aio);
 				break;
 				fatal("nng_ctx_recv", rv);
 			}
@@ -227,8 +228,15 @@ server_cb(void *arg)
 //				nng_mtx_lock(work->mutex);
 
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
+				if ((rv = nng_aio_result(work->aio)) != 0) {
+					debug_msg("WAIT nng aio result error: %d", rv);
+					nng_aio_wait(work->aio);
+					break;
+				}
 
-				if (work->state != SEND) {
+				if (work->state == SEND) {
+					nng_ctx_send(work->ctx, work->aio);
+				} else {
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
@@ -252,6 +260,7 @@ server_cb(void *arg)
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("nng_ctx_send", rv);
 			}
+			work->msg   = NULL;
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 

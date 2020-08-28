@@ -445,8 +445,7 @@ tcptran_pipe_recv_cb(void *arg)
 		debug_msg("PINGREQ or DISCONNECT(V3.1.1)");
 		//BUG? PINGRESP (PUBACK SUBACK) here
 		if ((p->rxlen[0]&0XFF) == CMD_PINGREQ) {
-			debug_msg("ping");
-		  /**/
+		/*
 			p->txlen[0] = CMD_PINGRESP;
 			p->txlen[1] = 0x00;
 			iov.iov_len = 2;
@@ -455,7 +454,7 @@ tcptran_pipe_recv_cb(void *arg)
 			nni_aio_set_iov(txaio, 1, &iov);
 			nng_stream_send(p->conn, txaio);
 			goto quit;
-		
+		*/
 		} else if ((p->rxlen[0]&0XFF) == CMD_DISCONNECT) {
 			//goto recv_error;
 			//debug_msg("disconnect");

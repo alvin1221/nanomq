@@ -315,7 +315,7 @@ nng_ctx_send(nng_ctx cid, nng_aio *aio)
 		return;
 	}
 	if ((rv = nni_ctx_find(&ctx, cid.id, false)) != 0) {
-		printf("error: canot find context");
+		debug_msg("error: canot find context");
 		if (nni_aio_begin(aio) == 0) {
 			nni_aio_finish_error(aio, rv);
 		}
