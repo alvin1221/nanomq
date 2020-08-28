@@ -84,43 +84,47 @@ server_cb(void *arg)
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
-			if (msg == NULL) {        //BUG
+			if (msg == NULL) {		//BUG
 				debug_msg("RECV NULL msg");
 			}
-			pipe = nng_msg_get_pipe(msg);
-			debug_msg("RECVIED %d %x\n", work->ctx.id, nng_msg_cmd_type(msg));
+			pipe    = nng_msg_get_pipe(msg);
+			debug_msg("RECVIED %d %x\n", work->ctx.id,  nng_msg_cmd_type(msg));
 
-			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
+			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
 				work->cparam = nng_msg_get_conn_param(msg);
-				char                  *clientid = conn_param_get_clentid(work->cparam);
-				struct topic_and_node *tan      = nng_alloc(sizeof(struct topic_and_node));
-				char                  **topics;
-				struct client         *cli      = NULL;
-				struct topic_queue    *tq       = NULL;
+				char * clientid = conn_param_get_clentid(work->cparam);
+				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
+				struct client * cli = NULL;
+				struct topic_queue * tq = NULL;
 
-				debug_msg("########DISCONNECT########clientid: %s", clientid);
-				if (check_id(clientid)) {
-					debug_msg("This client is in hash table.");
+				debug_msg("##########DISCONNECT (clientID:[%s])##########", clientid);
+				if(check_id(clientid)){
 					tq = get_topic(clientid);
-					while (tq) {
-						topics = topic_parse(tq->topic);
-						search_node(work->db, topics, tan);
-						cli = del_client(tan, clientid);
-						del_node(tan->node);
-						debug_msg("--------");
-						debug_msg("!!!!!!!!!!!!!!!!!!!%s, %p", cli->id,
-						          cli->ctxt);
-//						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
-						nng_free(cli, sizeof(struct client));
-						tq = tq->next;
+					while(tq){
+						if(tq->topic){
+							search_node(work->db, topic_parse(tq->topic), tan);
+							if((cli = del_client(tan, clientid)) == NULL){
+								break;
+							}
+							del_pipe_id(pipe.id);
+						}
+						if(cli){
+							del_node(tan->node);
+							debug_msg("Destroy CTX [%p] clientID: [%s]", cli->ctxt, cli->id);
+							destroy_sub_ctx(cli->ctxt, tq); // only free work->sub_pkt
+							nng_free(cli, sizeof(struct client));
+						}
+						if(check_id(clientid)){
+							tq = tq->next;
+						}
 					}
 					del_topic_all(clientid);
 					del_pipe_id(pipe.id);
-					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid),
-					          pipe.id, check_pipe_id(pipe.id));
+					nng_free(tan, sizeof(struct topic_and_node));
+					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d",
+						clientid, (int)check_id(clientid), pipe.id, (int)check_pipe_id(pipe.id));
 				}
 
-				nng_free(tan, sizeof(struct topic_and_node));
 				work->state = RECV;
 				nng_msg_free(msg);
 				nng_aio_abort(work->aio, 31);
@@ -139,7 +143,7 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			//debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
-			//conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
+			          //conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -173,21 +177,22 @@ server_cb(void *arg)
 				work->pid = pipe;
 				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
 				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
-				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in decode: %x.", reason);
+				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
+					(reason = sub_ctx_handle(work)) != SUCCESS ||
+					(reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
+					if(work->sub_pkt){
+						debug_msg("ERROR IN SUB_HANDLE: %d", reason);
+					}
+				}else{
+					// success but check info
+					debug_msg("In sub_pkt: pktid:%d, topicLen: %d, topic: %s", work->sub_pkt->packet_id,
+						work->sub_pkt->node->it->topic_filter.len, work->sub_pkt->node->it->topic_filter.str_body);
+						debug_msg("SUBACK: Header Len: %ld, Body Len: %ld. In Body. TYPE:%x LEN:%x PKTID: %x %x.",
+					nng_msg_header_len(smsg), nng_msg_len(smsg), *((uint8_t *) nng_msg_header(smsg)),
+						*((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
+						*((uint8_t *) nng_msg_body(smsg) + 1));
 				}
-				// Handle the sub_ctx & ops to tree
-				debug_msg("In sub_pkt: pktid:%d, topicLen: %d", work->sub_pkt->packet_id,
-				          work->sub_pkt->node->it->topic_filter.len);
-				sub_ctx_handle(work);
 
-				if ((reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
-					debug_msg("ERROR in encode: %x.", reason);
-				}
-				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
-				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
-				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
-				          *((uint8_t *) nng_msg_body(smsg) + 1));
 				work->msg = smsg;
 				// We could add more data to the message here.
 				nng_aio_set_msg(work->aio, work->msg);
@@ -197,12 +202,11 @@ server_cb(void *arg)
 				//nng_send_aio
 				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
-				debug_msg("handle CMD_UNSUBSCRIBE\n");
 				work->unsub_pkt = nng_alloc(sizeof(struct packet_unsubscribe));
 				if ((reason = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in decode: %x.", reason);
 				}
-				debug_msg("In unsub_pktkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
+				debug_msg("In unsub_pkt: pktid:%d, topicLen: %d", work->unsub_pkt->packet_id,
 				          work->unsub_pkt->node->it->topic_filter.len);
 				// Handle the sub_ctx & ops to tree
 				unsub_ctx_handle(work);
@@ -210,7 +214,7 @@ server_cb(void *arg)
 				if ((reason = encode_unsuback_message(smsg, work->unsub_pkt)) != SUCCESS) {
 					debug_msg("ERROR in encode: %x.", reason);
 				}
-				debug_msg("Header Len: %d, Body Len: %d.", nng_msg_header_len(smsg), nng_msg_len(smsg));
+				debug_msg("Header Len: %ld, Body Len: %ld.", nng_msg_header_len(smsg), nng_msg_len(smsg));
 				debug_msg("In Body. TYPE:%x LEN:%x PKTID: %x %x.", *((uint8_t *) nng_msg_header(smsg)),
 				          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 				          *((uint8_t *) nng_msg_body(smsg) + 1));

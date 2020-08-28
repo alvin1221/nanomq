@@ -51,7 +51,7 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 		}
 	}
 
-	debug_msg("Remain_len: [%d] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
+	debug_msg("Remain_len: [%ld] packet_id : [%d]", remaining_len, unsub_pkt->packet_id);
 
 	// handle payload
 	payload_ptr = nng_msg_payload_ptr(msg);
@@ -76,7 +76,7 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 		}
 
 		debug_msg("Topiclen: [%d]", len_of_topic);
-		debug_msg("Bpos+Vpos: [%d] Remain_len:%d.", bpos+vpos, remaining_len);
+		debug_msg("Bpos+Vpos: [%d] Remain_len:%ld.", bpos+vpos, remaining_len);
 		if(bpos < remaining_len - vpos){
 			topic_node_t = nng_alloc(sizeof(topic_node));
 			topic_node_t->next = NULL;
@@ -161,7 +161,7 @@ void unsub_ctx_handle(emq_work * work){
 				destroy_sub_ctx(cli->ctxt);
 				nng_free(cli, sizeof(struct client));
 				del_topic_one(clientid, topic_str);
-				debug_msg("INHASH: clientid [%s] exist?: %d", clientid, check_id(clientid));
+				debug_msg("INHASH: clientid [%s] exist?: %d", clientid, (int)check_id(clientid));
 			}
 
 			topic_node_t->it->reason_code = 0x00;
