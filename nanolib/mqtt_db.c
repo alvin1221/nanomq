@@ -206,7 +206,7 @@ void insert_db_node(struct db_node *new_node, struct db_node *old_node)
 void add_node(struct topic_and_node *input, struct client *id)
 {
 	log_info("ADD_NODE_START");
-	assert(input && id);
+	assert(input);
 	struct db_node *tmp_node = NULL;
 	struct db_node *new_node = NULL;
 	char **topic_queue = input->topic;
@@ -383,6 +383,7 @@ void del_node(struct db_node *node)
 	return;
 }
 
+
 void set_retain_msg(struct db_node *node, struct retain_msg *retain)
 {
 	node->retain = retain;
@@ -393,6 +394,29 @@ struct retain_msg *get_retain_msg(struct db_node *node)
 	return node->retain;
 }
 
+/* 
+ ** Delete client. 
+ */
+struct client *del_client(struct topic_and_node *input, char *id)
+{
+	log_info("DEL_CLIENT_START");
+	assert(input && id);
+	struct client *client = input->node->sub_client; 
+	struct client *before_client = NULL; 
+	while (client) {
+		// debug("delete id is %s, client id is %s", id, client->id);
+		if (!strcmp(client->id, id)) {
+			log("delete client %s", id);
+			if (before_client) {
+				before_client->next = before_client->next->next;
+				return client;
+			} else {
+				before_client = input->node->sub_client; 
+				if (input->node->sub_client->next) {
+					input->node->sub_client = input->node->sub_client->next;
+				} else {
+					input->node->sub_client = NULL;
+				}
 
 /* 
  ** Delete client. 
@@ -563,6 +587,10 @@ void search_node(struct db_tree *db, char **topic_queue, struct topic_and_node *
 void del_all(uint32_t pipe_id, void *ptr)
 {
 	char *client = get_client_id(pipe_id);
+	if (client == NULL) {
+		log("no client is found");
+		return;
+	}
 	log("--PID %d--CLID %s--", pipe_id, client);
 	struct db_tree *db = ptr;
 
@@ -571,21 +599,18 @@ void del_all(uint32_t pipe_id, void *ptr)
 			struct topic_queue *tq = get_topic(client);
 			while (tq) {
 				char **topic_queue = topic_parse(tq->topic);
-				char ** t = topic_queue;
-				while (*t) {
-					debug("%s", *t);
-					t++;
-				}
 				struct topic_and_node *tan = NULL;
 				tan = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
 				search_node(db, topic_queue, tan);
 				debug("%s", tan->node->topic);
+				del_client(tan, client);
 				// struct client * cli = del_client(tan, client);
 				// TODO free cli
+				// cli = NULL;
 				del_node(tan->node);
 
 				char *tmp = NULL;
-	    		char **tt = topic_queue;
+		 		char **tt = topic_queue;
 
 				while (*topic_queue) {
 					tmp = *topic_queue;
@@ -604,8 +629,9 @@ void del_all(uint32_t pipe_id, void *ptr)
 			}
 			del_topic_all(client);
 			del_pipe_id(pipe_id);
-			printf("del all\n");
-		}
+			log("del all");
+		}  else {
+			log("no topic can be found");
 	}
 	return;
 }
@@ -627,8 +653,7 @@ struct client **iterate_client(struct clients *sub_clients, int *cols)
 		struct client *sub_client = sub_clients->sub_client;
 		while (sub_client) {
 			bool equal = false;
-			client_queue = (struct client**)zrealloc(client_queue,
-					(*cols)*sizeof(struct client*));
+			client_queue = (struct client**)zrealloc(client_queue, (*cols)*sizeof(struct client*)); 
 
 			for (int i = 0; i < (*cols)-1; i++) {
 				if (!strcmp(sub_client->id, client_queue[i]->id)) {
@@ -673,7 +698,7 @@ struct db_node *find_next(struct db_node *node, bool *equal, char **topic_queue)
 
 	while (t->next) {
 		t = t->next;
-		debug("t->topic %s, topic_queue %s", t->topic,
+		log("t->topic %s, topic_queue %s", t->topic,
 							*(topic_queue));
 		if (!strcmp(t->topic, *(topic_queue))) {
 			*equal = true;
@@ -707,6 +732,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 		if (strcmp(node->topic, *topic_queue)) {
 			log("node->topic %s, topic_queue %s", node->topic, *topic_queue);
 
+			bool plus = false;
 			if (!strcmp(node->topic, "+")) {
 				if (*(topic_queue+1) == NULL) {
 					if (node->sub_client) {
@@ -717,7 +743,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				} else {
 					plus = true;
 					if (node->hashtag) {
-						log("!!!!!!!!!!!!!!!!!!!!!!!!!Find the sign of #. Add it if sub_client of # is not NULL!");
+						log("Find the sign of #. Add it if sub_client is exist");
 						if (node->next->sub_client) {
 							tmp->down = new_clients(node->next->sub_client);
 							tmp = tmp->down;
@@ -733,10 +759,14 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				log("searching unqual");
 				return res;
 			}
+
+			if (equal == false && plus == true) {
+				node = node->up->down;
+			}
 		}
 
 		if (node->hashtag) {
-			log("Find the sign of #. Add it if sub_client of # is not NULL!");
+			log("Find the sign of #. Add it if sub_client of # is exist!");
 			if (node->next->sub_client) {
 				tmp->down = new_clients(node->next->sub_client);
 				tmp = tmp->down;
@@ -744,7 +774,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 		}
 
 		if (*(topic_queue+1) == NULL) {
-			log("Current node is the last one if topic_queue+1 is NULL. Add it if sub_client of it is not NULL!");
+			log("Current node is the last one. Add it if sub_client is exist!");
 			tmp->down = new_clients(node->sub_client);
 			tmp = tmp->down;
 			return res;
@@ -756,7 +786,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 			if (*(topic_queue+2) == NULL) {
 				debug("When plus is the last one");
 				if (node->down->hashtag) {
-					log("Find the sign of #. Add it if sub_client of # is not NULL!");
+					log("Find the sign of #. Add it if sub_client of # is exist!");
 					if (node->down->next->sub_client) {
 						tmp->down = new_clients(node->down->next->sub_client);
 						tmp = tmp->down;
@@ -769,7 +799,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				}
 
 				bool equal = false;
-				struct db_node  *t = find_next(node->down->next, &equal,
+				struct db_node  *t = find_next(node->down, &equal,
 						++topic_queue);
 
 				if (equal == false) {
@@ -778,7 +808,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				}
 
 				if (t->hashtag) {
-					log("Find the sign of #. Add it if sub_client of # is not NULL!");
+					log("Find the sign of #. Add it if sub_client of # is exist!");
 					if (t->next->sub_client) {
 						tmp->down = new_clients(t->next->sub_client);
 						tmp = tmp->down;
@@ -796,7 +826,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				log("topic is longer than tree, check hashtag");
 
 				if (node->down->hashtag) {
-					log("Find the sign of #. Add it if sub_client of # is not NULL!");
+					log("Find the sign of #. Add it if sub_client of # is exist!");
 					if (node->down->next->sub_client) {
 						tmp->down = new_clients(node->down->next->sub_client);
 						tmp = tmp->down;
@@ -813,7 +843,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				}
 
 				if (t->hashtag) {
-					log("Find the sign of #. Add it if sub_client of # is not NULL!");
+					log("Find the sign of #. Add it if sub_client of # is exist!");
 					if (t->next->sub_client) {
 						tmp->down = new_clients(t->next->sub_client);
 						tmp = tmp->down;
@@ -821,14 +851,14 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 				}
 
 				if (t != node->down) {
-					debug("t->topic, %s, topic_queue ,%s", t->topic,
+					log("t->topic, %s, topic_queue ,%s", t->topic,
 							*(topic_queue));
 					tmp->down = search_client(t, topic_queue);
 				}
 				return res;
 
 			} else if (node->down->down && *(topic_queue+2)) {
-				debug("continue");
+				log("continue");
 				char ** tmp_topic = topic_queue;
 				tmp->down = search_client(node->down, topic_queue+1);
 				while (tmp->down) {
@@ -841,7 +871,7 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 		} else {
 			log("Find node no sign of + & #");
 			if (node->down && *(topic_queue+1)) {
-				debug("continue");
+				log("continue");
 				topic_queue++;
 				node = node->down;
 

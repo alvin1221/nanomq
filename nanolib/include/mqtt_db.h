@@ -39,6 +39,7 @@ struct db_node {
 /* 
 ** for print_db_tree 
 */
+
 struct db_nodes {
 	struct db_node		*node;
 	struct db_nodes		*next;
@@ -95,13 +96,9 @@ char **topic_parse(char *topic);
 struct db_node *find_next(struct db_node *node, bool *equal, char
 		**topic_queue);
 
-bool check_retain(struct db_node *node);
+void set_retain_msg(struct db_node *node, struct retain_msg *retain);
 
-void set_retain(struct db_node *node, bool retain);
-
-void set_message(struct db_node *node, void *message);
-
-void *get_message(struct db_node *node);
+struct retain_msg *get_retain_msg(struct db_node *node);
 
 struct clients *search_client(struct db_node *root, char **topic_queue);
 

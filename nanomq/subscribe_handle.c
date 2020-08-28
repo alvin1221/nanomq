@@ -192,14 +192,16 @@ uint8_t sub_ctx_handle(emq_work * work){
 			add_topic(client->id, topic_str);
 			add_pipe_id(work->pid.id, client->id);
 			struct topic_queue * q = get_topic(client->id);
-			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d", client->id, q->topic, work->pid.id);
+			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d",
+					client->id, q->topic, work->pid.id);
 		}else{
 			// not contain clientid
 			if(tan->node->sub_client==NULL || check_client(tan->node, client->id)){
 				add_topic(client->id, topic_str);
 				add_pipe_id(work->pid.id, client->id);
 				struct topic_queue * q = get_topic(client->id);
-				// debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s", client->id, q->next->topic);
+				// debug_msg("------CHECKHASHTABLE----clientid:%s---next-topic:%s",
+						client->id, q->next->topic);
 				add_client(tan, client);
 				// test
 				search_node(work->db, topic_queue, tan);
@@ -218,7 +220,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 	}
 
 	// check treeDB
-	print_db_tree(work->db);
+//	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
 	return SUCCESS;
 }
