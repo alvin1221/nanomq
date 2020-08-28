@@ -1,6 +1,5 @@
 #include <nng.h>
-#include <mqtt_db.h>
-#include <hash.h>
+#include <nanolib.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
@@ -120,6 +119,7 @@ uint8_t encode_suback_message(nng_msg * msg, packet_subscribe * sub_pkt){
 		debug_msg("NNG_MSG_APPEND_ERROR");
 		return PROTOCOL_ERROR;
 	}
+
 	if(version_v5){ // add property in variable
 	}
 
@@ -174,7 +174,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 		struct client * client = nng_alloc(sizeof(struct client));
 
 		//setting client
-		client->id = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
+		client->id = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
 		client->ctxt = work;
 		client->next = NULL;
 
@@ -192,7 +192,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 			add_topic(client->id, topic_str);
 			add_pipe_id(work->pid.id, client->id);
 			struct topic_queue * q = get_topic(client->id);
-			debug_msg("------CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d",
+			debug_msg("-----CHECKHASHTABLE----clientid:%s---topic:%s---pipeid:%d",
 					client->id, q->topic, work->pid.id);
 		}else{
 			// not contain clientid
@@ -220,12 +220,12 @@ uint8_t sub_ctx_handle(emq_work * work){
 	}
 
 	// check treeDB
-//	print_db_tree(work->db);
+	print_db_tree(work->db);
 	debug_msg("End of sub ctx handle. \n");
 	return SUCCESS;
 }
 
-void destroy_sub_ctx(void * ctxt, struct topic_queue * tq){
+void destroy_sub_ctx(void * ctxt, char * target_topic){
 	emq_work * work = ctxt;
 	if(!work){
 		return;
@@ -242,7 +242,7 @@ void destroy_sub_ctx(void * ctxt, struct topic_queue * tq){
 	topic_node * topic_node_t = sub_pkt->node;
 	topic_node * before_topic_node = NULL;
 	while(topic_node_t){
-		if(!strncmp(topic_node_t->it->topic_filter.str_body, tq->topic,
+		if(!strncmp(topic_node_t->it->topic_filter.str_body, target_topic,
 					topic_node_t->it->topic_filter.len)){
 			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
 			if(before_topic_node){
@@ -257,6 +257,7 @@ void destroy_sub_ctx(void * ctxt, struct topic_queue * tq){
         before_topic_node = topic_node_t;
 		topic_node_t = topic_node_t->next;
 	}
+
 	if(sub_pkt->node == NULL){
 		nng_free(sub_pkt, sizeof(packet_subscribe));
 		work->sub_pkt = NULL;

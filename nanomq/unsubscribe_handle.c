@@ -1,8 +1,9 @@
 #include <nng.h>
-#include <mqtt_db.h>
+#include <nanolib.h>
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
+#include "include/subscribe_handle.h"
 #include "include/unsubscribe_handle.h"
 
 uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
@@ -73,6 +74,7 @@ uint8_t decode_unsub_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 			topic_option->topic_filter.len = len_of_topic;
 		}else {
 			debug_msg("NOT utf-8 format string.");
+			return PROTOCOL_ERROR;
 		}
 
 		debug_msg("Topiclen: [%d]", len_of_topic);
@@ -101,7 +103,11 @@ uint8_t encode_unsuback_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 
 	// handle variable header first
 	NNI_PUT16(packet_id, unsub_pkt->packet_id);
-	nng_msg_append(msg, packet_id, 2);
+	if(nng_msg_append(msg, packet_id, 2) != 0){
+		debug_msg("NNG_MSG_APPEND_ERROR");
+		return PROTOCOL_ERROR;
+	}
+
 	if(version_v5){ // add property in variable
 	}
 
@@ -119,18 +125,24 @@ uint8_t encode_unsuback_message(nng_msg * msg, packet_unsubscribe * unsub_pkt){
 
 	// handle fixed header
 	cmd = CMD_UNSUBACK;
-	nng_msg_header_append(msg, (uint8_t *) &cmd, 1);
+	if(nng_msg_header_append(msg, (uint8_t *) &cmd, 1) != 0){
+		debug_msg("NNG_HEADER_APPEND_ERROR");
+		return PROTOCOL_ERROR;
+	}
 
 	remaining_len = (uint32_t)nng_msg_len(msg);
 	len_of_varint = put_var_integer(varint, remaining_len);
-	nng_msg_header_append(msg, varint, len_of_varint);
+	if(nng_msg_header_append(msg, varint, len_of_varint) != 0){
+		debug_msg("NNG_MSG_APPEND_ERROR");
+		return PROTOCOL_ERROR;
+	}
 
 	debug_msg("remain: [%d] varint: [%d %d %d %d] len: [%d] packet_id: [%x %x]", remaining_len, varint[0], varint[1], varint[2], varint[3], len_of_varint, packet_id[0], packet_id[1]);
 
 	return SUCCESS;
 }
 
-void unsub_ctx_handle(emq_work * work){
+uint8_t unsub_ctx_handle(emq_work * work){
 	bool version_v5 = false;
 
 	topic_node * topic_node_t = work->unsub_pkt->node;
@@ -138,10 +150,10 @@ void unsub_ctx_handle(emq_work * work){
 	char * clientid;
 	struct client * cli = NULL;
 
-	// delete ctx_unsub into treeDB
+	// delete ctx_unsub in treeDB
 	while(topic_node_t){
 		struct topic_and_node *tan = nng_alloc(sizeof(struct topic_and_node));
-		clientid = conn_param_get_clentid(nng_msg_get_conn_param(work->msg));
+		clientid = (char *)conn_param_get_clentid((conn_param *)nng_msg_get_conn_param(work->msg));
 
 		// parse topic string
 		topic_str = (char *)nng_alloc(topic_node_t->it->topic_filter.len + 1);
@@ -155,35 +167,33 @@ void unsub_ctx_handle(emq_work * work){
 
 		if(tan->topic == NULL){ // find the topic
 			cli = del_client(tan, clientid);
-			del_node(tan->node);
 			if(cli != NULL){
 				// FREE clientinfo in dbtree and hashtable
-				destroy_sub_ctx(cli->ctxt);
-				nng_free(cli, sizeof(struct client));
+				destroy_sub_ctx(cli->ctxt, topic_str);
 				del_topic_one(clientid, topic_str);
-				debug_msg("INHASH: clientid [%s] exist?: %d", clientid, (int)check_id(clientid));
+				nng_free(cli, sizeof(struct client));
+				debug_msg("INHASH: clientid [%s] exist?: [%d]", clientid, (int)check_id(clientid));
 			}
+			del_node(tan->node);
 
 			topic_node_t->it->reason_code = 0x00;
+			debug_msg("find and delete this client.");
 		}else{ // not find the topic
 			topic_node_t->it->reason_code = 0x11;
+			debug_msg("not find and response ack.");
 		}
 
 		// free local varibale
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		nng_free(tan, sizeof(struct topic_and_node));
 
-		// free in treedb
-		// TODO free client, current free be included in delete_node()
-		// nng_free();
-
 		topic_node_t = topic_node_t->next;
-		debug_msg("finish delete client.");
 	}
 
 	// check treeDB
 //	print_db_tree(work->db);
 
 	debug_msg("End of unsub ctx handle.\n");
+	return SUCCESS;
 }
 
