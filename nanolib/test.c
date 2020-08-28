@@ -144,9 +144,9 @@ static void Test_add_node(void)
 static void Test_del_node(void)
 {
 	puts(">>>>>>>>>> TEST_DEL_NODE <<<<<<<<");
-	char *data = "lee/hom/jian";
-	char *data1 = "#";
-	char *data2 = "lee/#";
+	char *data = "lee/hom/jian/ll";
+	char *data1 = "+/#";
+	char *data2 = "+/+/+/+";
 	struct topic_and_node *res = NULL;
 	char **topic_queue = topic_parse(data);
 	res = (struct topic_and_node*)zmalloc(sizeof(struct topic_and_node));
