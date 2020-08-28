@@ -28,23 +28,26 @@ static uint32_t append_bytes_with_type(nng_msg *msg, uint8_t type, uint8_t *cont
 
 static void handle_client_pipe_msgs(struct client *sub_client, void **pipe_content, uint32_t *total, void *pub_pucket)
 {
-	uint32_t current_index = *total;
+
+	nng_msg  *msg;
+	nng_msg_alloc(&msg, 0);
 
 	emq_work *client_work = (emq_work *) sub_client->ctxt;
-
-
+	uint32_t current_index = *total;
 	struct pub_packet_struct *pub_pk = (struct pub_packet_struct *) pub_pucket;
-	*pipe_content = (struct pipe_nng_msg *) realloc((struct pipe_nng_msg *) *pipe_content,
+	*pipe_content = (struct pipe_nng_msg *) realloc(*pipe_content,
 	                                                sizeof(struct pipe_nng_msg) * (current_index + 2));
+	debug_msg("realloc for pipe_nng_msg, [%p]", *pipe_content);
 
 	struct pipe_nng_msg **pnm = (struct pipe_nng_msg **) pipe_content;
 
 	uint8_t temp_qos = pub_pk->fixed_header.qos;
 	pub_pk->fixed_header.qos = pub_pk->fixed_header.qos < client_work->sub_pkt->node->it->qos ?
 	                           pub_pk->fixed_header.qos : client_work->sub_pkt->node->it->qos;
-
-	nng_msg *msg = NULL;
+	debug_msg("set qos: [%d]", pub_pk->fixed_header.qos);
 	encode_pub_message(msg, pub_pk, client_work);
+
+	debug_msg("put pipe content into pipe_nng_msg");
 
 	(*pnm)[current_index].index = current_index;
 	(*pnm)[current_index].pipe  = client_work->pid.id;
@@ -56,8 +59,10 @@ static void handle_client_pipe_msgs(struct client *sub_client, void **pipe_conte
 	(*pnm)[current_index + 1].qos   = 0;
 	(*pnm)[current_index + 1].msg   = NULL;
 
-	*total = current_index + 1;
 	pub_pk->fixed_header.qos = temp_qos;
+
+	*total = current_index + 1;
+
 }
 
 static void handle_client_pipes(struct client *sub_client, void **pipe_content, uint32_t *total, void *packet)
@@ -222,10 +227,10 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 					}
 				}
 
-				if (total_sub_pipes > 0) {
-					encode_pub_message(send_msg, work->pub_packet, work);
-					tx_msgs(send_msg, work, pipes);
-				}
+//				if (total_sub_pipes > 0) {
+//					encode_pub_message(send_msg, work->pub_packet, work);
+//				if(tx_msgs != NULL)	tx_msgs(send_msg, work, pipes);
+//				}
 
 				if (free_packet) {
 					if (work->pub_packet->variable_header.publish.topic_name.str_body != NULL) {

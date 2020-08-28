@@ -66,11 +66,8 @@ server_cb(void *arg)
 	uint32_t            *pipes     = NULL;
 	struct pipe_nng_msg *pipe_msgs = NULL;
 
-	volatile uint32_t total_pipes = 0;
-//	struct topic_and_node *tp_node    = NULL;
-	reason_code       reason;
-	uint8_t           buf[2];
-
+	reason_code reason;
+	uint8_t     buf[2];
 
 	switch (work->state) {
 		case INIT:
@@ -87,11 +84,11 @@ server_cb(void *arg)
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
-			if (msg == NULL) {		//BUG
+			if (msg == NULL) {        //BUG
 				debug_msg("RECV NULL msg");
 			}
-			pipe    = nng_msg_get_pipe(msg);
-			debug_msg("RECVIED %d %x\n", work->ctx.id,  nng_msg_cmd_type(msg));
+			pipe = nng_msg_get_pipe(msg);
+			debug_msg("RECVIED %d %x\n", work->ctx.id, nng_msg_cmd_type(msg));
 
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = nng_msg_get_conn_param(msg);
@@ -142,7 +139,7 @@ server_cb(void *arg)
 			// We could add more data to the message here.
 			work->cparam = nng_msg_get_conn_param(work->msg);
 			//debug_msg("WAIT   %x %s %d pipe: %d\n", nng_msg_cmd_type(work->msg),
-			          //conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
+			//conn_param_get_clentid(work->cparam), work->ctx.id, work->pid.id);
 /*
         if ((rv = nng_msg_append_u32(msg, msec)) != 0) {
                 fatal("nng_msg_append_u32", rv);
@@ -233,15 +230,18 @@ server_cb(void *arg)
 //				nng_mtx_lock(work->mutex);
 
 #if DISTRIBUTE_DIFF_MSG
-				handle_pub(work, smsg, pipe_msgs, transmit_msgs_cb);
+				handle_pub(work, smsg, pipe_msgs, NULL);
+				work->msg   = NULL;
+				work->state = SEND;
 #else
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
-#endif
-				if (work->state != SEND) {
+								if (work->state != SEND) {
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
+#endif
+
 
 //				nng_mtx_unlock(work->mutex);
 
@@ -261,11 +261,18 @@ server_cb(void *arg)
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("nng_ctx_send", rv);
 			}
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
 
 #if DISTRIBUTE_DIFF_MSG
 			if (pipe_msgs != NULL) {
+				for (int i = 0; pipe_msgs[i].pipe != 0; ++i) {
+					work->msg = pipe_msgs[i].msg;
+					nng_aio_set_msg(work->aio, work->msg);
+					work->msg = NULL;
+
+					nng_aio_set_pipeline(work->aio, pipe_msgs[i].pipe); //FIXME pipes argument type
+					nng_ctx_send(work->ctx, work->aio);
+				}
+
 				free(pipe_msgs);
 				pipe_msgs = NULL;
 			}
@@ -275,6 +282,9 @@ server_cb(void *arg)
 				pipes = NULL;
 			}
 #endif
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+
 			break;
 		default:
 			fatal("bad state!", NNG_ESTATE);
