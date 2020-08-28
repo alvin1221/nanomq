@@ -297,6 +297,8 @@ void add_node(struct topic_and_node *input, struct client *id)
 		}
 	}
 
+	input->node = new_node;
+
 	if (id) {
 		new_node->sub_client = id;
 	}

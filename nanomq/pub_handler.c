@@ -187,7 +187,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 					tp_node = nng_alloc(sizeof(struct topic_and_node));
 					search_node(work->db, topic_queue, tp_node);
 
-					struct topic_and_node *temp_tan = tp_node;
+//					struct topic_and_node *temp_tan = tp_node;
 
 					debug_msg("search result, topic_and_node: [%p]", tp_node);
 
@@ -212,7 +212,7 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 
 					debug_msg("alloc retain ago");
 					retain = nng_alloc(sizeof(struct retain_msg));
-					debug_msg("alloc retain later: [%p]",retain);
+					debug_msg("alloc retain later: [%p]", retain);
 
 					retain->qos = work->pub_packet->fixed_header.qos;
 					if (work->pub_packet->payload_body.payload_len > 0) {
@@ -224,7 +224,8 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 						retain->message = NULL;
 					}
 
-					set_retain_msg(temp_tan->node, retain);
+//					search_node(work->db, topic_queue, tp_node); //FIXME should remove later
+					set_retain_msg(tp_node->node, retain);
 
 					if (tp_node != NULL) {
 						nng_free(tp_node, sizeof(struct topic_and_node));
