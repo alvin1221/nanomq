@@ -58,6 +58,13 @@ struct db_tree{
 	// TODO
 };
 
+struct pipe_nng_msg {
+	uint32_t pipe;
+	uint32_t index;
+	uint8_t  qos;
+	void     *msg; //nng_msg
+};
+
 /* Create a db_tree */
 void create_db_tree(struct db_tree **db);
 

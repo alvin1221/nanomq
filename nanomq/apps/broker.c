@@ -55,19 +55,21 @@ void transmit_msgs_cb(nng_msg *send_msg, emq_work *work, uint32_t *pipes)
 void
 server_cb(void *arg)
 {
-	struct work *work = arg;
-	nng_ctx     ctx2;
-	nng_msg     *msg;
-	nng_msg     *smsg;
-	nng_pipe    pipe;
-	int         rv;
-	uint32_t    when;
+	emq_work *work = arg;
+	nng_ctx  ctx2;
+	nng_msg  *msg;
+	nng_msg  *smsg;
+	nng_pipe pipe;
+	int      rv;
+	uint32_t when;
 
-	uint32_t          *pipes      = NULL;
+	uint32_t            *pipes     = NULL;
+	struct pipe_nng_msg *pipe_msgs = NULL;
+
 	volatile uint32_t total_pipes = 0;
 //	struct topic_and_node *tp_node    = NULL;
 	reason_code       reason;
-	uint8_t buf[2];
+	uint8_t           buf[2];
 
 
 	switch (work->state) {
@@ -87,33 +89,34 @@ server_cb(void *arg)
 			msg     = nng_aio_get_msg(work->aio);
 			pipe    = nng_msg_get_pipe(msg);
 
-			if(nng_msg_cmd_type(msg) == CMD_DISCONNECT){
+			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = nng_msg_get_conn_param(msg);
-				char * clientid = conn_param_get_clentid(work->cparam);
-				struct topic_and_node * tan = nng_alloc(sizeof(struct topic_and_node));
-				char ** topics;
-				struct client * cli = NULL;
-				struct topic_queue * tq = NULL;
+				char                  *clientid = conn_param_get_clentid(work->cparam);
+				struct topic_and_node *tan      = nng_alloc(sizeof(struct topic_and_node));
+				char                  **topics;
+				struct client         *cli      = NULL;
+				struct topic_queue    *tq       = NULL;
 
 				debug_msg("########DISCONNECT########clientid: %s", clientid);
-				if(check_id(clientid)){
+				if (check_id(clientid)) {
 					debug_msg("This client is in hash table.");
 					tq = get_topic(clientid);
-					while(tq){
+					while (tq) {
 						topics = topic_parse(tq->topic);
 						search_node(work->db, topics, tan);
 						cli = del_client(tan, clientid);
 						del_node(tan->node);
 						debug_msg("--------");
 						debug_msg("!!!!!!!!!!!!!!!!!!!%s, %p", cli->id,
-								cli->ctxt);
+						          cli->ctxt);
 //						destroy_sub_ctx(cli->ctxt); // only free work->sub_pkt
 						nng_free(cli, sizeof(struct client));
 						tq = tq->next;
 					}
 					del_topic_all(clientid);
 					del_pipe_id(pipe.id);
-					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid), pipe.id, check_pipe_id(pipe.id));
+					debug_msg("INHASH: clientid [%s] exist?: %d; pipeid [%d] exist?: %d", clientid, check_id(clientid),
+					          pipe.id, check_pipe_id(pipe.id));
 				}
 
 				nng_free(tan, sizeof(struct topic_and_node));
@@ -225,8 +228,11 @@ server_cb(void *arg)
 
 //				nng_mtx_lock(work->mutex);
 
+#if DISTRIBUTE_DIFF_MSG
+				handle_pub(work, smsg, pipe_msgs, transmit_msgs_cb);
+#else
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
-
+#endif
 				if (work->state != SEND) {
 					work->msg   = NULL;
 					work->state = RECV;
@@ -253,10 +259,17 @@ server_cb(void *arg)
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
 
+#if DISTRIBUTE_DIFF_MSG
+			if (pipe_msgs != NULL) {
+				free(pipe_msgs);
+				pipe_msgs = NULL;
+			}
+#else
 			if (pipes != NULL) {
 				free(pipes);
 				pipes = NULL;
 			}
+#endif
 			break;
 		default:
 			fatal("bad state!", NNG_ESTATE);

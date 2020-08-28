@@ -9,6 +9,8 @@
 #include <apps/broker.h>
 #include "nng/protocol/mqtt/mqtt.h"
 
+#define DISTRIBUTE_DIFF_MSG 0
+
 typedef uint32_t variable_integer;
 
 struct variable_string {
@@ -103,20 +105,12 @@ struct pub_packet_struct {
 
 };
 
-struct pipe_nng_msg {
-	uint32_t pipe;
-	uint32_t index;
-	nng_msg  *msg;
-
-	struct pipe_nng_msg *next;
-};
-
 typedef void (*transmit_msgs)(nng_msg *, emq_work *, uint32_t *);
-typedef void (*handle_client)(struct client *sub_client, void **pipes, uint32_t *total);
+typedef void (*handle_client)(struct client *sub_client, void **pipes, uint32_t *total, void *packet);
 
-void handle_pub(emq_work *work, nng_msg *send_msg, uint32_t *sub_pipes, transmit_msgs tx_msgs);
+void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx_msgs);
 bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work);
 reason_code decode_pub_message(emq_work *work);
-void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, handle_client handle_cb);
+void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, void *packet, handle_client handle_cb);
 
 #endif //NNG_PUB_HANDLER_H

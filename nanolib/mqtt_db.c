@@ -151,6 +151,7 @@ struct db_node *new_db_node(char *topic)
 	node->plus = false;
 	node->next = NULL;
 	node->down = NULL;
+	node->up = NULL;
 	node->sub_client = NULL;
 	return node;
 }
