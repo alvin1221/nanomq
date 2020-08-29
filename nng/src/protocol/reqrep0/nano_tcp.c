@@ -156,10 +156,9 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_mtx_lock(&s->lk);
 	//len  = ctx->pp_len;
 	//if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
-	if ((pipe = nni_aio_get_pipeline(aio)) != NULL){
-		nni_aio_set_pipeline(aio, NULL);
-	}
-	else {
+	if ((pipe = nni_aio_get_pipeline(aio)) != 0){
+		nni_aio_set_pipeline(aio, 0);
+	} else {
 		//p_id[0] = ctx->pipe_id;
 		//p_id[1] = 0;
 		//pipes = &p_id;
@@ -499,6 +498,7 @@ nano_pipe_send_cb(void *arg)
 	nni_list_remove(&p->sendq, ctx);
 	aio        = ctx->saio;
 	ctx->saio  = NULL;
+	p          = ctx->spipe;  //should be as same as orignal p?
 	ctx->spipe = NULL;
 	p->busy    = true;
 	msg        = ctx->rmsg;

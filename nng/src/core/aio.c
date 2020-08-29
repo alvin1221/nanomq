@@ -725,7 +725,6 @@ nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *sa)
 void
 nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
 {
-  //printf("caocao?? %p %ld\n", id, *id);
 	aio->pipe = id;
 }
 
