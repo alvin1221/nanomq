@@ -71,7 +71,8 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 	nni_task_init(&aio->a_task, NULL, cb, arg);			//create async thread??
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
-	aio->pipes = NULL;
+	aio->pipe = 0;
+	//aio->pipes = NULL;
 }
 
 void
@@ -722,16 +723,16 @@ nni_aio_get_sockaddr(nni_aio *aio, nng_sockaddr *sa)
 }
 
 void
-nni_aio_set_pipeline(nni_aio *aio, uint32_t *id)
+nni_aio_set_pipeline(nni_aio *aio, uint32_t id)
 {
   //printf("caocao?? %p %ld\n", id, *id);
-	aio->pipes = id;
+	aio->pipe = id;
 }
 
-uint32_t *
+uint32_t
 nni_aio_get_pipeline(nni_aio *aio)
 {
-	return aio->pipes;
+	return aio->pipe;
 }
 
 void nni_aio_set_dbtree(nni_aio *aio, void *db)
