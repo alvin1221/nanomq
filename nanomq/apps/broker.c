@@ -81,8 +81,8 @@ server_cb(void *arg)
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("RECV nng aio result error: %d", rv);
-				nng_aio_wait(work->aio);
-				break;
+				//nng_aio_wait(work->aio);
+				//break;
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
@@ -230,8 +230,8 @@ server_cb(void *arg)
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
-					nng_aio_wait(work->aio);
-					break;
+					//nng_aio_wait(work->aio);
+					//break;
 				}
 
 				if (work->state == SEND) {
