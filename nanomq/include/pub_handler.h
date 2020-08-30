@@ -115,7 +115,7 @@ struct pipe_nng_msg {
 typedef void (*transmit_msgs)(nng_msg *, emq_work *, uint32_t *);
 typedef void (*handle_client)(struct client *sub_client, void **pipes, uint32_t *total, void *packet);
 
-void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx_msgs);
+void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs tx_msgs);
 bool encode_pub_message(nng_msg *dest_msg, struct pub_packet_struct *dest_pub_packet, const emq_work *work);
 reason_code decode_pub_message(emq_work *work);
 void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *totals, void *packet,

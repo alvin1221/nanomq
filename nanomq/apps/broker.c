@@ -63,8 +63,8 @@ server_cb(void *arg)
 	int      rv;
 	uint32_t when;
 
-	uint32_t            *pipes     = NULL;
-	struct pipe_nng_msg *pipe_msgs = NULL;
+	uint32_t *pipes = NULL;
+//	struct pipe_nng_msg *pipe_msgs = NULL;
 
 	reason_code reason;
 	uint8_t     buf[2];
@@ -232,18 +232,27 @@ server_cb(void *arg)
 			           nng_msg_cmd_type(work->msg) == CMD_PUBREL ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBCOMP) {
 
-//				nng_mtx_lock(work->mutex);
+				nng_mtx_lock(work->mutex);
 
 #if DISTRIBUTE_DIFF_MSG
-				handle_pub(work, smsg, pipe_msgs, NULL);
+				handle_pub(work, smsg, (void **) &work->pipe_msgs, NULL);
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
 					//nng_aio_wait(work->aio);
 					//break;
 				}
 
-				work->msg   = NULL;
-				work->state = SEND;
+				if (work->pipe_msgs != NULL) {
+					debug_msg("set pipeline[%d]: [%d]", work->pipe_msgs[0].index, work->pipe_msgs[0].pipe);
+
+					work->msg = work->pipe_msgs[0].msg;
+					nng_aio_set_msg(work->aio, work->msg);
+					work->msg   = NULL;
+					work->state = SEND;
+
+					nng_aio_set_pipeline(work->aio, work->pipe_msgs[0].pipe);
+					nng_ctx_send(work->ctx, work->aio);
+				}
 #else
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
 
@@ -253,9 +262,7 @@ server_cb(void *arg)
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
-
-
-//				nng_mtx_unlock(work->mutex);
+				nng_mtx_unlock(work->mutex);
 
 			} else {
 				debug_msg("broker has nothing to do");
@@ -275,18 +282,23 @@ server_cb(void *arg)
 			}
 
 #if DISTRIBUTE_DIFF_MSG
-			if (pipe_msgs != NULL) {
-				for (int i = 0; pipe_msgs[i].pipe != 0; ++i) {
-					work->msg = pipe_msgs[i].msg;
+			if (work->pipe_msgs != NULL) {
+				for (int i = 1; work->pipe_msgs[i].pipe != 0; ++i) {
+					debug_msg("set pipeline[%d]: [%d]", work->pipe_msgs[i].index, work->pipe_msgs[i].pipe);
+					work->msg = work->pipe_msgs[i].msg;
 					nng_aio_set_msg(work->aio, work->msg);
-					work->msg = NULL;
+					work->msg   = NULL;
+					work->state = SEND;
 
-					nng_aio_set_pipeline(work->aio, pipe_msgs[i].pipe); //FIXME pipes argument type
+					nng_aio_set_pipeline(work->aio, work->pipe_msgs[i].pipe);
 					nng_ctx_send(work->ctx, work->aio);
 				}
-
-				free(pipe_msgs);
-				pipe_msgs = NULL;
+				free(work->pipe_msgs);
+				work->pipe_msgs = NULL;
+			} else {
+				work->msg   = NULL;
+				work->state = RECV;
+				nng_ctx_recv(work->ctx, work->aio);
 			}
 #else
 			if (pipes != NULL) {
@@ -294,9 +306,7 @@ server_cb(void *arg)
 				pipes = NULL;
 			}
 #endif
-			work->msg = NULL;
-			work->state = RECV;
-			nng_ctx_recv(work->ctx, work->aio);
+
 			break;
 
 		default:
@@ -324,6 +334,7 @@ alloc_work(nng_socket sock)
 	if ((rv = nng_mtx_alloc(&w->mutex)) != 0) {
 		fatal("nng_mtx_alloc", rv);
 	}
+	w->pipe_msgs = NULL;
 
 	w->state = INIT;
 	return (w);

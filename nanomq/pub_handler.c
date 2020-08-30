@@ -117,7 +117,7 @@ void foreach_client(struct clients *sub_clients, void **pipe_content, uint32_t *
 }
 
 
-void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx_msgs)
+void handle_pub(emq_work *work, nng_msg *send_msg, void **pipes, transmit_msgs tx_msgs)
 {
 	char                  **topic_queue = NULL;
 	struct topic_and_node *tp_node      = NULL;
@@ -153,13 +153,13 @@ void handle_pub(emq_work *work, nng_msg *send_msg, void *pipes, transmit_msgs tx
 
 				if (client_list != NULL) {
 #if DISTRIBUTE_DIFF_MSG
-					foreach_client(client_list, &pipes, &total_sub_pipes, work->pub_packet, handle_client_pipe_msgs);
+					foreach_client(client_list, pipes, &total_sub_pipes, work->pub_packet, handle_client_pipe_msgs);
 #else
 					foreach_client(client_list, &pipes, &total_sub_pipes, NULL, handle_client_pipes);
 #endif
 				}
 
-				debug_msg("total_sub_pipes: [%d]", total_sub_pipes);
+				debug_msg("pipes: [%p], total_sub_pipes: [%d]", pipes, total_sub_pipes);
 
 				switch (work->pub_packet->fixed_header.qos) {
 					case 0:

@@ -18,6 +18,7 @@ struct work {
 	struct pub_packet_struct *pub_packet;
 	struct packet_subscribe * sub_pkt;
 	struct packet_unsubscribe * unsub_pkt;
+	struct pipe_nng_msg *pipe_msgs;
 };
 
 
