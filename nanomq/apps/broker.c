@@ -23,7 +23,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 100
+#define PARALLEL 64
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -80,7 +80,8 @@ server_cb(void *arg)
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("RECV nng aio result error: %d", rv);
-				break;
+				//nng_aio_wait(work->aio);
+				//break;
 				fatal("nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
@@ -235,16 +236,23 @@ server_cb(void *arg)
 
 #if DISTRIBUTE_DIFF_MSG
 				handle_pub(work, smsg, pipe_msgs, NULL);
+				if ((rv = nng_aio_result(work->aio)) != 0) {
+					debug_msg("WAIT nng aio result error: %d", rv);
+					//nng_aio_wait(work->aio);
+					//break;
+				}
+
 				work->msg   = NULL;
 				work->state = SEND;
 #else
 				handle_pub(work, smsg, pipes, transmit_msgs_cb);
+
+#endif
 				if (work->state != SEND) {
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
 				}
-#endif
 
 
 //				nng_mtx_unlock(work->mutex);
@@ -286,10 +294,11 @@ server_cb(void *arg)
 				pipes = NULL;
 			}
 #endif
+			work->msg = NULL;
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
-
 			break;
+
 		default:
 			fatal("bad state!", NNG_ESTATE);
 			break;

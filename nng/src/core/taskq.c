@@ -162,7 +162,6 @@ nni_task_dispatch(nni_task *task)
 	// If there is no callback to perform, then do nothing!
 	// The user will be none the wiser.
 	if (task->task_cb == NULL) {
-		debug_msg("no callback found");
 		nni_task_exec(task);
 		return;
 	}

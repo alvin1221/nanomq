@@ -142,7 +142,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	nni_msg *  msg;
 	int        rv;
 	size_t     len;
-	uint32_t * pipes; // pipes id
+	//uint32_t * pipes; // pipes id
+	uint32_t   pipe;
 	uint32_t   p_id[2],i = 0,fail_count = 0, need_resend = 0;
 
 	msg = nni_aio_get_msg(aio);
@@ -151,16 +152,17 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	debug_msg("nanomq start sending with ctx %p", ctx);
+	debug_msg("############### nano_ctx_send with ctx %p ###############", ctx);
 	nni_mtx_lock(&s->lk);
 	//len  = ctx->pp_len;
-	if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
-		nni_aio_set_pipeline(aio, NULL);
-	}
-	else {
-		p_id[0] = ctx->pipe_id;
-		p_id[1] = 0;
-		pipes = &p_id;
+	//if ((pipes = nni_aio_get_pipeline(aio)) != NULL){
+	if ((pipe = nni_aio_get_pipeline(aio)) != 0){
+		nni_aio_set_pipeline(aio, 0);
+	} else {
+		//p_id[0] = ctx->pipe_id;
+		//p_id[1] = 0;
+		//pipes = &p_id;
+		pipe = ctx->pipe_id;
 	}
 
 	//ctx->pp_len = 0;
@@ -177,8 +179,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		return;
 	}
 
-	//TODO MQTT 5
 	/*
+	//TODO MQTT 5
 	if (len == 0) {
 		nni_mtx_unlock(&s->lk);
 		debug_msg("length : %d!", len);
@@ -191,7 +193,8 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		nni_aio_finish_error(aio, rv);
 		return;
 	}
-	*/
+
+	//pub mutiple clients/pipes in single aio/ctx
 	while (*(pipes+i) != 0) {
 		debug_msg("***************************working with pipe id : %d***************************", *(pipes+i));
 		if (nni_idhash_find(s->pipes, *(pipes+i), (void **) &p) != 0) {
@@ -203,7 +206,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 			fail_count++;
 			continue;
 		}
-		p->tree = nni_aio_get_dbtree(aio);
+		p->tree = nni_aio_get_dbtree(aio);		//TODO only set db_tree when reply suback first time
 		nni_msg_clone(msg);
 		if (!p->busy) {
 			uint8_t  *header;
@@ -236,6 +239,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 	if (need_resend == 0) {
 		nni_mtx_unlock(&s->lk);
 		nni_aio_set_msg(aio, NULL);
+		debug_msg("send sucessfully ctx %p", ctx);
 		nni_aio_finish(aio, 0, len);
 		return;
 	} else if (nni_list_first(&p->sendq) == NULL) {
@@ -243,6 +247,7 @@ nano_ctx_send(void *arg, nni_aio *aio)
 		ctx->pipe_len     = i;
 		ctx->rspipes      = pipes;
 		nni_list_append(&p->sendq, ctx);
+		//goto exit;
 	} else {
 		debug_msg("message dropped!!");
 		nni_mtx_unlock(&s->lk);
@@ -255,9 +260,40 @@ nano_ctx_send(void *arg, nni_aio *aio)
 exit:
 	nni_mtx_unlock(&s->lk);
 	nni_aio_set_msg(aio, NULL);
-	nni_aio_finish(aio, 0, nni_msg_len(msg));
+	nni_aio_finish(aio, 0 ,nni_msg_len(msg));
+	//nni_aio_finish_error(aio, 0);
 	nni_msg_free(msg);
-	return;
+	return;*/
+
+	debug_msg("***************************working with pipe id : %d***************************", pipe);
+	if (nni_idhash_find(s->pipes, pipe, (void **) &p) != 0) {
+		// Pipe is gone.  Make this look like a good send to avoid
+		// disrupting the state machine.  We don't care if the peer
+		// lost interest in our reply.
+		nni_mtx_unlock(&s->lk);
+		nni_aio_set_msg(aio, NULL);
+		nni_aio_finish(aio, 0, nni_msg_len(msg));
+		nni_msg_free(msg);
+		return;
+	}
+	if (!p->busy) {
+		p->busy = true;
+		len     = nni_msg_len(msg);
+		nni_aio_set_msg(&p->aio_send, msg);
+		nni_pipe_send(p->pipe, &p->aio_send);
+		nni_mtx_unlock(&s->lk);
+
+		nni_aio_set_msg(aio, NULL);
+		nni_aio_finish(aio, 0, len);
+		return;
+	}
+
+	debug_msg("pipe %p jamed!", pipe);
+	ctx->saio  = aio;
+	ctx->spipe = p;
+	ctx->rmsg  = msg;
+	nni_list_append(&p->sendq, ctx);
+	nni_mtx_unlock(&s->lk);
 }
 
 static void
@@ -458,7 +494,24 @@ nano_pipe_send_cb(void *arg)
 		nni_mtx_unlock(&s->lk);
 		return;
 	}
-	// deal with pipe busy.
+
+	nni_list_remove(&p->sendq, ctx);
+	aio        = ctx->saio;
+	ctx->saio  = NULL;
+	p          = ctx->spipe;  //should be as same as orignal p?
+	ctx->spipe = NULL;
+	p->busy    = true;
+	msg        = ctx->rmsg;
+	len        = nni_msg_len(msg);
+	nni_aio_set_msg(aio, NULL);
+	nni_aio_set_msg(&p->aio_send, msg);
+	nni_pipe_send(p->pipe, &p->aio_send);
+
+	nni_mtx_unlock(&s->lk);
+
+	nni_aio_finish_synch(aio, 0, len);
+	/*
+	// pub to mulitple clients/pipes within single aio/ctx
 	aio   = ctx->saio;
 	pipes = ctx->rspipes;
 	p     = ctx->spipe;
@@ -517,6 +570,7 @@ drop:
 	} //else 
 	 // nni_aio_finish(aio,0,len);
 	debug_msg("end of nano_pipe_send_cb ctx : %p", ctx);
+	*/
 }
 
 static void
@@ -609,7 +663,7 @@ nano_pipe_recv_cb(void *arg)
 		nni_pipe_close(p->pipe);
 		return;
 	}
-	debug_msg("nano_pipe_recv_cb !");
+	debug_msg("#########nano_pipe_recv_cb !############");
 
 	msg = nni_aio_get_msg(&p->aio_recv);
 	if (msg == NULL) {
@@ -660,7 +714,7 @@ nano_pipe_recv_cb(void *arg)
 		nni_list_append(&s->recvpipes, p);
 		nni_pollable_raise(&s->readable);
 		nni_mtx_unlock(&s->lk);
-		debug_msg("no ctx found!!");
+		debug_msg("no ctx found!! create more ctxs!");
 		return;
 	}
 
@@ -671,7 +725,6 @@ nano_pipe_recv_cb(void *arg)
 	if ((ctx == &s->ctx) && !p->busy) {
 		nni_pollable_raise(&s->writable);
 	}
-	debug_msg("ctx %p pipe: %p",ctx,p);
 
 	// schedule another receive
 	nni_pipe_recv(p->pipe, &p->aio_recv);
@@ -692,6 +745,7 @@ drop:
 	nni_msg_free(msg);
 	nni_aio_set_msg(&p->aio_recv, NULL);
 	nni_pipe_recv(p->pipe, &p->aio_recv);
+	debug_msg("drop of nano_pipe_recv_cb %p", ctx);
 }
 
 static int
