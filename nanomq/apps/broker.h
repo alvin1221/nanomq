@@ -7,6 +7,7 @@
 #include <nng/protocol/mqtt/mqtt.h>
 
 struct work {
+	int index;
 	enum { INIT, RECV, WAIT, SEND } state;
 	nng_aio *aio;
 	nng_msg *msg;
