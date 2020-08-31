@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h>
 
+#define NDEBUG
 #ifdef NDEBUG
 #define debug(M, ...)
 #else
@@ -22,11 +23,18 @@
 		"[WARN] (%s:%d: errno: %s) " M "\n",\
 		__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
 
+#define NOLOG
+
+#ifdef NOLOG
+#define log(M, ...)
+#define log_info(M, ...)
+#else
 #define log_info(M, ...) fprintf(stderr, "[INFO] (%s:%d) =========>> " M "\n",\
 		__FILE__, __LINE__, ##__VA_ARGS__)
 
 #define log(M, ...) fprintf(stderr, "[INFO] (%s:%d) " M "\n",\
 		__FILE__, __LINE__, ##__VA_ARGS__)
+#endif
 
 #define check(A, M, ...) if(!(A)) {\
 	log_err(M, ##__VA_ARGS__); errno=0; goto error; }

@@ -39,6 +39,12 @@ void destory_db_tree(struct db_tree *db)
  ** For debugging, you can output all node 
  ** & node info
  */
+#ifdef NOLOG
+void print_db_tree(struct db_tree *db)
+{
+	return;
+}
+#else
 void print_db_tree(struct db_tree *db)
 {
 	assert(db);
@@ -114,6 +120,8 @@ void print_db_tree(struct db_tree *db)
 
 	puts("-------------------DB_TREE---------------------\n");
 }
+
+#endif
 
 /*
  ** Determine if the current topic data is "#"
@@ -707,7 +715,6 @@ struct clients *search_client(struct db_node *root, char **topic_queue)
 
 	log("entry search");
 	while (*topic_queue && node) {
-		bool plus = false;
 		if (strcmp(node->topic, *topic_queue)) {
 			log("node->topic %s, topic_queue %s", node->topic, *topic_queue);
 
