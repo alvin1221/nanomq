@@ -3,11 +3,12 @@
 #define DEBUG_FILE_PATH "/tmp/debug_nanomq.log"
 
 // later expose on makefile
-#define DEBUG_CONSOLE
-#define DEBUG_FILE
-#define DEBUG_SYSLOG
-/*
-#undef LIBNANO_DEBUG*/
+/**/
+//#define DEBUG_CONSOLE
+//#define DEBUG_FILE
+//#define DEBUG_SYSLOG
+
+#undef LIBNANO_DEBUG
 #if defined(DEBUG_CONSOLE) || defined(DEBUG_FILE) || defined(DEBUG_SYSLOG)
 #define LIBNANO_DEBUG
 

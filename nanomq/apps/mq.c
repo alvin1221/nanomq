@@ -1,7 +1,8 @@
 #include "mq.h"
-#include "../include/nanomq.h"
+#include "include/nanomq.h"
 
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>

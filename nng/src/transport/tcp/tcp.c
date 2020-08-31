@@ -767,7 +767,6 @@ tcptran_pipe_recv(void *arg, nni_aio *aio)
 	tcptran_pipe *p = arg;
 	int           rv;
 
-	printf("first order!: tcptran_pipe_recv\n");
 	if (nni_aio_begin(aio) != 0) {
 		return;
 	}

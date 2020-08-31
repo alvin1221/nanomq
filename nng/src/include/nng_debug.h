@@ -8,14 +8,6 @@
 
 #define DEBUG_FILE_PATH "/tmp/debug_dash.log"
 
-// later expose on makefile
-#define DEBUG_CONSOLE
-#define DEBUG_FILE
-#define DEBUG_SYSLOG
-
-#undef DASH_DEBUG
-#if defined(DEBUG_CONSOLE) || defined(DEBUG_FILE) || defined(DEBUG_SYSLOG)
-#define DASH_DEBUG 1
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -23,6 +15,15 @@
 #include <stdarg.h>
 #include <time.h>
 #include <string.h>
+
+// later expose on makefile
+//#define DEBUG_CONSOLE
+//#define DEBUG_FILE
+//#define DEBUG_SYSLOG
+
+#undef DASH_DEBUG
+#if defined(DEBUG_CONSOLE) || defined(DEBUG_FILE) || defined(DEBUG_SYSLOG)
+#define DASH_DEBUG 1
 
 static inline char *nanomq_time_str()
 {

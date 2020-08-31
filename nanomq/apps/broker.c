@@ -23,7 +23,7 @@
 // #ifndef PARALLEL
 // #define PARALLEL 128
 // #endif
-#define PARALLEL 64
+#define PARALLEL 128
 
 // The server keeps a list of work items, sorted by expiration time,
 // so that we can use this to set the timeout to the correct value for
@@ -80,9 +80,9 @@ server_cb(void *arg)
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				debug_msg("RECV nng aio result error: %d", rv);
-				//nng_aio_wait(work->aio);
+				nng_aio_wait(work->aio);
 				//break;
-				fatal("nng_ctx_recv", rv);
+				//fatal("RECV nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			if (msg == NULL) {        //BUG
@@ -137,7 +137,7 @@ server_cb(void *arg)
 			work->state = WAIT;
 			debug_msg("RECV ********************* msg: %s %x******************************************\n",
 			          (char *) nng_msg_body(work->msg), nng_msg_cmd_type(work->msg));
-			nng_sleep_aio(200, work->aio);
+			nng_sleep_aio(100, work->aio);
 			break;
 		case WAIT:
 			debug_msg("WAIT ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^", work->ctx.id);
@@ -235,6 +235,7 @@ server_cb(void *arg)
 				//nng_mtx_lock(work->mutex);
 				if ((rv = nng_aio_result(work->aio)) != 0) {
 					debug_msg("WAIT nng aio result error: %d", rv);
+					fatal("WAIT nng_ctx_recv/send", rv);
 					//nng_aio_wait(work->aio);
 					//break;
 				}
@@ -278,7 +279,7 @@ server_cb(void *arg)
 			if ((rv = nng_aio_result(work->aio)) != 0) {
 				nng_msg_free(work->msg);
 				debug_msg("SEND nng aio result error: %d", rv);
-				fatal("nng_ctx_send", rv);
+				fatal("SEND nng_ctx_send", rv);
 			}
 
 #if DISTRIBUTE_DIFF_MSG
