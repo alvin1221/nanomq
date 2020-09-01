@@ -12,6 +12,7 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 set(DEFAULT_BUILD_TYPE "Release")
 
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${DEFAULT_BUILD_TYPE}' as none was specified.")
   set(CMAKE_BUILD_TYPE "${DEFAULT_BUILD_TYPE}" CACHE STRING "Choose the type of build." FORCE)
@@ -48,8 +49,8 @@ add_library(nano_shared SHARED $<TARGET_OBJECTS:nanolib>)
 #add_library(nanolib_static STATIC $<TARGET_OBJECTS:nanolib>)
 
 
-#add_executable(test test.c)
-#target_link_libraries(test nano_shared)
+add_executable(test test.c)
+target_link_libraries(test nano_shared)
 
 
 install(TARGETS nano_shared EXPORT nanolibConfig
