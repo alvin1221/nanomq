@@ -4,9 +4,15 @@
 
 // later expose on makefile
 /**/
-//#define DEBUG_CONSOLE
-//#define DEBUG_FILE
-//#define DEBUG_SYSLOG
+#if defined(NOLOG)
+#undef DEBUG_CONSOLE
+#undef DEBUG_FILE
+#undef DEBUG_SYSLOG
+#else 
+#define DEBUG_CONSOLE
+#define DEBUG_FILE
+#define DEBUG_SYSLOG
+#endif
 
 #undef LIBNANO_DEBUG
 #if defined(DEBUG_CONSOLE) || defined(DEBUG_FILE) || defined(DEBUG_SYSLOG)

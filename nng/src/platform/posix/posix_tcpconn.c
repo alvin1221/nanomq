@@ -534,6 +534,5 @@ nni_posix_tcp_start(nni_tcp_conn *c, int nodelay, int keepalive)
 	    &nodelay, sizeof(int));
 	(void) setsockopt(nni_posix_pfd_fd(c->pfd), SOL_SOCKET, SO_KEEPALIVE,
 	    &keepalive, sizeof(int));
-	printf("nni_posix_tcp_start\n");
 	nni_posix_pfd_set_cb(c->pfd, tcp_cb, c);
 }
