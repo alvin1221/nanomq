@@ -15,6 +15,11 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cmake"
 )
 
+option(NOLOG "build this project nolog" OFF)
+
+if (NOLOG)
+	add_definitions(-DNOLOG)
+endif (NOLOG)
 
 #add_executable(nanomq-nng nanomq/nanomq.c)
 

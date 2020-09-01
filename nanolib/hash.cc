@@ -234,7 +234,10 @@ void add_pipe_id(uint32_t pipe_id, char *client_id)
 
 void del_pipe_id(uint32_t pipe_id)
 {
+#ifdef NOLOG
+#else
 	char *res = _pipe_hash[pipe_id];
+#endif
 	log("del_pipe_id %d, client_id %s", pipe_id, res);
 	_pipe_hash.del(pipe_id);
 	return;
