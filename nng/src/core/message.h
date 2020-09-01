@@ -35,7 +35,7 @@ struct conn_param {
 	uint8_t		username[64];
 	uint8_t		password[64];
 	uint8_t		will_qos;
-	conn_propt	ppt;
+	//conn_propt	ppt;
 };
 
 extern int      nni_msg_alloc(nni_msg **, size_t);

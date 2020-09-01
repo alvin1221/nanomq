@@ -33,12 +33,12 @@ static void print_version(void)
 static int print_avail_apps(void)
 {
 #if defined(NANO_DEBUG)
-	const struct nanomq_app **dash_app;
+	const struct nanomq_app **nano_app;
 
 	printf("available applications:\n");
 
-	for (dash_app = edge_apps; *dash_app; ++dash_app)
-		printf("   * %s\n", (*dash_app)->name);
+	for (nano_app = edge_apps; *nano_app; ++nano_app)
+		printf("   * %s\n", (*nano_app)->name);
 #endif
 	print_version();
 	return 1;
@@ -90,7 +90,7 @@ static int handle_app(int res)
 
 int main(int argc, char **argv)
 {
-	const struct nanomq_app **dash_app;
+	const struct nanomq_app **nano_app;
 	char *app_name;
 	int ret;
 
@@ -119,40 +119,40 @@ int main(int argc, char **argv)
 		argc--;
 	}
 
-	for (dash_app = edge_apps; *dash_app; ++dash_app)
-		if (strncmp(app_name, (*dash_app)->name, APP_NAME_MAX) == 0)
+	for (nano_app = edge_apps; *nano_app; ++nano_app)
+		if (strncmp(app_name, (*nano_app)->name, APP_NAME_MAX) == 0)
 			break;
 
-	if (!(*dash_app)) {
+	if (!(*nano_app)) {
 		printf("Error - the application '%s' was not found\n", app_name);
 		return EXIT_FAILURE;
 	}
 
 	if (argc < 2) {
-		if ((*dash_app)->dflt)
-			return handle_app((*dash_app)->dflt(argc - 1, argv + 1));
+		if ((*nano_app)->dflt)
+			return handle_app((*nano_app)->dflt(argc - 1, argv + 1));
 
 		printf("Error - not enough arguments to run %s\n",
 		       app_name);
 		goto err_param;
 	}
 
-	if ((strcmp(argv[1], "start") == 0) && (*dash_app)->start)
-		return handle_app((*dash_app)->start(argc - 2, argv + 2));
+	if ((strcmp(argv[1], "start") == 0) && (*nano_app)->start)
+		return handle_app((*nano_app)->start(argc - 2, argv + 2));
 
-	if ((strcmp(argv[1], "stop") == 0) && (*dash_app)->stop)
-		return handle_app((*dash_app)->stop(argc - 2, argv + 2));
+	if ((strcmp(argv[1], "stop") == 0) && (*nano_app)->stop)
+		return handle_app((*nano_app)->stop(argc - 2, argv + 2));
 
-	if ((*dash_app)->dflt)
-		return handle_app((*dash_app)->dflt(argc - 1, argv + 1));
+	if ((*nano_app)->dflt)
+		return handle_app((*nano_app)->dflt(argc - 1, argv + 1));
 
 	printf("Error - unknown parameter: %s\n", argv[1]);
 
 err_param:
 	printf("Use one of the following parameters:\n");
-	if ((*dash_app)->start)
+	if ((*nano_app)->start)
 		printf("   * start\n");
-	if ((*dash_app)->stop)
+	if ((*nano_app)->stop)
 		printf("   * stop\n");
 	return EXIT_FAILURE;
 }

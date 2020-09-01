@@ -71,22 +71,23 @@ server_cb(void *arg)
 
 	switch (work->state) {
 		case INIT:
-			printf("INIT ^^^^^^^^^^^^^^^^^^^^^ \n");
+			debug_msg("INIT ^^^^^^^^^^^^^^^^^^^^^ \n");
 			work->state = RECV;
 			nng_ctx_recv(work->ctx, work->aio);
-			printf("INIT!!\n");
+			debug_msg("INIT!!\n");
 			break;
 		case RECV:
 			debug_msg("RECV  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-				debug_msg("RECV nng aio result error: %d", rv);
+				debug_msg("ERROR: RECV nng aio result error: %d", rv);
 				nng_aio_wait(work->aio);
 				//break;
-				//fatal("RECV nng_ctx_recv", rv);
+				fatal("RECV nng_ctx_recv", rv);
 			}
 			msg     = nng_aio_get_msg(work->aio);
 			if (msg == NULL) {        //BUG
-				debug_msg("RECV NULL msg");
+				debug_msg("ERROR: RECV NULL msg");
+				//fatal("RECV NULL MSG", rv);
 			}
 			pipe = nng_msg_get_pipe(msg);
 			debug_msg("RECVIED %d %x\n", work->ctx.id, nng_msg_cmd_type(msg));
@@ -125,9 +126,9 @@ server_cb(void *arg)
 					debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
 					          clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 				}
-
 				work->state = RECV;
 				nng_msg_free(msg);
+				work->msg = NULL;
 				nng_aio_abort(work->aio, 31);
 				nng_ctx_recv(work->ctx, work->aio);
 				break;
@@ -163,11 +164,11 @@ server_cb(void *arg)
 				if ((rv = nng_msg_header_append(smsg, buf, 2)) != 0) {
 					debug_msg("error nng_msg_append^^^^^^^^^^^^^^^^^^^^^");
 				}
+				nng_msg_free(work->msg);
 				work->msg = smsg;
 				// We could add more data to the message here.
 				nng_aio_set_msg(work->aio, work->msg);
 
-				printf("before send aio msg %s\n", (char *) nng_msg_body(work->msg));
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
@@ -176,7 +177,7 @@ server_cb(void *arg)
 			} else if (nng_msg_cmd_type(work->msg) == CMD_SUBSCRIBE) {
 				pipe = nng_msg_get_pipe(work->msg);
 				work->pid = pipe;
-				printf("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
+				debug_msg("get pipe!!  ^^^^^^^^^^^^^^^^^^^^^ %d %d\n", pipe.id, work->pid.id);
 				work->sub_pkt = nng_alloc(sizeof(struct packet_subscribe));
 				if ((reason = decode_sub_message(work->msg, work->sub_pkt)) != SUCCESS ||
 				    (reason = sub_ctx_handle(work)) != SUCCESS ||
@@ -193,6 +194,7 @@ server_cb(void *arg)
 					          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 					          *((uint8_t *) nng_msg_body(smsg) + 1));
 				}
+				nng_msg_free(work->msg);
 
 				work->msg = smsg;
 				// We could add more data to the message here.
@@ -200,8 +202,8 @@ server_cb(void *arg)
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
+				break;
 				//nng_send_aio
-				printf("after send aio\n");
 			} else if (nng_msg_cmd_type(work->msg) == CMD_UNSUBSCRIBE) {
 				work->unsub_pkt = nng_alloc(sizeof(struct packet_unsubscribe));
 				if ((reason = decode_unsub_message(work->msg, work->unsub_pkt)) != SUCCESS ||
@@ -218,6 +220,7 @@ server_cb(void *arg)
 					          *((uint8_t *) nng_msg_header(smsg) + 1), *((uint8_t *) nng_msg_body(smsg)),
 					          *((uint8_t *) nng_msg_body(smsg) + 1));
 				}
+				nng_msg_free(work->msg);
 
 				work->msg = smsg;
 				// We could add more data to the message here.
@@ -225,7 +228,7 @@ server_cb(void *arg)
 				work->msg   = NULL;
 				work->state = SEND;
 				nng_ctx_send(work->ctx, work->aio);
-				printf("after send aio\n");
+				break;
 			} else if (nng_msg_cmd_type(work->msg) == CMD_PUBLISH ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBACK ||
 			           nng_msg_cmd_type(work->msg) == CMD_PUBREC ||
@@ -239,12 +242,13 @@ server_cb(void *arg)
 					//nng_aio_wait(work->aio);
 					//break;
 				}
+
 #if DISTRIBUTE_DIFF_MSG
 				handle_pub(work, smsg, (void **) &work->pipe_msgs, NULL);
+				nng_msg_free(work->msg);
 
 				if (work->pipe_msgs != NULL) {
 					debug_msg("set pipeline[%d]: [%d]", work->pipe_msgs[0].index, work->pipe_msgs[0].pipe);
-
 					work->msg = work->pipe_msgs[0].msg;
 					nng_aio_set_msg(work->aio, work->msg);
 					work->msg   = NULL;
@@ -259,6 +263,8 @@ server_cb(void *arg)
 
 #endif
 				if (work->state != SEND) {
+					if (work->msg != NULL)
+						nng_msg_free(work->msg);
 					work->msg   = NULL;
 					work->state = RECV;
 					nng_ctx_recv(work->ctx, work->aio);
@@ -267,6 +273,8 @@ server_cb(void *arg)
 
 			} else {
 				debug_msg("broker has nothing to do");
+				if (work->msg != NULL)
+					nng_msg_free(work->msg);
 				work->msg   = NULL;
 				work->state = RECV;
 				nng_ctx_recv(work->ctx, work->aio);
@@ -277,10 +285,12 @@ server_cb(void *arg)
 		case SEND:
 			debug_msg("SEND  ^^^^^^^^^^^^^^^^^^^^^ %d ^^^^\n", work->ctx.id);
 			if ((rv = nng_aio_result(work->aio)) != 0) {
-				nng_msg_free(work->msg);
 				debug_msg("SEND nng aio result error: %d", rv);
 				fatal("SEND nng_ctx_send", rv);
+			} else if ((smsg = nng_aio_get_msg(work->aio)) != NULL) {
+				nng_msg_free(smsg);
 			}
+
 
 #if DISTRIBUTE_DIFF_MSG
 			if (work->pipe_msgs != NULL && work->pipe_msgs[work->index].pipe != 0) {
@@ -309,9 +319,10 @@ server_cb(void *arg)
 				pipes = NULL;
 			}
 #endif
-
+			work->msg   = NULL;
+			work->state = RECV;
+			nng_ctx_recv(work->ctx, work->aio);
 			break;
-
 		default:
 			fatal("bad state!", NNG_ESTATE);
 			break;
@@ -363,7 +374,7 @@ server(const char *url)
 		fatal("nng_nano_tcp0_open", rv);
 	}
 
-	printf("PARALLEL: %d\n", PARALLEL);
+	debug_msg("PARALLEL: %d\n", PARALLEL);
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
 		works[i]->db = db;

@@ -90,7 +90,6 @@ tcp_dowrite(nni_tcp_conn *c)
 		// We completed the entire operation on this aio.
 		// (Sendmsg never returns a partial result.)
 		nni_aio_list_remove(aio);
-		debug_msg("tcp do write!!!!!!!!!! checkkkkkkkkkkk %p", aio);
 		nni_aio_finish(aio, 0, nni_aio_count(aio));
 
 		// Go back to start of loop to see if there is another
@@ -161,12 +160,10 @@ tcp_doread(nni_tcp_conn *c)
 
 		// We completed the entire operation on this aio.
 		nni_aio_list_remove(aio);
-		debug_msg("do read checkkkkkkkkkk aio %p count: %d", aio, nni_aio_count(aio));
 		nni_aio_finish(aio, 0, nni_aio_count(aio));
 
 		// Go back to start of loop to see if there is another
 		// aio ready for us to process.
-		debug_msg("end of tcp_doread!\n");
 	}
 }
 
@@ -317,7 +314,7 @@ tcp_recv(void *arg, nni_aio *aio)
 {
 	nni_tcp_conn *c = arg;
 	int           rv;
-	debug_msg("tcp_recv\n");
+	debug_msg("tcp socket_recv\n");
 	if (nni_aio_begin(aio) != 0) {
 		debug_msg("nni_aio_begin FAILED\n");
 		return;
