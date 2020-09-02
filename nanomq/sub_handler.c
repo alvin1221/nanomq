@@ -183,9 +183,8 @@ uint8_t sub_ctx_handle(emq_work * work){
 		topic_str[topic_node_t->it->topic_filter.len] = '\0';
 		debug_msg("topicLen: [%d] Body: [%s]", topic_node_t->it->topic_filter.len, (char *)topic_str);
 
-		char ** topic_queue = topic_parse(topic_str);
-//		debug_msg("topic_queue: -%s -%s -%s -%s", *topic_queue, *(topic_queue+1), *(topic_queue+2), *(topic_queue+3));
-		search_node(work->db, topic_queue, tan);
+		char ** topics = topic_parse(topic_str);
+		search_node(work->db, topics, tan);
 
 		if(tan->topic){ // not contain the node
 			add_node(tan, client);
@@ -204,7 +203,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 				//		client->id, q->next->topic);
 				add_client(tan, client);
 				// test
-				search_node(work->db, topic_queue, tan);
+				search_node(work->db, topics, tan);
 				struct client * cli = tan->node->sub_client;
 				while(cli){
 					debug_msg("client: %s", cli->id);
@@ -214,6 +213,8 @@ uint8_t sub_ctx_handle(emq_work * work){
 				work->sub_pkt->node->it->reason_code = 0x80;
 			}
 		}
+
+		free_topic_queue();
 		nng_free(tan, sizeof(struct topic_and_node));
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;
