@@ -36,6 +36,10 @@ $PROJECT_PATH/nanomq/build$ sudo ninja install
 or you can limit threads by
 cmake -G Ninja -DNNG_RESOLV_CONCURRENCY=1 -DNNG_NUM_TASKQ_THREADS=5 -DNNG_MAX_TASKQ_THREADS=5  ..
 
+or you can print log by
+
+cmake -DNOLOG=0
+
 Please be aware that nanomq depends on nanolib & nng (MQTT ver)
 
 both dependencies can be complied independently
