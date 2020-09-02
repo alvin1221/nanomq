@@ -3,7 +3,7 @@
 #include <protocol/mqtt/mqtt_parser.h>
 #include <protocol/mqtt/mqtt.h>
 #include "include/nanomq.h"
-#include "include/subscribe_handle.h"
+#include "include/sub_handler.h"
 
 uint8_t decode_sub_message(nng_msg * msg, packet_subscribe * sub_pkt){
 	uint8_t *  variable_ptr;

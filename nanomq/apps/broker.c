@@ -10,8 +10,8 @@
 
 #include "include/nanomq.h"
 #include "include/pub_handler.h"
-#include "include/subscribe_handle.h"
-#include "include/unsubscribe_handle.h"
+#include "include/sub_handler.h"
+#include "include/unsub_handler.h"
 
 // Parallel is the maximum number of outstanding requests we can handle.
 // This is *NOT* the number of threads in use, but instead represents
