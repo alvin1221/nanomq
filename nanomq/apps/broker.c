@@ -104,7 +104,9 @@ server_cb(void *arg)
 					tq = get_topic(clientid);
 					while (tq) {
 						if (tq->topic) {
-							search_node(work->db, topic_parse(tq->topic), &tan);
+							char ** topics = topic_parse(tq->topic);
+							search_node(work->db, topics, &tan);
+							free_topic_queue(tq->topic);
 							if ((cli = del_client(&tan, clientid)) == NULL) {
 								break;
 							}

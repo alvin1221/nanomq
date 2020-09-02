@@ -162,8 +162,8 @@ uint8_t unsub_ctx_handle(emq_work * work){
 
 		debug_msg("finding client [%s] in topic [%s].", clientid, topic_str);
 
-		char ** topic_queue = topic_parse(topic_str);
-		search_node(work->db, topic_queue, tan);
+		char ** topics = topic_parse(topic_str);
+		search_node(work->db, topics, tan);
 
 		if(tan->topic == NULL){ // find the topic
 			cli = del_client(tan, clientid);
@@ -190,6 +190,7 @@ uint8_t unsub_ctx_handle(emq_work * work){
 		topic_node_t = topic_node_t->next;
 	}
 
+	free_topic_queue(topics);
 	// check treeDB
 //	print_db_tree(work->db);
 

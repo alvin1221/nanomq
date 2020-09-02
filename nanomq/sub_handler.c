@@ -214,7 +214,7 @@ uint8_t sub_ctx_handle(emq_work * work){
 			}
 		}
 
-		free_topic_queue();
+		free_topic_queue(topics);
 		nng_free(tan, sizeof(struct topic_and_node));
 		nng_free(topic_str, topic_node_t->it->topic_filter.len+1);
 		topic_node_t = topic_node_t->next;
