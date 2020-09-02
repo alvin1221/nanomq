@@ -95,7 +95,7 @@ server_cb(void *arg)
 			if (nng_msg_cmd_type(msg) == CMD_DISCONNECT) {
 				work->cparam = (conn_param *) nng_msg_get_conn_param(msg);
 				char                  *clientid = (char *) conn_param_get_clentid(work->cparam);
-				struct topic_and_node *tan      = nng_alloc(sizeof(struct topic_and_node));
+				struct topic_and_node tan;
 				struct client         *cli      = NULL;
 				struct topic_queue    *tq       = NULL;
 
@@ -104,28 +104,31 @@ server_cb(void *arg)
 					tq = get_topic(clientid);
 					while (tq) {
 						if (tq->topic) {
-							search_node(work->db, topic_parse(tq->topic), tan);
-							if ((cli = del_client(tan, clientid)) == NULL) {
+							search_node(work->db, topic_parse(tq->topic), &tan);
+							if ((cli = del_client(&tan, clientid)) == NULL) {
 								break;
 							}
-							del_pipe_id(pipe.id);
 						}
 						if (cli) {
-							del_node(tan->node);
+							del_node(tan.node);
 							debug_msg("Destroy CTX [%p] clientID: [%s]", cli->ctxt, cli->id);
 							destroy_sub_ctx(cli->ctxt, tq->topic); // only free work->sub_pkt
 							nng_free(cli, sizeof(struct client));
 						}
+						tq = tq->next;
+						/*
 						if (check_id(clientid)) {
 							tq = tq->next;
 						}
+						*/
 					}
-					del_topic_all(clientid);
-					del_pipe_id(pipe.id);
-					nng_free(tan, sizeof(struct topic_and_node));
 					debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
 					          clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 				}
+
+				del_topic_all(clientid);
+				del_pipe_id(pipe.id);
+
 				work->state = RECV;
 				nng_msg_free(msg);
 				work->msg = NULL;
@@ -183,7 +186,7 @@ server_cb(void *arg)
 				    (reason = sub_ctx_handle(work)) != SUCCESS ||
 				    (reason = encode_suback_message(smsg, work->sub_pkt)) != SUCCESS) {
 					debug_msg("ERROR IN SUB_HANDLE: %d", reason);
-					// TODO free sub_pkt
+					destroy_sub_ctx(work, "");
 				} else {
 					// success but check info
 					debug_msg("In sub_pkt: pktid:%d, topicLen: %d, topic: %s", work->sub_pkt->packet_id,

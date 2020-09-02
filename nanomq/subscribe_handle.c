@@ -243,7 +243,7 @@ void destroy_sub_ctx(void * ctxt, char * target_topic){
 	topic_node * before_topic_node = NULL;
 	while(topic_node_t){
 		if(!strncmp(topic_node_t->it->topic_filter.str_body, target_topic,
-					topic_node_t->it->topic_filter.len)){
+				topic_node_t->it->topic_filter.len) || !strcmp(target_topic, "")){
 			debug_msg("FREE in topic_node [%s] in tree", topic_node_t->it->topic_filter.str_body);
 			if(before_topic_node){
 				before_topic_node->next = topic_node_t->next;
