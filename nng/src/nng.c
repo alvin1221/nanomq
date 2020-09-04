@@ -62,12 +62,16 @@ nng_closeall(void)
 void *
 nng_alloc(size_t sz)
 {
-	return (nni_alloc(sz));
+	void *p = nni_alloc(sz);
+	debug_file("nng_alloc,%p,%ld", p, sz);
+	return p;
+	//return (nni_alloc(sz));
 }
 
 void
 nng_free(void *buf, size_t sz)
 {
+	debug_file("nng_free,%p,%ld", buf, sz);
 	nni_free(buf, sz);
 }
 

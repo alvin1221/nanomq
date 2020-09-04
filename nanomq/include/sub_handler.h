@@ -2,7 +2,7 @@
 #define MQTT_SUBSCRIBE_HANDLE_H
 
 #include <nng/nng.h>
-#include "include/packet.h"
+#include "packet.h"
 #include "apps/broker.h"
 
 uint8_t decode_sub_message(nng_msg *, packet_subscribe *);

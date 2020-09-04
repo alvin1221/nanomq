@@ -124,12 +124,12 @@ server_cb(void *arg)
 						}
 						*/
 					}
-					debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
-					          clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 				}
 
 				del_topic_all(clientid);
 				del_pipe_id(pipe.id);
+				debug_msg("INHASH: clientid [%s] exist?: [%d]; pipeid [%d] exist?: [%d]",
+					clientid, (int) check_id(clientid), pipe.id, (int) check_pipe_id(pipe.id));
 
 				work->state = RECV;
 				nng_msg_free(msg);

@@ -1,6 +1,7 @@
 
 #define _GNU_SOURCE
-#define DEBUG_FILE_PATH "/tmp/debug_nanomq.log"
+#define DEBUG_FILE_PATH "/tmp/debug_dash.log"
+// #define DEBUG_FILE_PATH "/tmp/debug_nanomq.log"
 
 // later expose on makefile
 /**/
