@@ -239,7 +239,7 @@ server_cb(void *arg)
 				}
 
 				work->pid = nng_msg_get_pipe(work->msg);
-				handle_pub(work, work->pipe_ct, smsg);
+				handle_pub(work, work->pipe_ct);
 				nng_msg_free(work->msg);
 
 				if (work->pipe_ct->total > 0) {
