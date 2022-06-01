@@ -465,6 +465,8 @@ del_sub_ctx(void *ctxt, char *target_topic)
 		return;
 	}
 
+	nng_atomic_free64(cli_ctx->recv_cnt);
+
 	sub_pkt           = cli_ctx->sub_pkt;
 	topic_node_t      = sub_pkt->node;
 	before_topic_node = NULL;
