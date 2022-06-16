@@ -84,6 +84,19 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if(NANO_PLATFORM_WINDOWS)
+  nng_check_sym(InitializeConditionVariable windows.h NNG_HAVE_CONDVAR)
+  nng_check_sym(snprintf stdio.h NNG_HAVE_SNPRINTF)
+  if (NOT NNG_HAVE_CONDVAR OR NOT NNG_HAVE_SNPRINTF)
+      message(FATAL_ERROR
+              "Modern Windows API support is missing. "
+              "Versions of Windows prior to Vista are not supported.  "
+              "Further, the 32-bit MinGW environment is not supported. "
+              "Ensure you have at least Windows Vista or newer, and are "
+              "using either Visual Studio 2013 or newer or MinGW-W64.")
+  endif ()
+  nng_link_libraries(ws2_32 mswsock advapi32)
+endif()
 
 #aux_source_directory(. DIRSRCS)
 
@@ -98,7 +111,7 @@ find_package(Threads)
 # list of source files
 # set(libsrc hash_table.c mqtt_db.c zmalloc.c ) #conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
 set(libsrc hash_table.c mqtt_db.c zmalloc.c conf.c file.c 
-    cmd.c nano_alloc.c nano_lmq.c env.c 
+    cmd.c nano_alloc.c nano_lmq.c nano_platform.c env.c 
     libs/base64.c libs/cJSON.c db_cli.c)
 
 # this is the "object library" target: compiles the sources only once

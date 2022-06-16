@@ -2,16 +2,18 @@
 #define __dbg_h__
 
 #include <errno.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#ifdef NDEBUG
+#include <pthread.h>
+#endif
 // #define NOLOG
 
 static inline char *
 nano_get_time()
 {
-	char * buffer;
+	char  *buffer;
 	time_t now;
 
 	now    = time(NULL);
@@ -39,9 +41,9 @@ nano_get_time()
 	fprintf(stderr, "[ERROR] (%s:%d: errno: %s) " M "\n", __FILE__, \
 	    __LINE__, clean_errno(), ##__VA_ARGS__)
 
-#define log_warn(M, ...)                                                \
-	fprintf(stderr, "[WARN] (%s:%d) " M "\n", __FILE__,             \
-	    __LINE__, ##__VA_ARGS__)
+#define log_warn(M, ...)                                              \
+	fprintf(stderr, "[WARN] (%s:%d) " M "\n", __FILE__, __LINE__, \
+	    ##__VA_ARGS__)
 // #define NOLOG
 #ifdef NOLOG
 #define log(M, ...)

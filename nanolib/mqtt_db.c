@@ -18,6 +18,7 @@
 #include "include/hash_table.h"
 #include "include/mqtt_db.h"
 #include "include/zmalloc.h"
+#include "include/nano_platform.h"
 
 #define ROUND_ROBIN
 // #define RANDOM
@@ -41,7 +42,7 @@ void *
 dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt)
 {
 	void *ctx = NULL;
-	pthread_rwlock_wrlock(&(db->rwlock));
+	nano_rwlock_wrlock(&(db->rwlock));
 	if (ctxt->ref > 0) {
 		ctxt->ref--;
 	}
@@ -50,8 +51,8 @@ dbtree_delete_ctxt(dbtree *db, dbtree_ctxt *ctxt)
 		ctx = ctxt->ctx;
 		zfree(ctxt);
 	}
-	pthread_rwlock_unlock(&(db->rwlock));
-	
+	nano_rwlock_unlock(&(db->rwlock));
+
 	return ctx;
 }
 
@@ -180,7 +181,7 @@ dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt))
 		return NULL;
 	}
 
-	pthread_rwlock_wrlock(&(db->rwlock));
+	nano_rwlock_wrlock(&(db->rwlock));
 
 	dbtree_node *node = db->root;
 	dbtree_node **nodes = NULL;
@@ -243,7 +244,7 @@ dbtree_get_tree(dbtree *db, void *(*cb)(void *ctxt))
 		cvector_free(nodes_t);
 		nodes_t = NULL;
 	}
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 	return (void***) ret;
 }
 
@@ -267,7 +268,7 @@ dbtree_print(dbtree *db)
 		return;
 	}
 
-	pthread_rwlock_wrlock(&(db->rwlock));
+	nano_rwlock_wrlock(&(db->rwlock));
 
 	dbtree_node *node = db->root;
 	dbtree_node **nodes = NULL;
@@ -303,7 +304,7 @@ dbtree_print(dbtree *db)
 		cvector_free(nodes_t);
 		nodes_t = NULL;
 	}
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 	puts("___________PRINT_DB_TREE__________");
 }
 #endif
@@ -425,7 +426,7 @@ dbtree_node_new(char *topic)
 	node->well    = -1;
 	node->plus    = -1;
 
-	pthread_rwlock_init(&(node->rwlock), NULL);
+	nano_rwlock_init(&(node->rwlock));
 	return node;
 }
 
@@ -443,7 +444,7 @@ dbtree_node_free(dbtree_node *node)
 			zfree(node->topic);
 			node->topic = NULL;
 		}
-		pthread_rwlock_destroy(&(node->rwlock));
+		nano_rwlock_fini(&(node->rwlock));
 		zfree(node);
 		node = NULL;
 	}
@@ -463,7 +464,7 @@ dbtree_create(dbtree **db)
 
 	dbtree_node *node       = dbtree_node_new("\0");
 	(*db)->root             = node;
-	pthread_rwlock_init(&((*db)->rwlock), NULL);
+	nano_rwlock_init(&((*db)->rwlock));
 #ifdef RANDOM
 	srand(time(NULL));
 #endif
@@ -484,8 +485,8 @@ dbtree_destory(dbtree *db)
 		db = NULL;
 	}
 
-	// pthread_rwlock_destroy(&(db->rwlock));
-	// pthread_rwlock_destroy(&(db->rwlock_session));
+	// nano_rwlock_fini(&(db->rwlock));
+	// nano_rwlock_fini(&(db->rwlock_session));
 }
 
 /**
@@ -497,7 +498,7 @@ dbtree_destory(dbtree *db)
 static void *
 find_client_cb(dbtree_node *node, void *args)
 {
-	pthread_rwlock_rdlock(&(node->rwlock));
+	nano_rwlock_rdlock(&(node->rwlock));
 
 	int       index   = 0;
 	uint32_t *pipe_id = (uint32_t *) args;
@@ -510,7 +511,7 @@ find_client_cb(dbtree_node *node, void *args)
 		dbtree_clone_ctxt(ctxt);
 	}
 
-	pthread_rwlock_unlock(&(node->rwlock));
+	nano_rwlock_unlock(&(node->rwlock));
 	return ctxt;
 }
 
@@ -523,7 +524,7 @@ find_client_cb(dbtree_node *node, void *args)
 static void *
 insert_client_cb(dbtree_node *node, void *args)
 {
-	pthread_rwlock_wrlock(&(node->rwlock));
+	nano_rwlock_wrlock(&(node->rwlock));
 
 	int            index  = 0;
 	dbtree_client *client = (dbtree_client *) args;
@@ -541,7 +542,7 @@ insert_client_cb(dbtree_node *node, void *args)
 		dbtree_client_free(client);
 	}
 
-	pthread_rwlock_unlock(&(node->rwlock));
+	nano_rwlock_unlock(&(node->rwlock));
 	return NULL;
 }
 
@@ -676,7 +677,7 @@ search_insert_node(dbtree *db, char *topic, void *args,
 	char **topic_queue = topic_parse(topic);
 	char **for_free    = topic_queue;
 
-	pthread_rwlock_wrlock(&(db->rwlock));
+	nano_rwlock_wrlock(&(db->rwlock));
 	dbtree_node *node = db->root;
 	// while dbtree is NULL, we will insert directly.
 
@@ -725,7 +726,7 @@ search_insert_node(dbtree *db, char *topic, void *args,
 	}
 
 	void *ret = inserter(node, args);
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 	topic_queue_free(for_free);
 	return ret;
 }
@@ -896,7 +897,7 @@ search_client(dbtree *db, char *topic)
 	char **for_free    = topic_queue;
 	void **ret         = NULL;
 
-	pthread_rwlock_rdlock(&(db->rwlock));
+	nano_rwlock_rdlock(&(db->rwlock));
 
 	dbtree_node *node                              = db->root;
 	cvector(dbtree_client **) ctxts                = NULL;
@@ -926,7 +927,7 @@ search_client(dbtree *db, char *topic)
 
 	ret = iterate_client(ctxts);
 
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 	topic_queue_free(for_free);
 	cvector_free(nodes);
 	cvector_free(nodes_t);
@@ -954,7 +955,7 @@ delete_dbtree_client(dbtree_node *node, uint32_t pipe_id)
 	int   index = 0;
 	void *ctxt  = NULL;
 
-	pthread_rwlock_wrlock(&(node->rwlock));
+	nano_rwlock_wrlock(&(node->rwlock));
 	// TODO maybe ctxt need to be protected
 	print_client(node->clients);
 	if (true ==
@@ -980,7 +981,7 @@ delete_dbtree_client(dbtree_node *node, uint32_t pipe_id)
 		}
 	}
 
-	pthread_rwlock_unlock(&(node->rwlock));
+	nano_rwlock_unlock(&(node->rwlock));
 	return ctxt;
 }
 
@@ -993,7 +994,7 @@ delete_dbtree_client(dbtree_node *node, uint32_t pipe_id)
 static int
 delete_dbtree_node(dbtree_node *node, int index)
 {
-	pthread_rwlock_wrlock(&(node->rwlock));
+	nano_rwlock_wrlock(&(node->rwlock));
 	dbtree_node *node_t = node->child[index];
 	// TODO plus && well
 
@@ -1031,7 +1032,7 @@ delete_dbtree_node(dbtree_node *node, int index)
 		node->child = NULL;
 	}
 
-	pthread_rwlock_unlock(&(node->rwlock));
+	nano_rwlock_unlock(&(node->rwlock));
 	return 0;
 }
 
@@ -1043,7 +1044,7 @@ search_and_delete(dbtree *db, char *topic, uint32_t session_id,
 		log_err("db or topic is NULL");
 		return NULL;
 	}
-	pthread_rwlock_wrlock(&(db->rwlock));
+	nano_rwlock_wrlock(&(db->rwlock));
 
 	char **       topic_queue = topic_parse(topic);
 	char **       for_free    = topic_queue;
@@ -1118,7 +1119,7 @@ mem_free:
 	cvector_free(node_buf);
 	topic_queue_free(for_free);
 	cvector_free(vec);
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 
 	return ctxt;
 }
@@ -1136,14 +1137,14 @@ insert_dbtree_retain(dbtree_node *node, void *args)
 {
 	dbtree_retain_msg *retain = (dbtree_retain_msg *) args;
 	void *             ret    = NULL;
-	pthread_rwlock_wrlock(&(node->rwlock));
+	nano_rwlock_wrlock(&(node->rwlock));
 	if (node->retain != NULL) {
 		ret = node->retain;
 	}
 
 	node->retain = retain;
 
-	pthread_rwlock_unlock(&(node->rwlock));
+	nano_rwlock_unlock(&(node->rwlock));
 
 	return ret;
 }
@@ -1289,7 +1290,7 @@ dbtree_find_retain(dbtree *db, char *topic)
 	}
 	char **topic_queue = topic_parse(topic);
 	char **for_free    = topic_queue;
-	pthread_rwlock_rdlock(&(db->rwlock));
+	nano_rwlock_rdlock(&(db->rwlock));
 
 	dbtree_node *node                 = db->root;
 	cvector(dbtree_retain_msg *) rets = NULL;
@@ -1311,7 +1312,7 @@ dbtree_find_retain(dbtree *db, char *topic)
 		topic_queue++;
 	}
 
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 
 	topic_queue_free(for_free);
 	cvector_free(nodes);
@@ -1343,7 +1344,7 @@ dbtree_delete_retain(dbtree *db, char *topic)
 		log_err("db or topic is NULL");
 		return NULL;
 	}
-	pthread_rwlock_wrlock(&(db->rwlock));
+	nano_rwlock_wrlock(&(db->rwlock));
 
 	char **       topic_queue = topic_parse(topic);
 	char **       for_free    = topic_queue;
@@ -1405,7 +1406,7 @@ dbtree_delete_retain(dbtree *db, char *topic)
 		// dbtree_print(dbtree);
 	}
 
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 
 mem_free:
 	cvector_free(node_buf);
@@ -1487,7 +1488,7 @@ dbtree_shared_iterate_client(dbtree_client ***v)
 void **
 dbtree_find_shared_clients(dbtree *db, char *topic)
 {
-	pthread_rwlock_rdlock(&(db->rwlock));
+	nano_rwlock_rdlock(&(db->rwlock));
 	dbtree_node *node                              = db->root;
 	cvector(dbtree_client **) ctxts                = NULL;
 	cvector(dbtree_node *) nodes                   = NULL;
@@ -1503,7 +1504,7 @@ dbtree_find_shared_clients(dbtree *db, char *topic)
 	dbtree_node *shared = find_next(node, &equal, &t, &index);
 
 	if (equal == false || shared == NULL || shared->child == NULL) {
-		pthread_rwlock_unlock(&(db->rwlock));
+		nano_rwlock_unlock(&(db->rwlock));
 		return NULL;
 	}
 
@@ -1534,7 +1535,7 @@ dbtree_find_shared_clients(dbtree *db, char *topic)
 	}
 
 	void **ret = (void **) dbtree_shared_iterate_client(ctxts);
-	pthread_rwlock_unlock(&(db->rwlock));
+	nano_rwlock_unlock(&(db->rwlock));
 	topic_queue_free(for_free);
 	cvector_free(nodes);
 	cvector_free(nodes_t);
