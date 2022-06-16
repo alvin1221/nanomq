@@ -13,10 +13,10 @@
 #include <time.h>
 
 #include "conf.h"
+#include "include/nanomq.h"
 #include "include/webhook_inproc.h"
 #include "nano_lmq.h"
 #include "nng/nng.h"
-#include "nng/nng_debug.h"
 #include "nng/protocol/pipeline0/pull.h"
 #include "nng/protocol/pipeline0/push.h"
 #include "nng/supplemental/http/http.h"

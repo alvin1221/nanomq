@@ -1,4 +1,5 @@
 #include "nnb_opt.h"
+#ifndef NANO_PLATFORM_WINDOWS
 #include "dbg.h"
 #include "nnb_help.h"
 #include <stdarg.h>
@@ -885,3 +886,5 @@ sub_opt_set(int argc, char **argv, nnb_sub_opt *opt)
 
 	return 0;
 }
+
+#endif

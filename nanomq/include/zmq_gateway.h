@@ -9,11 +9,16 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <getopt.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
+#ifdef NANO_PLATFORM_WINDOWS
+#include <windows.h>
+#else
+#include <stdint.h>
+#include <getopt.h>
 #include <unistd.h>
+#endif
+
 
 int  zmq_gateway(zmq_gateway_conf *conf);
 

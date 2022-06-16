@@ -8,6 +8,7 @@
 //
 #include "mq.h"
 #include "include/nanomq.h"
+#ifndef NANO_PLATFORM_WINDOWS
 
 #include <errno.h>
 #include <fcntl.h>
@@ -15,8 +16,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -143,4 +144,5 @@ dashboard_data_sync(int argc, char **argv)
 	return 0;
 }
 
+#endif
 #endif

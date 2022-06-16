@@ -10,6 +10,8 @@
 #define PARALLEL 8
 #endif
 
+#ifndef NANO_PLATFORM_WINDOWS
+
 typedef struct {
 	nng_atomic_int *acnt;
 	nng_atomic_int *topic_cnt;
@@ -599,3 +601,5 @@ bench_start(int argc, char **argv)
 
 	return 0;
 }
+
+#endif

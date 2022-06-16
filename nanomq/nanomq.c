@@ -26,9 +26,9 @@
 #include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#endif
-#include <sys/types.h>
 #include <unistd.h>
+#include <sys/types.h>
+#endif
 
 #define NANO_APP_NAME "nanomq"
 #define NANO_BRAND "NanoMQ Edge Computing Kit & Messaging bus"

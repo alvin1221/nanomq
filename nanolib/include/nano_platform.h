@@ -2,8 +2,8 @@
 #define NANO_PLATFORM_H
 
 #ifdef NANO_PLATFORM_WINDOWS
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 
 #include <mswsock.h>
 #include <process.h>

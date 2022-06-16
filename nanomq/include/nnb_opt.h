@@ -1,13 +1,17 @@
 #ifndef NNB_OPT_H
 #define NNB_OPT_H
 
+//TODO use `nng_getopt()` to instead
+#ifndef NANO_PLATFORM_WINDOWS
+
 #include <assert.h>
-#include <getopt.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <getopt.h>
+
 
 #include <nng/mqtt/mqtt_client.h>
 #include <nng/nng.h>
@@ -117,5 +121,7 @@ extern nnb_sub_opt * nnb_sub_opt_init(int argc, char **argv);
 extern void          nnb_sub_opt_destory(nnb_sub_opt *opt);
 extern nnb_pub_opt * nnb_pub_opt_init(int argc, char **argv);
 extern void          nnb_pub_opt_destory(nnb_pub_opt *opt);
+
+#endif
 
 #endif

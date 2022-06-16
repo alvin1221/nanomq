@@ -7,15 +7,16 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef NANO_PLATFORM_WINDOWS
-#include <mswsock.h>
 #include <winsock2.h>
+#include <windows.h>
+#include <mswsock.h>
 #include <ws2def.h>
 #else
 #include <sys/ioctl.h>
-#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#endif
 
 #include "file.h"
 

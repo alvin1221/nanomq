@@ -18,9 +18,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #ifndef NANO_PLATFORM_WINDOWS
+#include <unistd.h>
 #include <paths.h>
 
 int
