@@ -98,7 +98,7 @@ find_package(Threads)
 # list of source files
 # set(libsrc hash_table.c mqtt_db.c zmalloc.c ) #conf.c file.c cmd.c nano_alloc.c nano_lmq.c)
 set(libsrc hash_table.c mqtt_db.c zmalloc.c conf.c file.c 
-    cmd.c nano_alloc.c nano_lmq.c env.c 
+    cmd.c nano_alloc.c nano_lmq.c nano_platform.c env.c 
     libs/base64.c libs/cJSON.c db_cli.c)
 
 # this is the "object library" target: compiles the sources only once

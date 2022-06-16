@@ -2,7 +2,7 @@
 #define MQTT_DB_H
 
 #include "cvector.h"
-#include <pthread.h>
+#include "nano_platform.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -35,24 +35,24 @@ typedef struct {
 typedef struct dbtree_node dbtree_node;
 
 struct dbtree_node {
-	char	      *topic;
+	char *             topic;
 	int                plus;
 	int                well;
 	dbtree_retain_msg *retain;
 	cvector(dbtree_client *) clients;
 	cvector(dbtree_node *) child;
-	pthread_rwlock_t rwlock;
+	nano_rwlock rwlock;
 };
 
 typedef struct {
-	char  *topic;
+	char * topic;
 	char **clients;
 	int    cld_cnt;
 } dbtree_info;
 
 typedef struct {
-	dbtree_node     *root;
-	pthread_rwlock_t rwlock;
+	dbtree_node *root;
+	nano_rwlock  rwlock;
 } dbtree;
 
 /**
