@@ -7,8 +7,8 @@
 
 cmake_minimum_required (VERSION 2.8.8)
 
-# SET(CMAKE_C_FLAGS "-std=c99")
-SET(CMAKE_C_FLAGS "-std=gnu99")
+SET(CMAKE_C_STANDARD 99)
+
 project(nanolib)
 
 if (DEBUG AND ASAN)
