@@ -1,7 +1,10 @@
 #include "include/test.h"
 #include "stdio.h"
+#ifdef NANO_PLATFORM_WINDOWS
+#include <windows.h>
+#else
 #include <getopt.h>
-
+#endif
 
 const char *help_info = "nano_test [--help <help>] [-a <all>] [-h <hash>] [-t <tree>]\n";
 static struct option long_options[] = { 

@@ -7,8 +7,8 @@
 
 cmake_minimum_required (VERSION 2.8.8)
 
-# SET(CMAKE_C_FLAGS "-std=c99")
-SET(CMAKE_C_FLAGS "-std=gnu99")
+SET(CMAKE_C_STANDARD 99)
+
 project(nanolib)
 
 if (DEBUG AND ASAN)
@@ -84,6 +84,19 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if(NANO_PLATFORM_WINDOWS)
+  nng_check_sym(InitializeConditionVariable windows.h NNG_HAVE_CONDVAR)
+  nng_check_sym(snprintf stdio.h NNG_HAVE_SNPRINTF)
+  if (NOT NNG_HAVE_CONDVAR OR NOT NNG_HAVE_SNPRINTF)
+      message(FATAL_ERROR
+              "Modern Windows API support is missing. "
+              "Versions of Windows prior to Vista are not supported.  "
+              "Further, the 32-bit MinGW environment is not supported. "
+              "Ensure you have at least Windows Vista or newer, and are "
+              "using either Visual Studio 2013 or newer or MinGW-W64.")
+  endif ()
+  nng_link_libraries(ws2_32 mswsock advapi32)
+endif()
 
 #aux_source_directory(. DIRSRCS)
 
@@ -124,9 +137,9 @@ if (ENABLE_RULE_ENGINE)
 endif (ENABLE_RULE_ENGINE)
 
 
-add_executable(nano_test test.c test_hash.c test_dbtree.c)
-target_link_libraries(nano_test nano_shared)
-target_link_libraries(nano_test ${FOUNDATION_LIBRARY})
+# add_executable(nano_test test.c test_hash.c test_dbtree.c)
+# target_link_libraries(nano_test nano_shared)
+# target_link_libraries(nano_test ${FOUNDATION_LIBRARY})
 
 
 

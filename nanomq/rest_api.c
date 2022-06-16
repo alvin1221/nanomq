@@ -22,7 +22,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef NANO_PLATFORM_WINDOWS
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 #ifdef SUPP_JWT
 #include "l8w8jwt/decode.h"

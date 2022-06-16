@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <conf.h>
 #include <env.h>
@@ -41,6 +40,12 @@
 #if defined(SUPP_RULE_ENGINE)
 	#include <foundationdb/fdb_c.h>
 	#include <foundationdb/fdb_c_options.g.h>
+#endif
+
+#ifdef NANO_PLATFORM_WINDOWS
+#include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 // Parallel is the maximum number of outstanding requests we can handle.
@@ -922,13 +927,23 @@ print_usage(void)
 	       "does not have a certificate to send (default: false)\n");
 }
 
+#ifdef NANO_PLATFORM_WINDOWS
+int
+status_check(uint32_t *pid)
+{
+	debug_msg("Not support on Windows\n");
+	return -1;
+}
+int
+store_pid()
+{
+	debug_msg("Not support on Windows\n");
+	return -1;
+}
+#else
 int
 status_check(pid_t *pid)
 {
-#ifdef NANO_PLATFORM_WINDOWS
-	debug_msg("Not support on Windows\n");
-	return -1;
-#else
 	char  *data = NULL;
 	size_t size = 0;
 
@@ -957,7 +972,6 @@ status_check(pid_t *pid)
 		debug_msg("unexpected error");
 		return -1;
 	}
-#endif
 }
 
 int
@@ -972,6 +986,7 @@ store_pid()
 	status = nng_file_put(PID_PATH_NAME, pid_c, sizeof(pid_c));
 	return status;
 }
+#endif
 
 void
 active_conf(conf *nanomq_conf)
@@ -1151,8 +1166,12 @@ broker_parse_opts(int argc, char **argv, conf *config)
 int
 broker_start(int argc, char **argv)
 {
-	int   i, url, temp, rc, num_ctx = 0;
-	pid_t pid              = 0;
+	int i, url, temp, rc, num_ctx = 0;
+#ifdef NANO_PLATFORM_WINDOWS
+	uint32_t pid = 0;
+#else
+	pid_t pid = 0;
+#endif
 	char *conf_path        = NULL;
 	char *bridge_conf_path = NULL;
 	conf *nanomq_conf;
