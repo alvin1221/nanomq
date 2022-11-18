@@ -110,6 +110,37 @@ jobs:
           sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
           cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
         fi
+      
+    - name: build with msquic armhf
+      run: |
+        if [ "${{ matrix.arch[0] }}" = "armhf" ]; then
+          set -eu
+          cd build
+          rm -rf `ls | grep -v _packages`
+          cmake -DNNG_ENABLE_QUIC=ON  -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++ -DCMAKE_TARGET_ARCHITECTURE=arm  toolchains $PWD/nng/extern/msquic/cmake/toolchains/arm-linux.cmake  -DGNU_MACHINE=arm-linux-gnueabihf -DONEBRANCH=1 ..
+          make
+        fi
+    - name: build deb with msquic armhf
+      run: |
+        if [ "${{ matrix.arch[0] }}" = "armhf" ]; then
+          set -eu
+          cd build
+          sudo checkinstall --backup=no --install=no --type=debian --arch=armhf  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-armhf-msquic.deb"
+          sudo mv _packages/nanomq_$(git describe --abbrev=0 --tags)_${{ matrix.arch[0] }}.deb _packages/$pkg_name
+          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        fi
+      
+    - name: build rpm with msquic armhf
+      run: |
+        if [ "${{ matrix.arch[0] }}" = "arm64" ]; then
+          set -eu
+          cd build
+          sudo checkinstall --backup=no --install=no --type=rpm --arch=armhf  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
+          pkg_name="nanomq-$(git describe --abbrev=0 --tags)-linux-armhf-msquic.rpm"
+          sudo mv _packages/nanomq-$(git describe --abbrev=0 --tags)-1.${{ matrix.arch[0] }}.rpm _packages/$pkg_name
+          cd _packages; echo $(sha256sum $pkg_name | awk '{print $1}') > $pkg_name.sha256
+        fi
 
     - name: build with msquic arm64
       run: |
