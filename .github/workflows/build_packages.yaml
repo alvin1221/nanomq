@@ -133,7 +133,7 @@ jobs:
       
     - name: build rpm with msquic armhf
       run: |
-        if [ "${{ matrix.arch[0] }}" = "arm64" ]; then
+        if [ "${{ matrix.arch[0] }}" = "armhf" ]; then
           set -eu
           cd build
           sudo checkinstall --backup=no --install=no --type=rpm --arch=armhf  --pkgname=nanomq --pkgversion=$(git describe --abbrev=0 --tags) --pkggroup=EMQX --maintainer=EMQX --provides=EMQX --pakdir _packages --recommends=1 --suggests=1 -y
