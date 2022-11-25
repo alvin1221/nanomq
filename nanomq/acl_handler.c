@@ -158,13 +158,6 @@ auth_acl(conf *config, acl_action_type act_type, conn_param *param,
 
 	conn_param_free(param);
 
-	// if (!match && config->acl_nomatch == ACL_ALLOW &&
-	//     acl->rule_count > 0) {
-	// 	return true;
-	// } else {
-	// 	return result;
-	// }
-
 	if (match) {
 		return result;
 	} else {

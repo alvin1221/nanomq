@@ -250,7 +250,9 @@ sub_ctx_handle(nano_work *work)
 			log_warn("acl deny");
 			if (work->config->acl_deny_action == ACL_DISCONNECT) {
 				log_warn("acl deny, disconnect client");
-				// TODO disconnect client or return error code
+				return BANNED;
+			} else {
+				// TODO set suback return code
 				goto next;
 			}
 		} else {
